@@ -1,4 +1,6 @@
 #include <iostream>
+#include "math.h"
+#include <stdio.h>
 using namespace std;
 
 // error checking helper
@@ -44,19 +46,19 @@ __device__ int* _nearest_grid_idx(float pt_x, float pt_y, float pt_z, \
 	// loop over the X grid
 	for ( int i = 0; i < nX; i++ ) {
 		// find the nearest grid point index at X
-		if ( abs( pt_x - x_grd[i] ) <= ( 0.5 * DX / scale_x ) ) { near_i = i; }
+		if ( fabs( pt_x - x_grd[i] ) <= ( 0.5 * DX / scale_x ) ) { near_i = i; }
 	}
 
 	// loop over the Y grid
 	for ( int j = 0; j < nY; j++ ) {
 		// find the nearest grid point index in the Y
-		if ( abs( pt_y - y_grd[j] ) <= ( 0.5 * DY / scale_y ) ) { near_j = j; }
+		if ( fabs( pt_y - y_grd[j] ) <= ( 0.5 * DY / scale_y ) ) { near_j = j; }
 	}
 
 	// loop over the Z grid
 	for (int k = 0; k < nZ; k++ ) {
 		// find the nearest grid point index in the Z
-		if ( abs( pt_z - z_grd[k] ) <= ( 0.5 * DZ / scale_z ) ) { near_k = k; }
+		if ( fabs( pt_z - z_grd[k] ) <= ( 0.5 * DZ / scale_z ) ) { near_k = k; }
 	}
 
 	// if a nearest index was not found, set all indices to -1 to flag
@@ -154,10 +156,4 @@ __device__ float* _calc_weights(float *x_grd, float *y_grd, float *z_grd, float 
 
 	return weights;
 
-}
-
-
-int main() {
-
-	return 0;
 }
