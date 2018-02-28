@@ -7,7 +7,7 @@ using namespace std;
 // to determine that things are working as intended.
 // It creates a small 30m isotropic grid and calls the GPU code
 // to find the nearest grid point index, and then returns the
-// grid point information for that index.
+// grid point information for that index. This is a GPU method.
 __global__ void _testNearestIndex(float *point, float *nearest_point) {
 	printf("INPUT PARAMATERS\n");
 	printf("%0.6f %0.6f %0.6f\n", point[0], point[1], point[2]);
@@ -72,7 +72,7 @@ __global__ void _testNearestIndex(float *point, float *nearest_point) {
 
 // Test whether or not the _calc_weights function works as intended.
 // Creates a small 30m isotropic grid to test the weigting function.
-// _calc_weights calls _nearest_grid_idx.
+// _calc_weights calls _nearest_grid_idx. This is a GPU method. 
 __global__ void _testCalcWeights(float *point, float *weights_out) {
 
 	float *x_grd, *y_grd, *z_grd;
@@ -112,6 +112,7 @@ __global__ void _testCalcWeights(float *point, float *weights_out) {
 }
 
 
+// The CPU method for testing the GPU method that returns the nearest grid index
 void testNearestIndex() {
 	float *nearest_point;
 	float *point;
@@ -152,6 +153,8 @@ void testNearestIndex() {
 	cout << "END NEAREST GRIDPOINT TEST" << endl << endl << endl << endl;
 }
 
+// the CPU method for testing the GPU method that returns the trilinear interpolation
+// weights for a regular 3D isotropic grid. 
 void testCalcWeights() {
 	float *point;
 	float *weights_out;
