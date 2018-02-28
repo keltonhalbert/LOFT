@@ -3,7 +3,7 @@ using namespace std;
 
 
 // this function tests the _nearest_grid_idx method in order 
-__global__ void testNearestIndex(float *point, float *nearest_point) {
+__global__ void _testNearestIndex(float *point, float *nearest_point) {
 	printf("INPUT PARAMATERS\n");
 	printf("%0.6f %0.6f %0.6f\n", point[0], point[1], point[2]);
 	printf("%0.6f %0.6f %0.6f\n\n", nearest_point[0], nearest_point[1], nearest_point[2]);
@@ -66,7 +66,7 @@ __global__ void testNearestIndex(float *point, float *nearest_point) {
 }
 
 
-int main() {
+void testNearestIndex() {
 	float *nearest_point;
 	float *point;
 	gpuErrchk( cudaMallocManaged(&nearest_point, 3 * sizeof(float)) );
@@ -77,7 +77,7 @@ int main() {
 	cout << "CASE WHERE DATA IS EXACTLY ON GRID" << endl;
 	point[0] = 30.; point[1] = 30.; point[2] = 30.;
 	nearest_point[0] = -1.; nearest_point[1] = -1.; nearest_point[2] = -1.;
-	testNearestIndex<<<1,1>>>(point, nearest_point);
+	_testNearestIndex<<<1,1>>>(point, nearest_point);
 	cudaDeviceSynchronize();
 	cout << "OUTPUT" << endl;
 	cout << "X input: " << point[0] << " | Nearest X Point: " << nearest_point[0] << endl;
@@ -87,7 +87,7 @@ int main() {
 	cout << "CASE WHERE DATA IS NOT ON GRID BUT IN GRID" << endl;
 	point[0] = 121.; point[1] = 65.; point[2] = 252.3337;
 	nearest_point[0] = -1.; nearest_point[1] = -1.; nearest_point[2] = -1.;
-	testNearestIndex<<<1,1>>>(point, nearest_point);
+	_testNearestIndex<<<1,1>>>(point, nearest_point);
 	cudaDeviceSynchronize();
 	cout << "OUTPUT" << endl;
 	cout << "X input: " << point[0] << " | Nearest X Point: " << nearest_point[0] << endl;
@@ -97,12 +97,17 @@ int main() {
 	cout << "CASE WHERE DATA IS OUTSIDE OF THE DOMAIN" << endl;
 	point[0] = -100.; point[1] = 10000.; point[2] = 5000.;
 	nearest_point[0] = -1.; nearest_point[1] = -1.; nearest_point[2] = -1.;
-	testNearestIndex<<<1,1>>>(point, nearest_point);
+	_testNearestIndex<<<1,1>>>(point, nearest_point);
 	cudaDeviceSynchronize();
 	cout << "OUTPUT" << endl;
 	cout << "X input: " << point[0] << " | Nearest X Point: " << nearest_point[0] << endl;
 	cout << "Y input: " << point[1] << " | Nearest Y Point: " << nearest_point[1] << endl;
 	cout << "Z input: " << point[2] << " | Nearest Z Point: " << nearest_point[2] << endl << endl;
 	cout << "END NEAREST GRIDPOINT TEST" << endl << endl;
+}
+
+int main() {
+
+	testNearestIndex();
 	return 0;
 }
