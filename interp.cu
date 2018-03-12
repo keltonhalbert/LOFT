@@ -156,3 +156,42 @@ __device__ float* _calc_weights(float *x_grd, float *y_grd, float *z_grd, float 
 	return weights;
 
 }
+
+
+// interpolate the value of a point contained within a 3D grid.
+
+// datagrid is a 3D field allocated into a contiguous 1D array block of memory.
+// weights is a 1D array of interpolation weights returned by _calc_weights
+// i, j, and k are the respective indices of the nearest grid point we are
+// interpolating to, returned by _nearest_grid_idx 
+__devce__ float _tri_interp(float** datagrid, float* weights, int i, int j, int k) {
+	float out = -999.99;
+
+	// if the given i,j,k are invalid, return -999.99
+	if ((i == -1) | (j == -1) | (k == -1)) {
+		return out;
+	}
+
+	// if the given weights are invalid, return -999.99
+	for (idx = 0; idx < 8; idx++) {
+		if (weights[idx] == -1) {
+			return out;
+		}
+	}
+
+
+	// from here on our, we assume out point is inside of the domain,
+	// and there are weights with values between 0 and 1.
+
+	out = datagrid[i][j][k] * weights[0] + \
+		  datagrid[i+1][j][k] * weights[1] + \
+		  datagrid[i][j+1][k] * weights[2] + \
+		  datagrid[i][j][k+1] * weights[3] + \
+		  datagrid[i+1][j][k+1] * weights[4] + \
+		  datagrid[i][j+1][k+1] * weights[5] + \
+		  datagrid[i+1][j+1][k] * weights[6] + \
+		  datagrid[i+1][j+1][k+1] * weights[7]
+
+	return out;
+
+}
