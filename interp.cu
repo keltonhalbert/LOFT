@@ -13,6 +13,15 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
    }
 }
 
+//Transform 3D coordinates into 1D coordinate
+int getIndex(int x, int y, int z, int height, int width) {
+	return x + y*height + z*height*width;
+}
+
+__device__ int arrayIndex(int x, int y, int z, int height, int width) {
+	return x + y*height + z*height*width;
+}
+
 
 // We are not working with full integration time data - some sort of subset of 
 // data from CM1 is expected. We expect there to be U, V, and W on native (uninterpolated)
@@ -164,8 +173,11 @@ __device__ float* _calc_weights(float *x_grd, float *y_grd, float *z_grd, float 
 // weights is a 1D array of interpolation weights returned by _calc_weights
 // i, j, and k are the respective indices of the nearest grid point we are
 // interpolating to, returned by _nearest_grid_idx 
-__devce__ float _tri_interp(float** datagrid, float* weights, int i, int j, int k) {
+__devce__ float _tri_interp(float* datagrid, float* weights, int i, int j, int k) {
 	float out = -999.99;
+	int idx1, idx2, idx3, idx4;
+	int idx5, idx6, idx7, idx8;
+	int height, width;
 
 	// if the given i,j,k are invalid, return -999.99
 	if ((i == -1) | (j == -1) | (k == -1)) {
@@ -183,14 +195,25 @@ __devce__ float _tri_interp(float** datagrid, float* weights, int i, int j, int 
 	// from here on our, we assume out point is inside of the domain,
 	// and there are weights with values between 0 and 1.
 
-	out = datagrid[i][j][k] * weights[0] + \
-		  datagrid[i+1][j][k] * weights[1] + \
-		  datagrid[i][j+1][k] * weights[2] + \
-		  datagrid[i][j][k+1] * weights[3] + \
-		  datagrid[i+1][j][k+1] * weights[4] + \
-		  datagrid[i][j+1][k+1] * weights[5] + \
-		  datagrid[i+1][j+1][k] * weights[6] + \
-		  datagrid[i+1][j+1][k+1] * weights[7]
+	// get the array indices
+	idx1 = arrayIndex(i, j, k, height, width);
+	idx2 = arrayIndex(i+1, j, k, height, width);
+	idx3 = arrayIndex(i, j+1, k, height, width);
+	idx4 = arrayIndex(i, j, k+1, height, width);
+	idx5 = arrayIndex(i+1, j, k+1, height, width);
+	idx6 = arrayIndex(i, j+1, k+1, height, width);
+	idx7 = arrayIndex(i+1, j+1, k, height, width);
+	idx8 = arrayIndex(i+1, j+1, k+1, height, width);
+
+
+	out = datagrid[idx1] * weights[0] + \
+		  datagrid[idx2] * weights[1] + \
+		  datagrid[idx3] * weights[2] + \
+		  datagrid[idx4] * weights[3] + \
+		  datagrid[idx5] * weights[4] + \
+		  datagrid[idx6] * weights[5] + \
+		  datagrid[idx7] * weights[6] + \
+		  datagrid[idx8] * weights[7];
 
 	return out;
 
