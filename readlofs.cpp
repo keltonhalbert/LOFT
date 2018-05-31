@@ -209,6 +209,36 @@ void lofs_get_grid( datagrid *grid ) {
     grid->zf = zfout;
 }
 
+void lofs_read_3dvar(datagrid *grid) {
+
+    // lifted from LOFS hdf2.c
+    // topdir, timedir, nodedir, ntimedirs, dn, dirtimes, alltimes, ntottimes all from
+    // lofs_get_dataset_structure
+    //
+    // X0, Y0, X1, Y1, Z0, Y1, nx, ny, nz all from lofs_get_grid
+    int t0 = (int)alltimes[0];
+    long bufsize = (long) (grid->NX+1) * (long) (grid->NY+1) * (long) (grid->NZ+1) * (long) sizeof(float);
+    float *ubuffer = new float[(size_t)bufsize];
+    read_hdf_mult_md(ubuffer,topdir,timedir,nodedir,ntimedirs,dn,dirtimes,alltimes,ntottimes,t0,(char *)"uinterp", \
+            grid->X0,grid->Y0,grid->X1,grid->Y1,grid->Z0,grid->Z1,nx,ny,nz,nodex,nodey);
+    // print out some grid stats for fun so we can see what all is going on
+    // in the file
+    float min = 9999.;
+    float max = -9999.;
+    float avg = 0;
+    int N = (grid->NX+1) * (grid->NY+1) * (grid->NZ+1);
+    for (int i = 0; i < N; ++i) {
+        if (ubuffer[i] < min) min = ubuffer[i];
+        if (ubuffer[i] > max) max = ubuffer[i];
+        avg += ubuffer[i];
+    }
+
+    std::cout << "uinterp min: " << min << " m/s" <<  std::endl;
+    std::cout << "uinterp max: " << max << " m/s" << std::endl;
+    std::cout << "uinterp avg: " << avg / ((float) N) << " m/s" << std::endl;
+
+}
+
 
 int main() {
 
@@ -232,6 +262,9 @@ int main() {
     // the subset information provided to
     // out grid struct
     lofs_get_grid(&requested_grid);
+
+    // request 3D field!
+    lofs_read_3dvar(&requested_grid);
 
     // print some stuff to make sure it all worked properly
     std::cout << "GRID DIMS | NX = " << requested_grid.NX << " NY = " << requested_grid.NY << " NZ = " << requested_grid.NZ << std::endl;
