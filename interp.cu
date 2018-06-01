@@ -1,27 +1,15 @@
 #include <iostream>
 #include "math.h"
+using namespace std;
 
 #ifndef INTERP
 #define INTERP
-using namespace std;
-
-// error checking helper
-#define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
-inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
-{
-   if (code != cudaSuccess) 
-   {
-      cout << cudaGetErrorString(code) << endl;
-      if (abort) exit(code);
-   }
-}
-
 //Transform 3D coordinates into 1D coordinate
 int getIndex(int x, int y, int z, int height, int width) {
 	return x + y*height + z*height*width;
 }
 
-__device__ int arrayIndex(int x, int y, int z, int height, int width) {
+__host__ __device__ int arrayIndex(int x, int y, int z, int height, int width) {
 	return x + y*height + z*height*width;
 }
 
@@ -31,18 +19,17 @@ __device__ int arrayIndex(int x, int y, int z, int height, int width) {
 // grids, information about the X, Y, and Z grid points, and a set of scalar fields.
 // It is up to the user to specify grid spacing at run-time. It is assumed that there is
 // no grid stretching at this time (i.e. grid scale factor = 1.0) 
-
-__device__ float DX = 30.; 
-__device__ float DY = 30.; 
-__device__ float DZ = 30.;
-__device__ float scale_x = 1.0;
-__device__ float scale_y = 1.0;
-__device__ float scale_z = 1.0;
+static const float DX = 30.; 
+static const float DY = 30.; 
+static const float DZ = 30.;
+static const float scale_x = 1.0;
+static const float scale_y = 1.0;
+static const float scale_z = 1.0;
 
 
 // Compute the nearest grid point index along each dimension
 // for a single parcel.
-__device__ int* _nearest_grid_idx(float pt_x, float pt_y, float pt_z, \
+__device__ __host__ int* _nearest_grid_idx(float pt_x, float pt_y, float pt_z, \
 								float *x_grd, float *y_grd, float *z_grd, \
 								int nX, int nY, int nZ) {
 
@@ -83,7 +70,7 @@ __device__ int* _nearest_grid_idx(float pt_x, float pt_y, float pt_z, \
 }
 
 // calculate the 8 weights for a single parcel
-__device__ float* _calc_weights(float *x_grd, float *y_grd, float *z_grd, float x_pt, float y_pt, \
+__host__ __device__ float* _calc_weights(float *x_grd, float *y_grd, float *z_grd, float x_pt, float y_pt, \
 								float z_pt, bool ugrd, bool vgrd, bool wgrd, int nX, int nY, int nZ) {
 	int i, j, k;
 	float rx, ry, rz;
@@ -176,7 +163,7 @@ __device__ float* _calc_weights(float *x_grd, float *y_grd, float *z_grd, float 
 // weights is a 1D array of interpolation weights returned by _calc_weights
 // i, j, and k are the respective indices of the nearest grid point we are
 // interpolating to, returned by _nearest_grid_idx 
-__devce__ float _tri_interp(float* datagrid, float* weights, int i, int j, int k) {
+__host__ __device__ float _tri_interp(float* datagrid, float* weights, int i, int j, int k) {
 	float out = -999.99;
 	int idx1, idx2, idx3, idx4;
 	int idx5, idx6, idx7, idx8;
@@ -188,7 +175,7 @@ __devce__ float _tri_interp(float* datagrid, float* weights, int i, int j, int k
 	}
 
 	// if the given weights are invalid, return -999.99
-	for (idx = 0; idx < 8; idx++) {
+	for (int idx = 0; idx < 8; idx++) {
 		if (weights[idx] == -1) {
 			return out;
 		}
