@@ -212,8 +212,8 @@ void lofs_get_grid( datagrid *grid ) {
 void lofs_read_3dvar(datagrid *grid, float *buffer, char *varname, int t0) {
 
     // lifted from LOFS hdf2.c
-    // topdir, timedir, nodedir, ntimedirs, dn, dirtimes, alltimes, ntottimes all from
-    // lofs_get_dataset_structure
+    // topdir, timedir, nodedir, ntimedirs, dn, dirtimes, alltimes, ntottimes,
+    // nodex, nodey all from lofs_get_dataset_structure
     //
     // X0, Y0, X1, Y1, Z0, Y1, nx, ny, nz all from lofs_get_grid
     read_hdf_mult_md(buffer,topdir,timedir,nodedir,ntimedirs,dn,dirtimes,alltimes,ntottimes,t0,varname, \
