@@ -7,9 +7,9 @@ LOFSINC=/u/sciteam/halbert/LOFS/cm1tools-3.0
 HDF5LIBS = -lnetcdf -lhdf5_hl -lhdf5 -lm -lcm
 CC = CC
 
-all: readlofs 
+all: runtraj 
 
-readlofs: readlofs.cpp 
-	$(CC) -o readlofs readlofs.cpp -I$(LOFSINC) -L$(NETCDF_DIR)/libi -L$(LOFSINC) $(HDF5LIBS)
+runtraj: run_traj.cpp 
+	$(CC) -o runtraj run_traj.cpp -I$(LOFSINC) -L$(NETCDF_DIR)/libi -L$(LOFSINC) $(HDF5LIBS)
 clean:
 	rm -rf *.o 
