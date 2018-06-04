@@ -209,7 +209,7 @@ __host__ __device__ float _tri_interp(float* data_arr, float* weights, int *idx_
 }
 
 __host__ __device__ float interp3D(float *x_grd, float *y_grd, float *z_grd, float *data_grd, float *point, \
-                                    int nX, int nY, int nZ) {
+                                    bool ugrd, bool vgrd, bool wgrd, int nX, int nY, int nZ) {
     int idx_3D[3];
     float weights[8];
     float output_val;
@@ -219,7 +219,7 @@ __host__ __device__ float interp3D(float *x_grd, float *y_grd, float *z_grd, flo
     _nearest_grid_idx(point, x_grd, y_grd, z_grd, idx_3D, nX, nY, nZ);
 
     // get the interpolation weights
-    _calc_weights(x_grd, y_grd, z_grd, weights, point, idx_3D, false, false, false, nX, nY, nZ); 
+    _calc_weights(x_grd, y_grd, z_grd, weights, point, idx_3D, ugrd, vgrd, wgrd, nX, nY, nZ); 
 
     // interpolate the value
     output_val = _tri_interp(data_grd, weights, idx_3D, nX, nY);

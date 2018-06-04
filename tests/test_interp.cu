@@ -137,13 +137,16 @@ void _testTriInterp(float *point, float *interp_val) {
 	}
 
     //initialize our fake data grid with ones in all dimensions
-    for (int idx = 0; idx < N; ++idx) {
-        data_arr[idx] = 1;
-    }
+    for ( int i = 0; i < nX; ++i) {
+        for (int j = 0; j < nY; ++j) {
+            for (int k = 0; k < nZ; ++k) {
+            data_arr[arrayIndex(i, j, k, nX, nY)] = k;
+            }
+        }
+    } 
 
-    float result = interp3D(x_grd, y_grd, z_grd, data_arr, point, nX, nY, nZ);
+    float result = interp3D(x_grd, y_grd, z_grd, data_arr, point, false, false, false, nX, nY, nZ);
 
-    cout << result << endl;
     interp_val[0] = result; 
 
     return;
@@ -247,35 +250,29 @@ void testTriInterp() {
 	// in this case, w1 should equal 1 and the other weights equal 0.
 	cout << endl << "TESTING THE INTERPOLATION CALCULATOR USING 30 METER ISOTROPIC" << endl;
 	cout << "CASE WHERE DATA IS EXACTLY ON GRID" << endl;
-	point[0] = 30.; point[1] = 30.; point[2] = 30.;
+	point[0] = 30.; point[1] = 30.; point[2] = 60.;
 	_testTriInterp(point, interp_val);
 	cout << "OUTPUT" << endl;
 	cout << "INTERP = " << interp_val[0];;
 	cout << endl << endl;
 
-    /*
 	// in this case, we should have 8 distinct weights with values < 1
 	cout << "CASE WHERE DATA IS NOT ON GRID BUT IN GRID" << endl;
 	point[0] = 121.; point[1] = 65.; point[2] = 252.3337;
-	_testCalcWeights(point, weights_out);
+	_testTriInterp(point, interp_val);
 	cout << "OUTPUT" << endl;
-	for (int i = 0; i < 8; i++) {
-		cout << "W" << i+1 << "=" << weights_out[i] << " ";
-	}
+	cout << "INTERP = " << interp_val[0];;
 	cout << endl << endl;
 
 	// in this case, all weights should return as -1 because 
 	// the requested point was outside of our specified domain
 	cout << "CASE WHERE DATA IS OUTSIDE OF THE DOMAIN" << endl;
 	point[0] = -100.; point[1] = 10000.; point[2] = 5000.;
-	_testCalcWeights(point, weights_out);
+	_testTriInterp(point, interp_val);
 	cout << "OUTPUT" << endl;
-	for (int i = 0; i < 8; i++) {
-		cout << "W" << i+1 << "=" << weights_out[i] << " ";
-	}
+	cout << "INTERP = " << interp_val[0];;
 	cout << endl << endl;
 	cout << "END CALC WEIGHTS TEST" << endl << endl << endl << endl;
-    */
 
 
 }
