@@ -7,9 +7,12 @@ LOFSINC=/u/sciteam/halbert/LOFS/cm1tools-3.0
 HDF5LIBS = -lnetcdf -lhdf5_hl -lhdf5 -lm -lcm
 CC = CC
 
-all: runtraj 
+all: runtraj csv 
 
 runtraj: run_traj.cpp 
 	$(CC) -o runtraj run_traj.cpp -I$(LOFSINC) -L$(NETCDF_DIR)/libi -L$(LOFSINC) $(HDF5LIBS)
+
+csv: loadseeds.cpp
+	$(CC) -h std=c++11 -o csv loadseeds.cpp
 clean:
 	rm -rf *.o 
