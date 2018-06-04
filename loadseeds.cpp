@@ -37,6 +37,7 @@ vector<vector<double>> parseSeeds()
     return fields;
 }
 
+/*
 int main() {
     vector<vector<double>> fields = parseSeeds();
 
@@ -48,3 +49,4 @@ int main() {
         cout << '\n';
     }
 }
+*/

@@ -35,7 +35,7 @@ int debug = 0;
 int yes2d = 0;
 int gzip = 0;
 int filetype = NC_NETCDF4;
-int saved_staggered_mesh_params = 0;
+int saved_staggered_mesh_params = 1;
 int nthreads = 1;
 
 // this struct helps manage all the different
@@ -55,15 +55,15 @@ struct datagrid {
 
     // dimensions for
     // the arrays
-    int NX;
-    int NY;
-    int NZ;
+    long NX;
+    long NY;
+    long NZ;
 
     // the subset points of the grid
     // that this grid is a part of
-    int X0; int Y0;
-    int X1; int Y1;
-    int Z0; int Z1;
+    long X0; long Y0;
+    long X1; long Y1;
+    long Z0; long Z1;
 
 
 };
@@ -211,7 +211,7 @@ void lofs_get_grid( datagrid *grid ) {
     grid->zf = zfout;
 }
 
-void lofs_read_3dvar(datagrid *grid, float *buffer, char *varname, int t0) {
+void lofs_read_3dvar(datagrid *grid, float *buffer, char *varname, double t0) {
 
     // lifted from LOFS hdf2.c
     // topdir, timedir, nodedir, ntimedirs, dn, dirtimes, alltimes, ntottimes,
@@ -220,7 +220,7 @@ void lofs_read_3dvar(datagrid *grid, float *buffer, char *varname, int t0) {
     // X0, Y0, X1, Y1, Z0, Y1, nx, ny, nz all from lofs_get_grid
     read_hdf_mult_md(buffer,topdir,timedir,nodedir,ntimedirs,dn,dirtimes,alltimes,ntottimes,t0,varname, \
             grid->X0,grid->Y0,grid->X1,grid->Y1,grid->Z0,grid->Z1,nx,ny,nz,nodex,nodey);
-
+    /*
     // print out some grid stats for fun so we can see what all is going on
     // in the file
     float min = 9999.;
@@ -236,6 +236,7 @@ void lofs_read_3dvar(datagrid *grid, float *buffer, char *varname, int t0) {
     std::cout << (std::string)varname << " min: " << min << " m/s" <<  std::endl;
     std::cout << (std::string)varname << " max: " << max << " m/s" << std::endl;
     std::cout << (std::string)varname << " avg: " << avg / ((float) N) << " m/s" << std::endl;
+    */
 
 }
 #endif
