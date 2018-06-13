@@ -68,9 +68,9 @@ void seed_parcels(vector<vector<float>> *x_parcel_pos, vector<vector<float>> *y_
 
 }
 
-int main() {
+int main(int argc, char **argv ) {
     string base_dir = "/u/sciteam/halbert/project_bagm/khalbert/30m-every-time-step/3D";
-    int rank, size;
+    int rank, size, ierr_u, ierr_v, ierr_w, errclass;
     long N, MX, MY, MZ;
     MPI_Status status;
 
@@ -78,9 +78,11 @@ int main() {
     // Rank tells you which process
     // you are and size tells y ou how
     // many processes there are total
-    MPI_Init(NULL, NULL);
+    MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Errhandler_set(MPI_COMM_WORLD,MPI_ERRORS_RETURN); /* return info about
+                                                                   errors */
     // the number of time steps we have is 
     // the number of MPI ranks there are
     int nT = size;
@@ -153,9 +155,20 @@ int main() {
         cout << "Sending from: " << rank << endl;
         // send the U, V, and W arrays to the destination rank (0)
         // and use tag 1 for U, tag 2 for V, and tag 3 for W
-        MPI_Send(ubuf, N, MPI_FLOAT, dest, 1, MPI_COMM_WORLD);
-        MPI_Send(vbuf, N, MPI_FLOAT, dest, 2, MPI_COMM_WORLD);
-        MPI_Send(wbuf, N, MPI_FLOAT, dest, 3, MPI_COMM_WORLD);
+        ierr_u = MPI_Send(ubuf, N, MPI_FLOAT, dest, 1, MPI_COMM_WORLD);
+        ierr_v = MPI_Send(vbuf, N, MPI_FLOAT, dest, 2, MPI_COMM_WORLD);
+        ierr_w = MPI_Send(wbuf, N, MPI_FLOAT, dest, 3, MPI_COMM_WORLD);
+
+        // lets do some error handling just in case
+        if ((ierr_u != MPI_SUCCESS) || (ierr_v != MPI_SUCCESS) || (ierr_w != MPI_SUCCESS)) {
+            cout << "MPI Communication Error on rank: " << rank << endl;
+            cout << "U array error status: " << ierr_u << endl;
+            cout << "V array error status: " << ierr_v << endl;
+            cout << "W array error status: " << ierr_w << endl;
+        }
+        if ((ierr_u == MPI_SUCCESS) && (ierr_v == MPI_SUCCESS) && (ierr_w == MPI_SUCCESS)) {
+            cout << "Succeffully passed U/V/W arrays from rank: " << rank << endl;
+        }
         // de-allocate the memory the rank uses after communicating
         delete[] wbuf;
         delete[] ubuf;
@@ -188,12 +201,33 @@ int main() {
         for (int i = 1; i < size; ++i) {
             // get the buffers from the other MPI ranks
             // and place it into our 4D array at the corresponding time
+            ///*
             MPI_Recv(&(u_time_chunk[i*MX*MY*MZ]), N, MPI_FLOAT, i, 1, MPI_COMM_WORLD, &status);
             MPI_Recv(&(v_time_chunk[i*MX*MY*MZ]), N, MPI_FLOAT, i, 2, MPI_COMM_WORLD, &status);
             MPI_Recv(&(w_time_chunk[i*MX*MY*MZ]), N, MPI_FLOAT, i, 3, MPI_COMM_WORLD, &status);
+            //*/
+            /*
+            MPI_Recv(ubuf, N, MPI_FLOAT, i, 1, MPI_COMM_WORLD, &status);
+            MPI_Recv(vbuf, N, MPI_FLOAT, i, 2, MPI_COMM_WORLD, &status);
+            MPI_Recv(wbuf, N, MPI_FLOAT, i, 3, MPI_COMM_WORLD, &status);
+            for (int idx = 0; idx < N; ++idx) {
+                u_time_chunk[i*MX*MY*MZ + idx] = ubuf[idx];
+                v_time_chunk[i*MX*MY*MZ + idx] = vbuf[idx];
+                w_time_chunk[i*MX*MY*MZ + idx] = wbuf[idx];
+            }
+            */
             // report the status just in case
             cout << "Received from: " << status.MPI_SOURCE << " Error: " << status.MPI_ERROR << endl;
         }
+
+        float max = -999.0;
+        int zero_count = 0;
+        for (int i = 0; i < N*nT; ++i) {
+            if (u_time_chunk[i] == 0) zero_count +=1;
+            if (w_time_chunk[i] > max) max = w_time_chunk[i];
+        }
+        cout << "Max W is: " << max << endl;
+        cout << "Zero count is: " << zero_count << " / " << N*nT << endl;
     }
 
     MPI_Finalize();
