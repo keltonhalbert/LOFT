@@ -1,25 +1,17 @@
 #include "mpi.h"
+#include "datastructs.cpp"
 #include "readlofs.cpp"
 #include "loadseeds.cpp"
 #include <iostream>
 #include <string>
 #include <vector>
+#include "integrate.h"
 // stole this define from LOFS
 #define P3(x,y,z,mx,my) (((z)*(mx)*(my))+((y)*(mx))+(x))
 // I made this myself by stealing from LOFS
 #define P4(x,y,z,t,mx,my,mz) ((t*mx*my*mz)+((z)*(mx)*(my))+((y)*(mx))+(x))
 
 using namespace std;
-
-struct parcel_pos {
-    // create a vector of vectors. Each parcel is a
-    // vector of floats for the position of the parcel,
-    // and the container vector holds all parcels
-    vector<vector<float>> xpos;
-    vector<vector<float>> ypos;
-    vector<vector<float>> zpos;
-};
-
 
 
 /* Load the grid metadata and get the gird based on requested bounds.
@@ -116,8 +108,6 @@ int main(int argc, char **argv ) {
     // and zonal line of parcels
     int nParcels = requested_grid.NX;
     parcel_pos parcels;
-
-
     // seed the parcels
     seed_parcels(&parcels, &requested_grid, nParcels);
     // print to make sure we properly seeded
@@ -216,22 +206,9 @@ int main(int argc, char **argv ) {
         for (int i = 1; i < size; ++i) {
             // get the buffers from the other MPI ranks
             // and place it into our 4D array at the corresponding time
-            ///*
             MPI_Recv(&(u_time_chunk[i*MX*MY*MZ]), N, MPI_FLOAT, i, 1, MPI_COMM_WORLD, &status);
             MPI_Recv(&(v_time_chunk[i*MX*MY*MZ]), N, MPI_FLOAT, i, 2, MPI_COMM_WORLD, &status);
             MPI_Recv(&(w_time_chunk[i*MX*MY*MZ]), N, MPI_FLOAT, i, 3, MPI_COMM_WORLD, &status);
-            //*/
-            /*
-            MPI_Recv(ubuf, N, MPI_FLOAT, i, 1, MPI_COMM_WORLD, &status);
-            MPI_Recv(vbuf, N, MPI_FLOAT, i, 2, MPI_COMM_WORLD, &status);
-            MPI_Recv(wbuf, N, MPI_FLOAT, i, 3, MPI_COMM_WORLD, &status);
-            for (int idx = 0; idx < N; ++idx) {
-                u_time_chunk[i*MX*MY*MZ + idx] = ubuf[idx];
-                v_time_chunk[i*MX*MY*MZ + idx] = vbuf[idx];
-                w_time_chunk[i*MX*MY*MZ + idx] = wbuf[idx];
-            }
-            */
-            // report the status just in case
             cout << "Received from: " << status.MPI_SOURCE << " Error: " << status.MPI_ERROR << endl;
         }
 
@@ -243,6 +220,7 @@ int main(int argc, char **argv ) {
         }
         cout << "Max W is: " << max << endl;
         cout << "Zero count is: " << zero_count << " / " << N*nT << endl;
+        cudaIntegrateParcels(parcels, u_time_chunk, v_time_chunk, w_time_chunk, MX, MY, MZ, nT);
     }
 
     MPI_Finalize();

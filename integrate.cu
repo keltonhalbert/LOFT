@@ -1,8 +1,9 @@
 #include <iostream>
-using namespace std;
+#include "datastructs.cpp"
 #ifndef INTEGRATE_CU
 #define INTEGRATE_CU
 
+using namespace std;
 // this is an error checking helper function for processes
 // that run on the GPU. Without calling this, the GPU can
 // fail to execute but the program won't crash or report it.
@@ -32,6 +33,13 @@ __global__ void integrate(float *x_arr, float *y_arr, float *z_arr, float *u_arr
 		// integrate Z position forward by the W wind
 		z_arr[pidx] = z_arr[pidx] + w_arr[pidx] * dt;
 	}
+}
+
+
+void cudaIntegrateParcels(parcel_pos parcels, float *u_time_chunk, float *v_time_chunk, float *w_time_chunk, int MX, int MY, int MZ, int nT) {
+    cout << "I MADE IT TO THE CUDA CODE!!!!" << endl;
+
+
 }
 
 #endif

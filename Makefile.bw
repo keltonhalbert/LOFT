@@ -12,7 +12,7 @@ all: integrate.o run
 integrate.o: integrate.cu
 	nvcc -c -gencode=arch=compute_35,code=compute_35 -o integrate.o integrate.cu
 
-run: run_traj.cpp 
+run: run_traj.cpp integrate.o
 	$(CC) -h std=c++11 -o run run_traj.cpp integrate.o -I$(LOFSINC) -L$(NETCDF_DIR)/libi -L$(LOFSINC) $(HDF5LIBS)
 
 clean:

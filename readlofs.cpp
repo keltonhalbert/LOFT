@@ -1,4 +1,4 @@
-
+#include "datastructs.cpp"
 #include <iostream>
 #include <stdio.h>
 #include <string>
@@ -37,36 +37,6 @@ int gzip = 0;
 int filetype = NC_NETCDF4;
 int saved_staggered_mesh_params = 1;
 int nthreads = 1;
-
-// this struct helps manage all the different
-// attributes a grid or grib subset may have,
-// including the staggered arrays, number of 
-// points in eachd dimension, and the indices
-// of the subset from the larger grid
-struct datagrid {
-
-    // 1D grid arrays
-    float *xf;
-    float *xh;
-    float *yf;
-    float *yh;
-    float *zf;
-    float *zh;
-
-    // dimensions for
-    // the arrays
-    long NX;
-    long NY;
-    long NZ;
-
-    // the subset points of the grid
-    // that this grid is a part of
-    long X0; long Y0;
-    long X1; long Y1;
-    long Z0; long Z1;
-
-
-};
 
 
 // just a simple 1D array print 
