@@ -8,7 +8,19 @@
 #define P3(x,y,z,mx,my) (((z)*(mx)*(my))+((y)*(mx))+(x))
 // I made this myself by stealing from LOFS
 #define P4(x,y,z,t,mx,my,mz) ((t*mx*my*mz)+((z)*(mx)*(my))+((y)*(mx))+(x))
+
 using namespace std;
+
+struct parcel_pos {
+    // create a vector of vectors. Each parcel is a
+    // vector of floats for the position of the parcel,
+    // and the container vector holds all parcels
+    vector<vector<float>> xpos;
+    vector<vector<float>> ypos;
+    vector<vector<float>> zpos;
+};
+
+
 
 /* Load the grid metadata and get the gird based on requested bounds.
  * This only needs to be called once to load data into memory. Additionally,
@@ -46,28 +58,36 @@ void loadVectorsFromDisk(datagrid *requested_grid, float *ubuffer, float *vbuffe
 
 /* Seed some test parcels into vectors of vectors for the different position dimension
  */
-void seed_parcels(vector<vector<float>> *x_parcel_pos, vector<vector<float>> *y_parcel_pos, vector<vector<float>> *z_parcel_pos, \
-                datagrid *requested_grid, int nParcels) {
+void seed_parcels(parcel_pos *parcels, datagrid *requested_grid, int nParcels) {
+
 
     // loop over all parcels and initialize empty
     // vectors for each parcel. These will keep
     // track of the parcel paths.
     for (int i = 0; i < nParcels; ++i) {
-        x_parcel_pos->push_back(vector<float>());
-        y_parcel_pos->push_back(vector<float>());
-        z_parcel_pos->push_back(vector<float>());
+        parcels->xpos.push_back(vector<float>());
+        parcels->ypos.push_back(vector<float>());
+        parcels->zpos.push_back(vector<float>());
 
         // seed the parcel starting points - the x positions are going 
         // to be a row along the x axis, the y positions
         // are going to be the top of the domain, and the z positions
         // are going to be the first grid point above the surface
-        (*x_parcel_pos)[i].push_back(requested_grid->xh[i]);
-        (*y_parcel_pos)[i].push_back(requested_grid->yh[requested_grid->NY-1]);
-        (*z_parcel_pos)[i].push_back(requested_grid->zh[0]);
+        parcels->xpos[i].push_back(requested_grid->xh[i]);
+        parcels->ypos[i].push_back(requested_grid->yh[requested_grid->NY-1]);
+        parcels->zpos[i].push_back(requested_grid->zh[0]);
     }
 
 }
 
+
+/* This is the main program that does the parcel trajectory analysis.
+ * It first sets up the parcel vectors and seeds the starting locations.
+ * It then loads a chunk of times into memory by calling the LOFS api
+ * wrappers, with the number of times read in being determined by the
+ * number of MPI ranks launched. It then passes the vectors and the 4D u/v/w 
+ * data chunks to the GPU, and then proceeds with another time chunk.
+ */
 int main(int argc, char **argv ) {
     string base_dir = "/u/sciteam/halbert/project_bagm/khalbert/30m-every-time-step/3D";
     int rank, size, ierr_u, ierr_v, ierr_w, errclass;
@@ -95,20 +115,15 @@ int main(int argc, char **argv ) {
     // we're gonna make a test by creating a horizontal
     // and zonal line of parcels
     int nParcels = requested_grid.NX;
+    parcel_pos parcels;
 
-    // create a vector of vectors. Each parcel is a
-    // vector of floats for the position of the parcel,
-    // and the container vector holds all parcels
-    vector<vector<float>> x_parcel_pos;
-    vector<vector<float>> y_parcel_pos;
-    vector<vector<float>> z_parcel_pos;
 
     // seed the parcels
-    seed_parcels(&x_parcel_pos, &y_parcel_pos, &z_parcel_pos, &requested_grid, nParcels);
+    seed_parcels(&parcels, &requested_grid, nParcels);
     // print to make sure we properly seeded
     for (int i = 0; i < nParcels; ++i) {
         // sanity print to make sure we're seeding the right stuff
-        cout << "Starting Positions: X = " << x_parcel_pos[i][0] << " Y = " << y_parcel_pos[i][0] << " Z = " << z_parcel_pos[i][0] << endl;
+        cout << "Starting Positions: X = " << parcels.xpos[i][0] << " Y = " << parcels.ypos[i][0] << " Z = " << parcels.zpos[i][0] << endl;
     }
 
     
