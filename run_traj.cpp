@@ -6,6 +6,7 @@
 #include <vector>
 // stole this define from LOFS
 #define P3(x,y,z,mx,my) (((z)*(mx)*(my))+((y)*(mx))+(x))
+// I made this myself by stealing from LOFS
 #define P4(x,y,z,t,mx,my,mz) ((t*mx*my*mz)+((z)*(mx)*(my))+((y)*(mx))+(x))
 using namespace std;
 
@@ -57,14 +58,28 @@ int main() {
     // the number of grid points requested
     N = (requested_grid.NX+1)*(requested_grid.NY+1)*(requested_grid.NZ+1);
 
+    // initialize a bunch of MPI stuff.
+    // Rank tells you which process
+    // you are and size tells y ou how
+    // many processes there are total
     MPI_Init(NULL, NULL);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
+    // the number of time steps we have is 
+    // the number of MPI ranks there are
     int nT = size;
+
+    // get the size of the domain we will
+    // be requesting. The +1 is safety for
+    // staggered grids
     MX = (long) (requested_grid.NX+1);
     MY = (long) (requested_grid.NY+1);
     MZ = (long) (requested_grid.NZ+1);
+
+    // the size of our 3D buffer
     long bufsize = MX * MY * MZ * (long) sizeof(float);
+
+    // have the master rank print out some diagrostic information
     if (rank == 0) {
         cout << endl << "GRID DIMENSIONS" << endl;
         cout << "NX = " << requested_grid.NX << " NY = " << requested_grid.NY << " NZ = " << requested_grid.NZ << endl;
@@ -80,22 +95,30 @@ int main() {
     float *vbuf = new float[(size_t)bufsize];
     float *wbuf = new float[(size_t)bufsize];
     cout << "TIMESTEP " << rank << " " << alltimes[rank] <<  endl;
+    // load u, v, and w into memory
     loadVectorsFromDisk(&requested_grid, ubuf, vbuf, wbuf, alltimes[rank]);
 
 
-
+    // if this is nor the master rank, communicate
+    // the data to the master rank and then delete
+    // the buffers since only rank 0 is used from
+    // here on out
     if (rank != 0) {
         int dest = 0;
         cout << "Sending from: " << rank << endl;
+        // send the U, V, and W arrays to the destination rank (0)
+        // and use tag 1 for U, tag 2 for V, and tag 3 for W
         MPI_Send(ubuf, N, MPI_FLOAT, dest, 1, MPI_COMM_WORLD);
         MPI_Send(vbuf, N, MPI_FLOAT, dest, 2, MPI_COMM_WORLD);
         MPI_Send(wbuf, N, MPI_FLOAT, dest, 3, MPI_COMM_WORLD);
+        // de-allocate the memory the rank uses after communicating
         delete[] wbuf;
         delete[] ubuf;
         delete[] vbuf;
-
     }
 
+    // If this is the master rank (rank == 0)
+    // then do all the cool stuff
     else {
         // construct a 4D contiguous array to store stuff in.
         // bufsize is the size of the 3D component and size is
@@ -126,12 +149,6 @@ int main() {
             // report the status just in case
             cout << "Received from: " << status.MPI_SOURCE << " Error: " << status.MPI_ERROR << endl;
         }
-        float max = -999.0;
-        for (int i = 0; i < N*size; ++i) {
-            if (w_time_chunk[i] > max) max = w_time_chunk[i];
-        }
-        cout << "Max is: " << max << endl;
-
     }
 
     MPI_Finalize();
