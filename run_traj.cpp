@@ -19,9 +19,9 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid) {
 
     // for right now, set the grid bounds to the saved
     // bounds for testing purposes
-    requested_grid->X0 = saved_X0; requested_grid->Y0 = saved_Y0;
-    requested_grid->X1 = saved_X1; requested_grid->Y1 = saved_Y1;
-    requested_grid->Z0 = 0; requested_grid->Z1 = nz-1;
+    requested_grid->X0 = saved_X0; requested_grid->Y0 = saved_Y0 + 260;
+    requested_grid->X1 = saved_X0 + 330; requested_grid->Y1 = saved_Y0 + 590;
+    requested_grid->Z0 = 0; requested_grid->Z1 = 100;
 
     // request a grid subset based on 
     // the subset information provided to
@@ -79,7 +79,9 @@ int main() {
     if (rank != 0) {
         int dest = 0;
         cout << "Sending from: " << rank << endl;
-        MPI_Send(wbuf, N, MPI_FLOAT, dest, 2, MPI_COMM_WORLD);
+        MPI_Send(ubuf, N, MPI_FLOAT, dest, 1, MPI_COMM_WORLD);
+        MPI_Send(vbuf, N, MPI_FLOAT, dest, 2, MPI_COMM_WORLD);
+        MPI_Send(wbuf, N, MPI_FLOAT, dest, 3, MPI_COMM_WORLD);
         delete[] wbuf;
         delete[] ubuf;
         delete[] vbuf;
@@ -87,18 +89,21 @@ int main() {
     }
 
     else {
+        float **u_time_chunk = new float*[nT];
+        float **v_time_chunk = new float*[nT];
         float **w_time_chunk = new float*[nT];
+        u_time_chunk[0] = ubuf;
+        v_time_chunk[0] = vbuf;
         w_time_chunk[0] = wbuf;
 
         for (int i = 1; i < size; ++i) {
+            u_time_chunk[i] = new float[(size_t)bufsize];
+            v_time_chunk[i] = new float[(size_t)bufsize];
             w_time_chunk[i] = new float[(size_t)bufsize];
-            MPI_Recv(w_time_chunk[i], N, MPI_FLOAT, i, 2, MPI_COMM_WORLD, &status);
+            MPI_Recv(u_time_chunk[i], N, MPI_FLOAT, i, 1, MPI_COMM_WORLD, &status);
+            MPI_Recv(v_time_chunk[i], N, MPI_FLOAT, i, 2, MPI_COMM_WORLD, &status);
+            MPI_Recv(w_time_chunk[i], N, MPI_FLOAT, i, 3, MPI_COMM_WORLD, &status);
             cout << "Received from: " << status.MPI_SOURCE << " Error: " << status.MPI_ERROR << endl;
-            float max = -999.0;
-            for (int i = 0; i < N; ++i) {
-                if (wbuf[i] > max) max = wbuf[i];
-            }
-            cout << "WMAX from time " << alltimes[i] <<": " << max << endl;
         }
     }
 
