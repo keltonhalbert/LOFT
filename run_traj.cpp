@@ -1,3 +1,4 @@
+#include "mpi.h"
 #include "readlofs.cpp"
 #include "loadseeds.cpp"
 #include <iostream>
@@ -41,30 +42,66 @@ void loadVectorsFromDisk(datagrid *requested_grid, float *ubuffer, float *vbuffe
 int main() {
     string base_dir = "/u/sciteam/halbert/project_bagm/khalbert/30m-every-time-step/3D";
     double t0 = 3001.;
-    int nT = 45;
+    int rank, size;
+    long N;
+    MPI_Status status;
+
+
     datagrid requested_grid;
     loadMetadataAndGrid(base_dir, &requested_grid);
+    
+    N = (requested_grid.NX+1)*(requested_grid.NY+1)*(requested_grid.NZ+1);
 
-    cout << endl << "GRID DIMENSIONS" << endl;
-    cout << "NX = " << requested_grid.NX << " NY = " << requested_grid.NY << " NZ = " << requested_grid.NZ << endl;
-    cout << "X0 = " << requested_grid.xh[requested_grid.X0] << " Y0 = " << requested_grid.yh[requested_grid.Y0] << endl;
-    cout << "X1 = " << requested_grid.xh[requested_grid.X1] << " Y1 = " << requested_grid.yh[requested_grid.Y1] << endl;
-    cout << "Z0 = " << requested_grid.zh[requested_grid.Z0] << " Z1 = " << requested_grid.zh[requested_grid.Z1] << endl;
-
+    MPI_Init(NULL, NULL);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    int nT = size;
+    long bufsize = (long) (requested_grid.NX+1) * (long) (requested_grid.NY+1) * (long) (requested_grid.NZ+1) * (long) sizeof(float);
     // allocate space for U, V, and W arrays
-    long bufsize = (long) (requested_grid.NX+1) * (long) (requested_grid.NY+1) * (long) (requested_grid.NZ+1) * (long) (nT) * (long) sizeof(float);
-    cout << "Allocating Memory: " << bufsize * 1.25e-7 << "mb per vector for " << nT << " time steps" << endl;
-    float *ubuffer = new float[(size_t)bufsize];
-    float *vbuffer = new float[(size_t)bufsize];
-    float *wbuffer = new float[(size_t)bufsize];
-
-    for (int i = 0; i < nT; ++i) {
-
-        cout << "TIMESTEP " << i << endl;
-        loadVectorsFromDisk(&requested_grid, ubuffer, vbuffer, wbuffer, t0);
+    float *ubuf = new float[(size_t)bufsize];
+    float *vbuf = new float[(size_t)bufsize];
+    float *wbuf = new float[(size_t)bufsize];
+    if (rank == 0) {
+        cout << endl << "GRID DIMENSIONS" << endl;
+        cout << "NX = " << requested_grid.NX << " NY = " << requested_grid.NY << " NZ = " << requested_grid.NZ << endl;
+        cout << "X0 = " << requested_grid.xh[requested_grid.X0] << " Y0 = " << requested_grid.yh[requested_grid.Y0] << endl;
+        cout << "X1 = " << requested_grid.xh[requested_grid.X1] << " Y1 = " << requested_grid.yh[requested_grid.Y1] << endl;
+        cout << "Z0 = " << requested_grid.zh[requested_grid.Z0] << " Z1 = " << requested_grid.zh[requested_grid.Z1] << endl;
+        cout << "Allocating Memory: " << bufsize * 1.25e-7 << "mb per vector for " << endl;
     }
 
-    delete[] ubuffer;
-    delete[] vbuffer;
-    delete[] wbuffer;
+
+    cout << "TIMESTEP " << rank << " " << alltimes[rank] <<  endl;
+    loadVectorsFromDisk(&requested_grid, ubuf, vbuf, wbuf, alltimes[rank]);
+
+
+
+    if (rank != 0) {
+        int dest = 0;
+        cout << "Sending from: " << rank << endl;
+        MPI_Send(wbuf, N, MPI_FLOAT, dest, 2, MPI_COMM_WORLD);
+        delete[] wbuf;
+        delete[] ubuf;
+        delete[] vbuf;
+
+    }
+
+    else {
+        float **w_time_chunk = new float*[nT];
+        w_time_chunk[0] = wbuf;
+
+        for (int i = 1; i < size; ++i) {
+            w_time_chunk[i] = new float[(size_t)bufsize];
+            MPI_Recv(w_time_chunk[i], N, MPI_FLOAT, i, 2, MPI_COMM_WORLD, &status);
+            cout << "Received from: " << status.MPI_SOURCE << " Error: " << status.MPI_ERROR << endl;
+            float max = -999.0;
+            for (int i = 0; i < N; ++i) {
+                if (wbuf[i] > max) max = wbuf[i];
+            }
+            cout << "WMAX from time " << alltimes[i] <<": " << max << endl;
+        }
+    }
+
+    MPI_Finalize();
+
 }
