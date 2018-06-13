@@ -104,18 +104,6 @@ int main(int argc, char **argv ) {
     datagrid requested_grid;
     loadMetadataAndGrid(base_dir, &requested_grid);
 
-    // we're gonna make a test by creating a horizontal
-    // and zonal line of parcels
-    int nParcels = requested_grid.NX;
-    parcel_pos parcels;
-    // seed the parcels
-    seed_parcels(&parcels, &requested_grid, nParcels);
-    // print to make sure we properly seeded
-    for (int i = 0; i < nParcels; ++i) {
-        // sanity print to make sure we're seeding the right stuff
-        cout << "Starting Positions: X = " << parcels.xpos[i][0] << " Y = " << parcels.ypos[i][0] << " Z = " << parcels.zpos[i][0] << endl;
-    }
-
     
     // the number of grid points requested
     N = (requested_grid.NX+1)*(requested_grid.NY+1)*(requested_grid.NZ+1);
@@ -220,6 +208,19 @@ int main(int argc, char **argv ) {
         }
         cout << "Max W is: " << max << endl;
         cout << "Zero count is: " << zero_count << " / " << N*nT << endl;
+
+        // we're gonna make a test by creating a horizontal
+        // and zonal line of parcels
+        int nParcels = requested_grid.NX;
+        parcel_pos parcels;
+        // seed the parcels
+        seed_parcels(&parcels, &requested_grid, nParcels);
+        // print to make sure we properly seeded
+        for (int i = 0; i < nParcels; ++i) {
+            // sanity print to make sure we're seeding the right stuff
+            cout << "Starting Positions: X = " << parcels.xpos[i][0] << " Y = " << parcels.ypos[i][0] << " Z = " << parcels.zpos[i][0] << endl;
+        }
+
         cudaIntegrateParcels(parcels, u_time_chunk, v_time_chunk, w_time_chunk, MX, MY, MZ, nT);
     }
 
