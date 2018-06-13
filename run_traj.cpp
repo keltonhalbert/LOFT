@@ -45,18 +45,9 @@ void loadVectorsFromDisk(datagrid *requested_grid, float *ubuffer, float *vbuffe
 
 int main() {
     string base_dir = "/u/sciteam/halbert/project_bagm/khalbert/30m-every-time-step/3D";
-    double t0 = 3001.;
     int rank, size;
     long N, MX, MY, MZ;
     MPI_Status status;
-
-
-    // read in the metadata
-    datagrid requested_grid;
-    loadMetadataAndGrid(base_dir, &requested_grid);
-    
-    // the number of grid points requested
-    N = (requested_grid.NX+1)*(requested_grid.NY+1)*(requested_grid.NZ+1);
 
     // initialize a bunch of MPI stuff.
     // Rank tells you which process
@@ -68,6 +59,15 @@ int main() {
     // the number of time steps we have is 
     // the number of MPI ranks there are
     int nT = size;
+
+
+    // read in the metadata
+    datagrid requested_grid;
+    loadMetadataAndGrid(base_dir, &requested_grid);
+    
+    // the number of grid points requested
+    N = (requested_grid.NX+1)*(requested_grid.NY+1)*(requested_grid.NZ+1);
+
 
     // get the size of the domain we will
     // be requesting. The +1 is safety for
