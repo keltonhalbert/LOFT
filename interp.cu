@@ -2,24 +2,12 @@
 #include "math.h"
 using namespace std;
 
-// error checking helper
-#define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
-inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
-{
-   if (code != cudaSuccess) 
-   {
-      cout << cudaGetErrorString(code) << endl;
-      if (abort) exit(code);
-   }
-}
-
-//Transform 3D coordinates into 1D coordinate
-int getIndex(int x, int y, int z, int height, int width) {
-	return x + y*height + z*height*width;
-}
-
-__device__ int arrayIndex(int x, int y, int z, int height, int width) {
-	return x + y*height + z*height*width;
+#ifndef INTERP
+#define INTERP
+// stole this define from LOFS
+#define P3(x,y,z,mx,my) (((z)*(mx)*(my))+((y)*(mx))+(x))
+__host__ __device__ int arrayIndex(int x, int y, int z, int mx, int my) {
+	return x + ((y*mx) + (z*mx*my));
 }
 
 
@@ -28,27 +16,27 @@ __device__ int arrayIndex(int x, int y, int z, int height, int width) {
 // grids, information about the X, Y, and Z grid points, and a set of scalar fields.
 // It is up to the user to specify grid spacing at run-time. It is assumed that there is
 // no grid stretching at this time (i.e. grid scale factor = 1.0) 
+static const float DX = 30.; 
+static const float DY = 30.; 
+static const float DZ = 30.;
+static const float scale_x = 1.0;
+static const float scale_y = 1.0;
+static const float scale_z = 1.0;
 
-__device__ float DX = 30.; 
-__device__ float DY = 30.; 
-__device__ float DZ = 30.;
-__device__ float scale_x = 1.0;
-__device__ float scale_y = 1.0;
-__device__ float scale_z = 1.0;
 
+// find the nearest grid index i, j, and k for a point contained inside of a cube.
+// i, j, and k are set to -1 if the point requested is out of the domain bounds
+// of the cube provided.
+__device__ __host__ void _nearest_grid_idx(float *point, float *x_grd, float *y_grd, float *z_grd, \
+                                 int *idx_3D, int nX, int nY, int nZ) {
 
-// Compute the nearest grid point index along each dimension
-// for a single parcel.
-__device__ int* _nearest_grid_idx(float pt_x, float pt_y, float pt_z, \
-								float *x_grd, float *y_grd, float *z_grd, \
-								int nX, int nY, int nZ) {
-
-	int *idx_3D = new int[3];
 	int near_i = -1;
 	int near_j = -1;
 	int near_k = -1;
-	// get thread index
-	//int pidx = blockIdx.x*blockDim.x + threadIdx.x;
+
+    float pt_x = point[0];
+    float pt_y = point[1];
+    float pt_z = point[2];
 
 
 	// loop over the X grid
@@ -76,17 +64,20 @@ __device__ int* _nearest_grid_idx(float pt_x, float pt_y, float pt_z, \
 	}
 
 	idx_3D[0] = near_i; idx_3D[1] = near_j; idx_3D[2] = near_k;
-	return idx_3D;
+	return;
 }
 
-// calculate the 8 weights for a single parcel
-__device__ float* _calc_weights(float *x_grd, float *y_grd, float *z_grd, float x_pt, float y_pt, \
-								float z_pt, bool ugrd, bool vgrd, bool wgrd, int nX, int nY, int nZ) {
+// calculate the 8 interpolation weights for a trilinear interpolation of a point inside of a cube.
+// Returns an array full of -1 if the requested poit is out of the domain bounds
+__host__ __device__ void _calc_weights(float *x_grd, float *y_grd, float *z_grd, float *weights, \
+                                       float *point, int *idx_3D, bool ugrd, bool vgrd, bool wgrd, \
+                                       int nX, int nY, int nZ) {
 	int i, j, k;
 	float rx, ry, rz;
 	float w1, w2, w3, w4;
 	float w5, w6, w7, w8;
-	float *weights = new float[8];
+
+    float x_pt = point[0]; float y_pt = point[1]; float z_pt = point[2];
 	
 	// initialize the weights to -1
 	// to be returned in the event that
@@ -96,15 +87,12 @@ __device__ float* _calc_weights(float *x_grd, float *y_grd, float *z_grd, float 
 		weights[i] = -1;
 	}
 
-	// calculate the 3D index of the nearest grid point
-	int* idx_3D = _nearest_grid_idx(x_pt, y_pt, z_pt, x_grd, y_grd, z_grd, nX, nY, nZ);
-
 	// check to see if the requested point is within the grid domain.
 	// If any grid index is out of bounds, immediately return all weights
 	// as -1.
 	for (int i = 0; i < 3; i++) {
 		if (idx_3D[i] == -1) {
-			return weights;
+			return;
 		}
 	}
 
@@ -162,30 +150,30 @@ __device__ float* _calc_weights(float *x_grd, float *y_grd, float *z_grd, float 
     weights[6] = w7;
     weights[7] = w8;
 
-	return weights;
 
 }
 
 
 // interpolate the value of a point contained within a 3D grid.
 
-// datagrid is a 3D field allocated into a contiguous 1D array block of memory.
+// data_arr is a 3D field allocated into a contiguous 1D array block of memory.
 // weights is a 1D array of interpolation weights returned by _calc_weights
-// i, j, and k are the respective indices of the nearest grid point we are
+// idx_3D containing the i, j, and k are the respective indices of the nearest grid point we are
 // interpolating to, returned by _nearest_grid_idx 
-__devce__ float _tri_interp(float* datagrid, float* weights, int i, int j, int k) {
-	float out = -999.99;
+__host__ __device__ float _tri_interp(float* data_arr, float* weights, int *idx_3D, int NX, int NY) {
+	float out = -999.0;
 	int idx1, idx2, idx3, idx4;
 	int idx5, idx6, idx7, idx8;
-	int height, width;
 
-	// if the given i,j,k are invalid, return -999.99
+    int i = idx_3D[0]; int j = idx_3D[1]; int k = idx_3D[2];
+
+	// if the given i,j,k are invalid, return -999.0
 	if ((i == -1) | (j == -1) | (k == -1)) {
 		return out;
 	}
 
-	// if the given weights are invalid, return -999.99
-	for (idx = 0; idx < 8; idx++) {
+	// if the given weights are invalid, return -999.0
+	for (int idx = 0; idx < 8; idx++) {
 		if (weights[idx] == -1) {
 			return out;
 		}
@@ -196,25 +184,50 @@ __devce__ float _tri_interp(float* datagrid, float* weights, int i, int j, int k
 	// and there are weights with values between 0 and 1.
 
 	// get the array indices
-	idx1 = arrayIndex(i, j, k, height, width);
-	idx2 = arrayIndex(i+1, j, k, height, width);
-	idx3 = arrayIndex(i, j+1, k, height, width);
-	idx4 = arrayIndex(i, j, k+1, height, width);
-	idx5 = arrayIndex(i+1, j, k+1, height, width);
-	idx6 = arrayIndex(i, j+1, k+1, height, width);
-	idx7 = arrayIndex(i+1, j+1, k, height, width);
-	idx8 = arrayIndex(i+1, j+1, k+1, height, width);
+	idx1 = arrayIndex(i, j, k, NX, NY);
+	idx2 = arrayIndex(i+1, j, k, NX, NY);
+	idx3 = arrayIndex(i, j+1, k, NX, NY);
+	idx4 = arrayIndex(i, j, k+1, NX, NY);
+	idx5 = arrayIndex(i+1, j, k+1, NX, NY);
+	idx6 = arrayIndex(i, j+1, k+1, NX, NY);
+	idx7 = arrayIndex(i+1, j+1, k, NX, NY);
+	idx8 = arrayIndex(i+1, j+1, k+1, NX, NY);
 
-
-	out = datagrid[idx1] * weights[0] + \
-		  datagrid[idx2] * weights[1] + \
-		  datagrid[idx3] * weights[2] + \
-		  datagrid[idx4] * weights[3] + \
-		  datagrid[idx5] * weights[4] + \
-		  datagrid[idx6] * weights[5] + \
-		  datagrid[idx7] * weights[6] + \
-		  datagrid[idx8] * weights[7];
+	out = data_arr[idx1] * weights[0] + \
+		  data_arr[idx2] * weights[1] + \
+		  data_arr[idx3] * weights[2] + \
+		  data_arr[idx4] * weights[3] + \
+		  data_arr[idx5] * weights[4] + \
+		  data_arr[idx6] * weights[5] + \
+		  data_arr[idx7] * weights[6] + \
+		  data_arr[idx8] * weights[7];
 
 	return out;
 
 }
+
+
+// wrapper function around all of the necessary components for 3D interpolation. Calls the function that finds
+// the nearest grid point, calculates the interpolation weights depending on whether or not the grid is staggered,
+// and then calls the trilinear interpolator. Returns -999.0 if the data is not inside the grid or the weights
+// are invalid.
+__host__ __device__ float interp3D(float *x_grd, float *y_grd, float *z_grd, float *data_grd, float *point, \
+                                    bool ugrd, bool vgrd, bool wgrd, int nX, int nY, int nZ) {
+    int idx_3D[3];
+    float weights[8];
+    float output_val;
+
+    // get the index of the nearest grid point to the
+    // data we are requesting
+    _nearest_grid_idx(point, x_grd, y_grd, z_grd, idx_3D, nX, nY, nZ);
+
+    // get the interpolation weights
+    _calc_weights(x_grd, y_grd, z_grd, weights, point, idx_3D, ugrd, vgrd, wgrd, nX, nY, nZ); 
+
+    // interpolate the value
+    output_val = _tri_interp(data_grd, weights, idx_3D, nX, nY);
+
+    return output_val;
+}
+
+#endif
