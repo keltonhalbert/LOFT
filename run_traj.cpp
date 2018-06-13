@@ -43,6 +43,31 @@ void loadVectorsFromDisk(datagrid *requested_grid, float *ubuffer, float *vbuffe
     lofs_read_3dvar(requested_grid, wbuffer, (char *)"w", t0);
 }
 
+
+/* Seed some test parcels into vectors of vectors for the different position dimension
+ */
+void seed_parcels(vector<vector<float>> *x_parcel_pos, vector<vector<float>> *y_parcel_pos, vector<vector<float>> *z_parcel_pos, \
+                datagrid *requested_grid, int nParcels) {
+
+    // loop over all parcels and initialize empty
+    // vectors for each parcel. These will keep
+    // track of the parcel paths.
+    for (int i = 0; i < nParcels; ++i) {
+        x_parcel_pos->push_back(vector<float>());
+        y_parcel_pos->push_back(vector<float>());
+        z_parcel_pos->push_back(vector<float>());
+
+        // seed the parcel starting points - the x positions are going 
+        // to be a row along the x axis, the y positions
+        // are going to be the top of the domain, and the z positions
+        // are going to be the first grid point above the surface
+        (*x_parcel_pos)[i].push_back(requested_grid->xh[i]);
+        (*y_parcel_pos)[i].push_back(requested_grid->yh[requested_grid->NY-1]);
+        (*z_parcel_pos)[i].push_back(requested_grid->zh[0]);
+    }
+
+}
+
 int main() {
     string base_dir = "/u/sciteam/halbert/project_bagm/khalbert/30m-every-time-step/3D";
     int rank, size;
@@ -64,6 +89,26 @@ int main() {
     // read in the metadata
     datagrid requested_grid;
     loadMetadataAndGrid(base_dir, &requested_grid);
+
+    // we're gonna make a test by creating a horizontal
+    // and zonal line of parcels
+    int nParcels = requested_grid.NX;
+
+    // create a vector of vectors. Each parcel is a
+    // vector of floats for the position of the parcel,
+    // and the container vector holds all parcels
+    vector<vector<float>> x_parcel_pos;
+    vector<vector<float>> y_parcel_pos;
+    vector<vector<float>> z_parcel_pos;
+
+    // seed the parcels
+    seed_parcels(&x_parcel_pos, &y_parcel_pos, &z_parcel_pos, &requested_grid, nParcels);
+    // print to make sure we properly seeded
+    for (int i = 0; i < nParcels; ++i) {
+        // sanity print to make sure we're seeding the right stuff
+        cout << "Starting Positions: X = " << x_parcel_pos[i][0] << " Y = " << y_parcel_pos[i][0] << " Z = " << z_parcel_pos[i][0] << endl;
+    }
+
     
     // the number of grid points requested
     N = (requested_grid.NX+1)*(requested_grid.NY+1)*(requested_grid.NZ+1);
