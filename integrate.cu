@@ -35,18 +35,11 @@ __global__ void integrate(float *x_arr, float *y_arr, float *z_arr, float *u_arr
 	}
 }
 
-__global__ void test(float *u_time_chunk, float *v_time_chunk, float *w_time_chunk, int MX, int MY, int MZ, int nT) {
-    int N = MX*MY*MZ*nT;
-    float umax = -999.0;
-    float vmax = -999.0;
-    float wmax = -999.0;
-
-    for (int i = 0; i < N; ++i) {
-        if (u_time_chunk[i] > umax) umax = u_time_chunk[i];
-        if (v_time_chunk[i] > vmax) vmax = v_time_chunk[i];
-        if (w_time_chunk[i] > wmax) wmax = w_time_chunk[i];
+__global__ void test(parcel_pos parcels, float *u_time_chunk, float *v_time_chunk, float *w_time_chunk, int MX, int MY, int MZ, int nT) {
+    int parcel_id = blockIdx.x + threadIdx.x;
+    if (parcel_id < parcels.nParcels) {
+        printf("Parcel Number: %d\tParcel X: %f\tParcel Y: %f\t Parcel Z: %f\n", parcel_id, parcels.xpos[parcel_id], parcels.ypos[parcel_id], parcels.zpos[parcel_id]);
     }
-    printf("Umax: %f\tVmax: %f\tWmax: %f\n", umax, vmax, wmax);
 }
 
 /*This function handles allocating memory on the GPU, transferring the CPU
@@ -55,16 +48,28 @@ updating the position vectors with the new stuff*/
 void cudaIntegrateParcels(parcel_pos parcels, float *u_time_chunk, float *v_time_chunk, float *w_time_chunk, int MX, int MY, int MZ, int nT) {
     // pointers to device memory
     float *device_u_time_chunk, *device_v_time_chunk, *device_w_time_chunk;
+    parcel_pos device_parcels;
+    device_parcels.nParcels = parcels.nParcels;
+
     // allocate the device memory
     gpuErrchk( cudaMalloc(&device_u_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
     gpuErrchk( cudaMalloc(&device_v_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
     gpuErrchk( cudaMalloc(&device_w_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
+
+    gpuErrchk( cudaMalloc(&(device_parcels.xpos), parcels.nParcels * nT*sizeof(float)) );
+    gpuErrchk( cudaMalloc(&(device_parcels.ypos), parcels.nParcels * nT*sizeof(float)) );
+    gpuErrchk( cudaMalloc(&(device_parcels.zpos), parcels.nParcels * nT*sizeof(float)) );
+
     // copy the arrays to device memory
     gpuErrchk( cudaMemcpy(device_u_time_chunk, u_time_chunk, MX*MY*MZ*nT*sizeof(float), cudaMemcpyHostToDevice) );
     gpuErrchk( cudaMemcpy(device_v_time_chunk, v_time_chunk, MX*MY*MZ*nT*sizeof(float), cudaMemcpyHostToDevice) );
     gpuErrchk( cudaMemcpy(device_w_time_chunk, w_time_chunk, MX*MY*MZ*nT*sizeof(float), cudaMemcpyHostToDevice) );
 
-    test<<<1,1>>>(device_u_time_chunk, device_v_time_chunk, device_w_time_chunk, MX, MY, MZ, nT);
+    gpuErrchk( cudaMemcpy(device_parcels.xpos, parcels.xpos, parcels.nParcels * nT * sizeof(float), cudaMemcpyHostToDevice) );
+    gpuErrchk( cudaMemcpy(device_parcels.ypos, parcels.ypos, parcels.nParcels * nT * sizeof(float), cudaMemcpyHostToDevice) );
+    gpuErrchk( cudaMemcpy(device_parcels.zpos, parcels.zpos, parcels.nParcels * nT * sizeof(float), cudaMemcpyHostToDevice) );
+
+    test<<<parcels.nParcels,1>>>(device_parcels, device_u_time_chunk, device_v_time_chunk, device_w_time_chunk, MX, MY, MZ, nT);
     gpuErrchk( cudaDeviceSynchronize() );
 
 

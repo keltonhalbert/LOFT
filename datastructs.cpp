@@ -37,8 +37,10 @@ struct parcel_pos {
     // create a vector of vectors. Each parcel is a
     // vector of floats for the position of the parcel,
     // and the container vector holds all parcels
-    vector< vector<float> > xpos;
-    vector< vector<float> > ypos;
-    vector< vector<float> > zpos;
+    float *xpos;
+    float *ypos;
+    float *zpos;
+
+    int nParcels;
 };
 #endif

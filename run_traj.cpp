@@ -52,22 +52,14 @@ void loadVectorsFromDisk(datagrid *requested_grid, float *ubuffer, float *vbuffe
  */
 void seed_parcels(parcel_pos *parcels, datagrid *requested_grid, int nParcels) {
 
-
-    // loop over all parcels and initialize empty
-    // vectors for each parcel. These will keep
-    // track of the parcel paths.
     for (int i = 0; i < nParcels; ++i) {
-        parcels->xpos.push_back(vector<float>());
-        parcels->ypos.push_back(vector<float>());
-        parcels->zpos.push_back(vector<float>());
-
         // seed the parcel starting points - the x positions are going 
         // to be a row along the x axis, the y positions
         // are going to be the top of the domain, and the z positions
         // are going to be the first grid point above the surface
-        parcels->xpos[i].push_back(requested_grid->xh[i]);
-        parcels->ypos[i].push_back(requested_grid->yh[requested_grid->NY-1]);
-        parcels->zpos[i].push_back(requested_grid->zh[0]);
+        parcels->xpos[i] = requested_grid->xh[i];
+        parcels->ypos[i] = requested_grid->yh[requested_grid->NY-1];
+        parcels->zpos[i] = requested_grid->zh[0];
     }
 
 }
@@ -200,25 +192,23 @@ int main(int argc, char **argv ) {
             cout << "Received from: " << status.MPI_SOURCE << " Error: " << status.MPI_ERROR << endl;
         }
 
-        float max = -999.0;
-        int zero_count = 0;
-        for (int i = 0; i < N*nT; ++i) {
-            if (u_time_chunk[i] == 0) zero_count +=1;
-            if (w_time_chunk[i] > max) max = w_time_chunk[i];
-        }
-        cout << "Max W is: " << max << endl;
-        cout << "Zero count is: " << zero_count << " / " << N*nT << endl;
-
         // we're gonna make a test by creating a horizontal
         // and zonal line of parcels
         int nParcels = requested_grid.NX;
         parcel_pos parcels;
+        float *xpos = new float[nParcels * nT];
+        float *ypos = new float[nParcels * nT];
+        float *zpos = new float[nParcels * nT];
+        parcels.xpos = xpos; parcels.ypos = ypos;
+        parcels.zpos = zpos;
+        parcels.nParcels = nParcels;
+
         // seed the parcels
         seed_parcels(&parcels, &requested_grid, nParcels);
         // print to make sure we properly seeded
         for (int i = 0; i < nParcels; ++i) {
             // sanity print to make sure we're seeding the right stuff
-            cout << "Starting Positions: X = " << parcels.xpos[i][0] << " Y = " << parcels.ypos[i][0] << " Z = " << parcels.zpos[i][0] << endl;
+            cout << "Starting Positions: X = " << parcels.xpos[i] << " Y = " << parcels.ypos[i] << " Z = " << parcels.zpos[i] << endl;
         }
 
         cudaIntegrateParcels(parcels, u_time_chunk, v_time_chunk, w_time_chunk, MX, MY, MZ, nT);
