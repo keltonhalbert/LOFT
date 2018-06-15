@@ -211,7 +211,7 @@ int main(int argc, char **argv ) {
             cout << "Starting Positions: X = " << parcels.xpos[i] << " Y = " << parcels.ypos[i] << " Z = " << parcels.zpos[i] << endl;
         }
 
-        cudaIntegrateParcels(parcels, u_time_chunk, v_time_chunk, w_time_chunk, MX, MY, MZ, nT);
+        cudaIntegrateParcels(requested_grid, parcels, u_time_chunk, v_time_chunk, w_time_chunk, MX, MY, MZ, nT);
     }
 
     MPI_Finalize();
