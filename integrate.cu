@@ -45,6 +45,7 @@ __global__ void test(datagrid grid, parcel_pos parcels, float *u_time_chunk, flo
         for (int tidx = 0; tidx < nT; ++tidx) {
             printf("X0: %f\t X1: %f\tParcel Number: %d/%d\tParcel X: %f\tParcel Y: %f\t Parcel Z: %f\n", grid.xf[0], grid.xf[grid.NX-1], parcel_id, \
                     parcels.nParcels, parcels.xpos[parcel_id], parcels.ypos[parcel_id], parcels.zpos[parcel_id]);
+        // interpolate U/V/W values at parcel location
         }
     }
 }
