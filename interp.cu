@@ -9,7 +9,7 @@ using namespace std;
 // I made this myself by stealing from LOFS
 #define P4(x,y,z,t,mx,my,mz) ((t*mx*my*mz)+((z)*(mx)*(my))+((y)*(mx))+(x))
 __host__ __device__ int arrayIndex(int x, int y, int z, int t,  int mx, int my, int mz) {
-	return x + ((y*mx) + (z*mx*my)i + (t*mx*my*mz));
+	return x + ((y*mx) + (z*mx*my) + (t*mx*my*mz));
 }
 
 
@@ -151,8 +151,6 @@ __host__ __device__ void _calc_weights(float *x_grd, float *y_grd, float *z_grd,
     weights[5] = w6;
     weights[6] = w7;
     weights[7] = w8;
-
-
 }
 
 
@@ -162,12 +160,12 @@ __host__ __device__ void _calc_weights(float *x_grd, float *y_grd, float *z_grd,
 // weights is a 1D array of interpolation weights returned by _calc_weights
 // idx_3D containing the i, j, and k are the respective indices of the nearest grid point we are
 // interpolating to, returned by _nearest_grid_idx 
-__host__ __device__ float _tri_interp(float* data_arr, float* weights, int *idx_4D, int NX, int NY int NZ) {
+__host__ __device__ float _tri_interp(float *data_arr, float* weights, int *idx_4D, int NX, int NY, int NZ) {
 	float out = -999.0;
 	int idx1, idx2, idx3, idx4;
 	int idx5, idx6, idx7, idx8;
 
-    int i = idx_4D[0]; int j = idx_4D[1]; int k = idx_4D[2], int t = idx_4D[3];
+    int i = idx_4D[0]; int j = idx_4D[1]; int k = idx_4D[2]; int t = idx_4D[3];
 
 	// if the given i,j,k are invalid, return -999.0
 	if ((i == -1) | (j == -1) | (k == -1)) {

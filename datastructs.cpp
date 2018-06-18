@@ -42,5 +42,6 @@ struct parcel_pos {
     float *zpos;
 
     int nParcels;
+    int nTimes;
 };
 #endif

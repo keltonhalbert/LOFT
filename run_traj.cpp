@@ -58,8 +58,14 @@ void seed_parcels(parcel_pos *parcels, datagrid *requested_grid, int nParcels) {
         // are going to be the top of the domain, and the z positions
         // are going to be the first grid point above the surface
         parcels->xpos[i] = requested_grid->xh[i];
-        parcels->ypos[i] = requested_grid->yh[requested_grid->NY-1];
-        parcels->zpos[i] = requested_grid->zh[0];
+        parcels->ypos[i] = requested_grid->yh[(int)(requested_grid->NY/2)];
+        parcels->zpos[i] = 1000.;
+
+        for (int t = 1; t < parcels->nTimes; ++t) {
+            parcels->xpos[i + nParcels*t] = -99999.0;
+            parcels->ypos[i + nParcels*t] = -99999.0;
+            parcels->zpos[i + nParcels*t] = -99999.0;
+        }
     }
 
 }
@@ -196,12 +202,13 @@ int main(int argc, char **argv ) {
         // and zonal line of parcels
         int nParcels = requested_grid.NX;
         parcel_pos parcels;
-        float *xpos = new float[nParcels * nT];
-        float *ypos = new float[nParcels * nT];
-        float *zpos = new float[nParcels * nT];
+        float *xpos = new float[nParcels * (nT+1)];
+        float *ypos = new float[nParcels * (nT+1)];
+        float *zpos = new float[nParcels * (nT+1)];
         parcels.xpos = xpos; parcels.ypos = ypos;
         parcels.zpos = zpos;
         parcels.nParcels = nParcels;
+        parcels.nTimes = nT+1;
 
         // seed the parcels
         seed_parcels(&parcels, &requested_grid, nParcels);
