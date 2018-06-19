@@ -62,8 +62,6 @@ __device__ __host__ void _nearest_grid_idx(float *point, float *x_grd, float *y_
 	// if a nearest index was not found, set all indices to -1 to flag
 	// that the point is not in the domain
 	if ((near_i == -1) || (near_j == -1) || (near_k == -1)) {
-        printf("Cannot find index\n i: %d\tj: %d\tk: %d\n", near_i, near_j, near_k);
-        printf("x: %f\ty: %f\tz: %f\tt: %d\n", pt_x, pt_y, pt_z, idx_4D[3]);
 		near_i = -1; near_j = -1; near_k = -1;
 	}
 
@@ -107,30 +105,30 @@ __host__ __device__ void _calc_weights(float *x_grd, float *y_grd, float *z_grd,
 	// the U, V, and W grids are staggered so this
 	// takes care of that crap
 	if (ugrd) {
-		rx = (x_pt - x_grd[i] + 0.5 * DX / scale_x) * scale_x / DX;
-		ry = (y_pt - y_grd[j]) * scale_y / DY;
-		rz = (z_pt - z_grd[k]) * scale_z / DZ;
+		rx = ((x_pt - x_grd[i]) + (0.5 * DX / scale_x)) * (scale_x / DX);
+		ry = ((y_pt - y_grd[j])) * (scale_y / DY);
+		rz = ((z_pt - z_grd[k])) * (scale_z / DZ);
 	}
 
 	if (vgrd) {
-		rx = (x_pt - x_grd[i]) * scale_x / DX;
-		ry = (y_pt - y_grd[j] + 0.5 * DX / scale_y) * scale_y / DY;
-		rz = (z_pt - z_grd[k]) * scale_z / DZ;
+		rx = ((x_pt - x_grd[i])) * (scale_x / DX);
+		ry = ((y_pt - y_grd[j] + (0.5 * DX / scale_y))) * (scale_y / DY);
+		rz = ((z_pt - z_grd[k])) * (scale_z / DZ);
 
 	}
 
 	if (wgrd) {
-		rx = (x_pt - x_grd[i]) * scale_x / DX;
-		ry = (y_pt - y_grd[j]) * scale_y / DY;
-		rz = (z_pt - z_grd[k] - 0.5 * DZ  / scale_z) * scale_z / DZ;
+		rx = ((x_pt - x_grd[i])) * (scale_x / DX);
+		ry = ((y_pt - y_grd[j])) * (scale_y / DY);
+		rz = ((z_pt - z_grd[k]) - (0.5 * DZ  / scale_z)) * (scale_z / DZ);
 
 	}
 
 	// data on scalar grid
 	else {
-		rx = (x_pt - x_grd[i]) * scale_x / DX;
-		ry = (y_pt - y_grd[j]) * scale_y / DY;
-		rz = (z_pt - z_grd[k]) * scale_z / DZ;
+		rx = (x_pt - x_grd[i]) * (scale_x / DX);
+		ry = (y_pt - y_grd[j]) * (scale_y / DY);
+		rz = (z_pt - z_grd[k]) * (scale_z / DZ);
 	}
 
 	// calculate the weights
@@ -153,6 +151,7 @@ __host__ __device__ void _calc_weights(float *x_grd, float *y_grd, float *z_grd,
     weights[5] = w6;
     weights[6] = w7;
     weights[7] = w8;
+        
 }
 
 
@@ -227,6 +226,9 @@ __host__ __device__ float interp3D(float *x_grd, float *y_grd, float *z_grd, flo
 
     // get the interpolation weights
     _calc_weights(x_grd, y_grd, z_grd, weights, point, idx_4D, ugrd, vgrd, wgrd, nX, nY, nZ); 
+    if (tstep == 0) {
+        //printf("Interpolation W0 at T0: %f\n", weights[0]);
+    }
 
     // interpolate the value
     output_val = _tri_interp(data_grd, weights, idx_4D, nX, nY, nZ);

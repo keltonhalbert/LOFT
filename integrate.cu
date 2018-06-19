@@ -22,7 +22,6 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 
 __global__ void test(datagrid grid, parcel_pos parcels, float *u_time_chunk, float *v_time_chunk, float *w_time_chunk, int MX, int MY, int MZ, int nT) {
 	int parcel_id = blockIdx.x;
-    printf("MY PARCEL ID IS %d\n", parcel_id);
     // safety check to make sure our thread index doesn't
     // go out of our array bounds
     if (parcel_id < parcels.nParcels) {
@@ -39,7 +38,7 @@ __global__ void test(datagrid grid, parcel_pos parcels, float *u_time_chunk, flo
             point[0] = parcels.xpos[tidx + (nT * parcel_id)];
             point[1] = parcels.ypos[tidx + (nT * parcel_id)];
             point[2] = parcels.zpos[tidx + (nT * parcel_id)];
-            printf("My Point to Integrate: x = %f\t y = %f\t z = %f\t parcel_id = %d\t time = %d\n", point[0], point[1], point[2], parcel_id, tidx);
+            //printf("My Point to Integrate: x = %f\t y = %f\t z = %f\t parcel_id = %d\t time = %d\n", point[0], point[1], point[2], parcel_id, tidx);
 
 
             is_ugrd = true;
@@ -56,7 +55,7 @@ __global__ void test(datagrid grid, parcel_pos parcels, float *u_time_chunk, flo
             is_vgrd = false;
             is_wgrd = true;
             pcl_w = interp3D(grid.xh, grid.yh, grid.zh, w_time_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx, MX, MY, MZ);
-            printf("My Parcel Vector Field: u = %f\t v = %f\t w = %f\n", pcl_u, pcl_v, pcl_w);
+            //printf("My Parcel Vector Field: u = %f\t v = %f\t w = %f\n", pcl_u, pcl_v, pcl_w);
 
             // if the parcel has left the domain, exit
             if ((pcl_u == -999.0) || (pcl_v == -999.0) || (pcl_w == -999.0)) {
@@ -65,11 +64,16 @@ __global__ void test(datagrid grid, parcel_pos parcels, float *u_time_chunk, flo
             else {
 
                 // integrate X position forward by the U wind
-                parcels.xpos[(tidx + 1) + (nT * parcel_id)] = point[0] + pcl_u * (1.0f/6.0f);
+                point[0] += pcl_u * (1.0f/6.0f);
                 // integrate Y position forward by the V wind
-                parcels.ypos[(tidx + 1) + (nT * parcel_id)] = point[1] + pcl_v * (1.0f/6.0f);
+                point[1] += pcl_v * (1.0f/6.0f);
                 // integrate Z position forward by the W wind
-                parcels.zpos[(tidx + 1) + (nT * parcel_id)] = point[2] + pcl_w * (1.0f/6.0f);
+                point[2] += pcl_w * (1.0f/6.0f);
+
+
+                parcels.xpos[(tidx + 1) + (nT * parcel_id)] = point[0]; 
+                parcels.ypos[(tidx + 1) + (nT * parcel_id)] = point[1];
+                parcels.zpos[(tidx + 1) + (nT * parcel_id)] = point[2];
             }
         }
     }
@@ -127,6 +131,13 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     gpuErrchk( cudaMemcpy(parcels.ypos, device_parcels.ypos, parcels.nParcels * nT * sizeof(float), cudaMemcpyDeviceToHost) );
     gpuErrchk( cudaMemcpy(parcels.zpos, device_parcels.zpos, parcels.nParcels * nT * sizeof(float), cudaMemcpyDeviceToHost) );
     gpuErrchk( cudaDeviceSynchronize() );
+
+    cudaFree(device_grid.xh);
+    cudaFree(device_grid.yh);
+    cudaFree(device_grid.zh);
+    cudaFree(device_parcels.xpos);
+    cudaFree(device_parcels.ypos);
+    cudaFree(device_parcels.zpos);
 
 
     ofstream outfile;

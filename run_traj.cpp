@@ -183,23 +183,41 @@ int main(int argc, char **argv ) {
 
         // we need to add the buffered data to the 4D array
         // for our rank (rank 0)
-        for (int idx = 0; idx < N; ++idx) {
-            // obviously since it's time 0 this doesn't matter
-            // but I'm showing it for clarity
-            u_time_chunk[0*MX*MY*MZ + idx] = ubuf[idx];
-            v_time_chunk[0*MX*MY*MZ + idx] = vbuf[idx];
-            w_time_chunk[0*MX*MY*MZ + idx] = wbuf[idx];
+        for (int i = 0; i < MX; ++i) {
+            for (int j = 0; j < MY; ++j) {
+                for (int k = 0; k < MZ; ++k) {
+                    // obviously since it's time 0 this doesn't matter
+                    // but I'm showing it for clarity
+                    u_time_chunk[P4(k, j, i, 0, MX, MY, MZ)] = ubuf[P3(k, j, i, MX, MY)];
+                    v_time_chunk[P4(k, j, i, 0, MX, MY, MZ)] = vbuf[P3(k, j, i, MX, MY)];
+                    w_time_chunk[P4(k, j, i, 0, MX, MY, MZ)] = wbuf[P3(k, j, i, MX, MY)];
+                }
+            }
         }
 
         // loop over the MPI ranks and receive the data 
         // transmitted from each rank
-        for (int i = 1; i < size; ++i) {
+        for (int t = 1; t < size; ++t) {
             // get the buffers from the other MPI ranks
             // and place it into our 4D array at the corresponding time
-            MPI_Recv(&(u_time_chunk[i*MX*MY*MZ]), N, MPI_FLOAT, i, 1, MPI_COMM_WORLD, &status);
-            MPI_Recv(&(v_time_chunk[i*MX*MY*MZ]), N, MPI_FLOAT, i, 2, MPI_COMM_WORLD, &status);
-            MPI_Recv(&(w_time_chunk[i*MX*MY*MZ]), N, MPI_FLOAT, i, 3, MPI_COMM_WORLD, &status);
+            //MPI_Recv(&(u_time_chunk[i*MX*MY*MZ]), N, MPI_FLOAT, i, 1, MPI_COMM_WORLD, &status);
+            //MPI_Recv(&(v_time_chunk[i*MX*MY*MZ]), N, MPI_FLOAT, i, 2, MPI_COMM_WORLD, &status);
+            //MPI_Recv(&(w_time_chunk[i*MX*MY*MZ]), N, MPI_FLOAT, i, 3, MPI_COMM_WORLD, &status);
+            MPI_Recv(ubuf, N, MPI_FLOAT, t, 1, MPI_COMM_WORLD, &status);
+            MPI_Recv(vbuf, N, MPI_FLOAT, t, 2, MPI_COMM_WORLD, &status);
+            MPI_Recv(wbuf, N, MPI_FLOAT, t, 3, MPI_COMM_WORLD, &status);
             cout << "Received from: " << status.MPI_SOURCE << " Error: " << status.MPI_ERROR << endl;
+            for (int i = 0; i < MX; ++i) {
+                for (int j = 0; j < MY; ++j) {
+                    for (int k = 0; k < MZ; ++k) {
+                        // obviously since it's time 0 this doesn't matter
+                        // but I'm showing it for clarity
+                        u_time_chunk[P4(i, j, k, t, MX, MY, MZ)] = ubuf[P3(i, j, k, MX, MY)];
+                        v_time_chunk[P4(i, j, k, t, MX, MY, MZ)] = vbuf[P3(i, j, k, MX, MY)];
+                        w_time_chunk[P4(i, j, k, t, MX, MY, MZ)] = wbuf[P3(i, j, k, MX, MY)];
+                    }
+                }
+            }
         }
 
         // we're gonna make a test by creating a horizontal
