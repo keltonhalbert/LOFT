@@ -7,9 +7,9 @@ using namespace std;
 // stole this define from LOFS
 #define P3(x,y,z,mx,my) (((z)*(mx)*(my))+((y)*(mx))+(x))
 // I made this myself by stealing from LOFS
-#define P4(x,y,z,t,mx,my,mz) ((t*mx*my*mz)+((z)*(mx)*(my))+((y)*(mx))+(x))
+#define P4(x,y,z,t,mx,my,mz) (((t)*(mx)*(my)*(mz))+((z)*(mx)*(my))+((y)*(mx))+(x))
 __host__ __device__ int arrayIndex(int x, int y, int z, int t,  int mx, int my, int mz) {
-	return x + ((y*mx) + (z*mx*my) + (t*mx*my*mz));
+	return P4(x, y, z, t, mx, my, mz);
 }
 
 
@@ -61,7 +61,9 @@ __device__ __host__ void _nearest_grid_idx(float *point, float *x_grd, float *y_
 
 	// if a nearest index was not found, set all indices to -1 to flag
 	// that the point is not in the domain
-	if ((near_i == -1) | (near_j == -1) | (near_k) == -1) {
+	if ((near_i == -1) || (near_j == -1) || (near_k == -1)) {
+        printf("Cannot find index\n i: %d\tj: %d\tk: %d\n", near_i, near_j, near_k);
+        printf("x: %f\ty: %f\tz: %f\tt: %d\n", pt_x, pt_y, pt_z, idx_4D[3]);
 		near_i = -1; near_j = -1; near_k = -1;
 	}
 

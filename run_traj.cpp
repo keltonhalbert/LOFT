@@ -27,8 +27,8 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid) {
 
     // for right now, set the grid bounds to the saved
     // bounds for testing purposes
-    requested_grid->X0 = saved_X0; requested_grid->Y0 = saved_Y0 + 260;
-    requested_grid->X1 = saved_X0 + 330; requested_grid->Y1 = saved_Y0 + 590;
+    requested_grid->X0 = saved_X0 + 180; requested_grid->Y0 = saved_Y0 + 180;
+    requested_grid->X1 = saved_X0 + 380; requested_grid->Y1 = saved_Y0 + 380;
     requested_grid->Z0 = 0; requested_grid->Z1 = 100;
 
     // request a grid subset based on 
@@ -52,19 +52,22 @@ void loadVectorsFromDisk(datagrid *requested_grid, float *ubuffer, float *vbuffe
  */
 void seed_parcels(parcel_pos *parcels, datagrid *requested_grid, int nParcels) {
 
-    for (int i = 0; i < nParcels; ++i) {
-        // seed the parcel starting points - the x positions are going 
-        // to be a row along the x axis, the y positions
-        // are going to be the top of the domain, and the z positions
-        // are going to be the first grid point above the surface
-        parcels->xpos[i] = requested_grid->xh[i];
-        parcels->ypos[i] = requested_grid->yh[(int)(requested_grid->NY/2)];
-        parcels->zpos[i] = 1000.;
+    int pid = 0;
+    for (int i = 30; i < 130; ++i) {
+        for (int j = 100; j < 200; ++j) {
+            parcels->xpos[0 + (parcels->nTimes*pid)] = requested_grid->xh[i];
+            parcels->ypos[0 + (parcels->nTimes*pid)] = requested_grid->yh[j];
+            parcels->zpos[0 + (parcels->nTimes*pid)] = 1005.;
+            cout << "PID: " << pid << endl;
+            pid += 1;
+        }
+    }
 
+    for (int p = 0; p < nParcels; ++p) {
         for (int t = 1; t < parcels->nTimes; ++t) {
-            parcels->xpos[i + nParcels*t] = -99999.0;
-            parcels->ypos[i + nParcels*t] = -99999.0;
-            parcels->zpos[i + nParcels*t] = -99999.0;
+            parcels->xpos[t + (parcels->nTimes*p)] = -99999.0;
+            parcels->ypos[t + (parcels->nTimes*p)] = -99999.0;
+            parcels->zpos[t + (parcels->nTimes*p)] = -99999.0;
         }
     }
 
@@ -95,7 +98,8 @@ int main(int argc, char **argv ) {
                                                                    errors */
     // the number of time steps we have is 
     // the number of MPI ranks there are
-    int nT = size;
+    // plus the last integration time
+    int nT = size+1;
 
 
     // read in the metadata
@@ -129,9 +133,9 @@ int main(int argc, char **argv ) {
 
 
     // allocate space for U, V, and W arrays
-    float *ubuf = new float[(size_t)bufsize];
-    float *vbuf = new float[(size_t)bufsize];
-    float *wbuf = new float[(size_t)bufsize];
+    float *ubuf = new float[N];
+    float *vbuf = new float[N];
+    float *wbuf = new float[N];
     cout << "TIMESTEP " << rank << " " << alltimes[rank] <<  endl;
     // load u, v, and w into memory
     loadVectorsFromDisk(&requested_grid, ubuf, vbuf, wbuf, alltimes[rank]);
@@ -173,9 +177,9 @@ int main(int argc, char **argv ) {
         // bufsize is the size of the 3D component and size is
         // the number of MPI ranks (which is also the number of times)
         // read in
-        float *u_time_chunk = new float[(size_t)(bufsize*size)];
-        float *v_time_chunk = new float[(size_t)(bufsize*size)];
-        float *w_time_chunk = new float[(size_t)(bufsize*size)];
+        float *u_time_chunk = new float[N*size];
+        float *v_time_chunk = new float[N*size];
+        float *w_time_chunk = new float[N*size];
 
         // we need to add the buffered data to the 4D array
         // for our rank (rank 0)
@@ -200,22 +204,22 @@ int main(int argc, char **argv ) {
 
         // we're gonna make a test by creating a horizontal
         // and zonal line of parcels
-        int nParcels = requested_grid.NX;
+        int nParcels = 10000;
         parcel_pos parcels;
-        float *xpos = new float[nParcels * (nT+1)];
-        float *ypos = new float[nParcels * (nT+1)];
-        float *zpos = new float[nParcels * (nT+1)];
+        float *xpos = new float[nParcels * nT];
+        float *ypos = new float[nParcels * nT];
+        float *zpos = new float[nParcels * nT];
         parcels.xpos = xpos; parcels.ypos = ypos;
         parcels.zpos = zpos;
         parcels.nParcels = nParcels;
-        parcels.nTimes = nT+1;
+        parcels.nTimes = nT;
 
         // seed the parcels
         seed_parcels(&parcels, &requested_grid, nParcels);
         // print to make sure we properly seeded
         for (int i = 0; i < nParcels; ++i) {
             // sanity print to make sure we're seeding the right stuff
-            cout << "Starting Positions: X = " << parcels.xpos[i] << " Y = " << parcels.ypos[i] << " Z = " << parcels.zpos[i] << endl;
+            cout << "Starting Positions: X = " << parcels.xpos[nT*i] << " Y = " << parcels.ypos[nT*i] << " Z = " << parcels.zpos[nT*i] << endl;
         }
 
         cudaIntegrateParcels(requested_grid, parcels, u_time_chunk, v_time_chunk, w_time_chunk, MX, MY, MZ, nT);
