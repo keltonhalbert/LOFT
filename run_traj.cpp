@@ -74,71 +74,11 @@ void seed_parcels(parcel_pos *parcels, datagrid *requested_grid, int nParcels) {
 }
 
 
-/* This is the main program that does the parcel trajectory analysis.
- * It first sets up the parcel vectors and seeds the starting locations.
- * It then loads a chunk of times into memory by calling the LOFS api
- * wrappers, with the number of times read in being determined by the
- * number of MPI ranks launched. It then passes the vectors and the 4D u/v/w 
- * data chunks to the GPU, and then proceeds with another time chunk.
- */
-int main(int argc, char **argv ) {
-    string base_dir = "/u/sciteam/halbert/project_bagm/khalbert/30m-every-time-step/3D";
-    int rank, size, ierr_u, ierr_v, ierr_w, errclass;
-    long N, MX, MY, MZ;
-    MPI_Status status;
-
-    // initialize a bunch of MPI stuff.
-    // Rank tells you which process
-    // you are and size tells y ou how
-    // many processes there are total
-    MPI_Init(&argc, &argv);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-    MPI_Errhandler_set(MPI_COMM_WORLD,MPI_ERRORS_RETURN); /* return info about
-                                                                   errors */
-    // the number of time steps we have is 
-    // the number of MPI ranks there are
-    // plus the last integration time
-    int nT = size+1;
-
-
-    // read in the metadata
-    datagrid requested_grid;
-    loadMetadataAndGrid(base_dir, &requested_grid);
-
-    
-    // the number of grid points requested
-    N = (requested_grid.NX+1)*(requested_grid.NY+1)*(requested_grid.NZ+1);
-
-
-    // get the size of the domain we will
-    // be requesting. The +1 is safety for
-    // staggered grids
-    MX = (long) (requested_grid.NX+1);
-    MY = (long) (requested_grid.NY+1);
-    MZ = (long) (requested_grid.NZ+1);
-
-    // the size of our 3D buffer
-    long bufsize = MX * MY * MZ * (long) sizeof(float);
-
-    // have the master rank print out some diagrostic information
-    if (rank == 0) {
-        cout << endl << "GRID DIMENSIONS" << endl;
-        cout << "NX = " << requested_grid.NX << " NY = " << requested_grid.NY << " NZ = " << requested_grid.NZ << endl;
-        cout << "X0 = " << requested_grid.xh[requested_grid.X0] << " Y0 = " << requested_grid.yh[requested_grid.Y0] << endl;
-        cout << "X1 = " << requested_grid.xh[requested_grid.X1] << " Y1 = " << requested_grid.yh[requested_grid.Y1] << endl;
-        cout << "Z0 = " << requested_grid.zh[requested_grid.Z0] << " Z1 = " << requested_grid.zh[requested_grid.Z1] << endl;
-        cout << "Allocating Memory: " << bufsize * 1.25e-7 << "mb per vector for " << endl;
-    }
-
-
-    // allocate space for U, V, and W arrays
-    float *ubuf = new float[N];
-    float *vbuf = new float[N];
-    float *wbuf = new float[N];
-    cout << "TIMESTEP " << rank << " " << alltimes[rank] <<  endl;
+void mpi_fetch_data(datagrid *requested_grid, float *ubuf, float *vbuf, float *wbuf, int tChunk, int N, int rank, int size) {
+    int ierr_u, ierr_v, ierr_w, errclass;
+    cout << "TIMESTEP " << rank << " " << alltimes[rank + tChunk*size] <<  endl;
     // load u, v, and w into memory
-    loadVectorsFromDisk(&requested_grid, ubuf, vbuf, wbuf, alltimes[rank]);
+    loadVectorsFromDisk(requested_grid, ubuf, vbuf, wbuf, alltimes[rank + tChunk*size]);
 
 
     // if this is nor the master rank, communicate
@@ -169,10 +109,96 @@ int main(int argc, char **argv ) {
         delete[] ubuf;
         delete[] vbuf;
     }
+}
 
-    // If this is the master rank (rank == 0)
-    // then do all the cool stuff
-    else {
+void mpi_receive_data(float *u_time_chunk, float *v_time_chunk, float *w_time_chunk, \
+                        float *ubuf, float *vbuf, float *wbuf, int size, int N, int MX, int MY, int MZ) {
+
+    MPI_Status status;
+    // we need to add the buffered data to the 4D array
+    // for our rank (rank 0)
+    for (int i = 0; i < MX; ++i) {
+        for (int j = 0; j < MY; ++j) {
+            for (int k = 0; k < MZ; ++k) {
+                // obviously since it's time 0 this doesn't matter
+                // but I'm showing it for clarity
+                u_time_chunk[P4(k, j, i, 0, MX, MY, MZ)] = ubuf[P3(k, j, i, MX, MY)];
+                v_time_chunk[P4(k, j, i, 0, MX, MY, MZ)] = vbuf[P3(k, j, i, MX, MY)];
+                w_time_chunk[P4(k, j, i, 0, MX, MY, MZ)] = wbuf[P3(k, j, i, MX, MY)];
+            }
+        }
+    }
+
+    // loop over the MPI ranks and receive the data 
+    // transmitted from each rank
+    for (int t = 1; t < size; ++t) {
+        // get the buffers from the other MPI ranks
+        // and place it into our 4D array at the corresponding time
+        MPI_Recv(&(u_time_chunk[t*MX*MY*MZ]), N, MPI_FLOAT, t, 1, MPI_COMM_WORLD, &status);
+        MPI_Recv(&(v_time_chunk[t*MX*MY*MZ]), N, MPI_FLOAT, t, 2, MPI_COMM_WORLD, &status);
+        MPI_Recv(&(w_time_chunk[t*MX*MY*MZ]), N, MPI_FLOAT, t, 3, MPI_COMM_WORLD, &status);
+        cout << "Received from: " << status.MPI_SOURCE << " Error: " << status.MPI_ERROR << endl;
+    }
+
+
+}
+
+
+/* This is the main program that does the parcel trajectory analysis.
+ * It first sets up the parcel vectors and seeds the starting locations.
+ * It then loads a chunk of times into memory by calling the LOFS api
+ * wrappers, with the number of times read in being determined by the
+ * number of MPI ranks launched. It then passes the vectors and the 4D u/v/w 
+ * data chunks to the GPU, and then proceeds with another time chunk.
+ */
+int main(int argc, char **argv ) {
+    string base_dir = "/u/sciteam/halbert/project_bagm/khalbert/30m-every-time-step/3D";
+    int rank, size;
+    long N, MX, MY, MZ;
+    int nTimeChunks = 2;
+
+    // initialize a bunch of MPI stuff.
+    // Rank tells you which process
+    // you are and size tells y ou how
+    // many processes there are total
+    MPI_Init(&argc, &argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Errhandler_set(MPI_COMM_WORLD,MPI_ERRORS_RETURN); /* return info about
+                                                                   errors */
+    // read in the metadata
+    datagrid requested_grid;
+
+    // the number of time steps we have is 
+    // the number of MPI ranks there are
+    // plus the last integration time, and
+    // then multplied by the number of chunks
+    // of time we're integrating over
+    int nT = (size+1)*nTimeChunks;
+
+    // we're gonna make a test by creating a horizontal
+    // and zonal line of parcels
+    int nParcels = 10000;
+    parcel_pos parcels;
+
+    for (int tChunk = 0; tChunk < nTimeChunks; ++tChunk) {
+
+        loadMetadataAndGrid(base_dir, &requested_grid); 
+        // the number of grid points requested
+        N = (requested_grid.NX+1)*(requested_grid.NY+1)*(requested_grid.NZ+1);
+
+
+        // get the size of the domain we will
+        // be requesting. The +1 is safety for
+        // staggered grids
+        MX = (long) (requested_grid.NX+1);
+        MY = (long) (requested_grid.NY+1);
+        MZ = (long) (requested_grid.NZ+1);
+
+        // allocate space for U, V, and W arrays
+        float *ubuf = new float[N];
+        float *vbuf = new float[N];
+        float *wbuf = new float[N];
         // construct a 4D contiguous array to store stuff in.
         // bufsize is the size of the 3D component and size is
         // the number of MPI ranks (which is also the number of times)
@@ -180,67 +206,12 @@ int main(int argc, char **argv ) {
         float *u_time_chunk = new float[N*size];
         float *v_time_chunk = new float[N*size];
         float *w_time_chunk = new float[N*size];
+        mpi_fetch_data(&requested_grid, ubuf, vbuf, wbuf, tChunk, N, rank, size);
 
-        // we need to add the buffered data to the 4D array
-        // for our rank (rank 0)
-        for (int i = 0; i < MX; ++i) {
-            for (int j = 0; j < MY; ++j) {
-                for (int k = 0; k < MZ; ++k) {
-                    // obviously since it's time 0 this doesn't matter
-                    // but I'm showing it for clarity
-                    u_time_chunk[P4(k, j, i, 0, MX, MY, MZ)] = ubuf[P3(k, j, i, MX, MY)];
-                    v_time_chunk[P4(k, j, i, 0, MX, MY, MZ)] = vbuf[P3(k, j, i, MX, MY)];
-                    w_time_chunk[P4(k, j, i, 0, MX, MY, MZ)] = wbuf[P3(k, j, i, MX, MY)];
-                }
-            }
+        if (rank == 0) {
+            mpi_receive_data(u_time_chunk, v_time_chunk, w_time_chunk, ubuf, vbuf, wbuf, size, N, MX, MY, MZ); 
+            cout << "I received all the data!" << endl;
         }
-
-        // loop over the MPI ranks and receive the data 
-        // transmitted from each rank
-        for (int t = 1; t < size; ++t) {
-            // get the buffers from the other MPI ranks
-            // and place it into our 4D array at the corresponding time
-            //MPI_Recv(&(u_time_chunk[i*MX*MY*MZ]), N, MPI_FLOAT, i, 1, MPI_COMM_WORLD, &status);
-            //MPI_Recv(&(v_time_chunk[i*MX*MY*MZ]), N, MPI_FLOAT, i, 2, MPI_COMM_WORLD, &status);
-            //MPI_Recv(&(w_time_chunk[i*MX*MY*MZ]), N, MPI_FLOAT, i, 3, MPI_COMM_WORLD, &status);
-            MPI_Recv(ubuf, N, MPI_FLOAT, t, 1, MPI_COMM_WORLD, &status);
-            MPI_Recv(vbuf, N, MPI_FLOAT, t, 2, MPI_COMM_WORLD, &status);
-            MPI_Recv(wbuf, N, MPI_FLOAT, t, 3, MPI_COMM_WORLD, &status);
-            cout << "Received from: " << status.MPI_SOURCE << " Error: " << status.MPI_ERROR << endl;
-            for (int i = 0; i < MX; ++i) {
-                for (int j = 0; j < MY; ++j) {
-                    for (int k = 0; k < MZ; ++k) {
-                        // obviously since it's time 0 this doesn't matter
-                        // but I'm showing it for clarity
-                        u_time_chunk[P4(i, j, k, t, MX, MY, MZ)] = ubuf[P3(i, j, k, MX, MY)];
-                        v_time_chunk[P4(i, j, k, t, MX, MY, MZ)] = vbuf[P3(i, j, k, MX, MY)];
-                        w_time_chunk[P4(i, j, k, t, MX, MY, MZ)] = wbuf[P3(i, j, k, MX, MY)];
-                    }
-                }
-            }
-        }
-
-        // we're gonna make a test by creating a horizontal
-        // and zonal line of parcels
-        int nParcels = 10000;
-        parcel_pos parcels;
-        float *xpos = new float[nParcels * nT];
-        float *ypos = new float[nParcels * nT];
-        float *zpos = new float[nParcels * nT];
-        parcels.xpos = xpos; parcels.ypos = ypos;
-        parcels.zpos = zpos;
-        parcels.nParcels = nParcels;
-        parcels.nTimes = nT;
-
-        // seed the parcels
-        seed_parcels(&parcels, &requested_grid, nParcels);
-        // print to make sure we properly seeded
-        for (int i = 0; i < nParcels; ++i) {
-            // sanity print to make sure we're seeding the right stuff
-            cout << "Starting Positions: X = " << parcels.xpos[nT*i] << " Y = " << parcels.ypos[nT*i] << " Z = " << parcels.zpos[nT*i] << endl;
-        }
-
-        cudaIntegrateParcels(requested_grid, parcels, u_time_chunk, v_time_chunk, w_time_chunk, MX, MY, MZ, nT);
     }
 
     MPI_Finalize();

@@ -159,6 +159,8 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
         // parcel end flag
         outfile << "!End " << pcl << endl;
     }
+
+    cout << "FINISHED CUDA" << endl;
 }
 
 #endif
