@@ -50,8 +50,9 @@ void loadVectorsFromDisk(datagrid *requested_grid, float *ubuffer, float *vbuffe
 
 /* Seed some test parcels into vectors of vectors for the different position dimension
  */
-void seed_parcels(parcel_pos *parcels, datagrid *requested_grid, int nParcels) {
+void seed_parcels(parcel_pos *parcels, datagrid *requested_grid) {
 
+    int nParcels = parcels->nParcels;
     int pid = 0;
     for (int i = 30; i < 130; ++i) {
         for (int j = 100; j < 200; ++j) {
@@ -73,7 +74,15 @@ void seed_parcels(parcel_pos *parcels, datagrid *requested_grid, int nParcels) {
 
 }
 
-
+/* This function is called to request girdded data from LOFS.
+ * It is passed pointers to previously allocated memory buffers, 
+ * the integer chunk of time being worked on, the total size of
+ * the buffer N, and the MPI size and rank number.
+ *
+ * All ranks call the data loading function.
+ * If the rank is not the master rank, then is sends the data
+ * to the master rank (rank == 0) and then deallocates the
+ * buffers used on the slave nodes. */
 void mpi_fetch_data(datagrid *requested_grid, float *ubuf, float *vbuf, float *wbuf, int tChunk, int N, int rank, int size) {
     int ierr_u, ierr_v, ierr_w, errclass;
     cout << "TIMESTEP " << rank << " " << alltimes[rank + tChunk*size] <<  endl;
@@ -111,6 +120,14 @@ void mpi_fetch_data(datagrid *requested_grid, float *ubuf, float *vbuf, float *w
     }
 }
 
+
+
+/* This function is used to recieve data from the slave MPI ranks and the data
+ * acquired from the master rank and then puts all of it into a 4D array chunk.
+ *
+ * It is given the 4D array chunk buffers, the 3D array buffers acquired from the
+ * grid acquision by the master rank, the MPI rank size, and parameters about the
+ * size of the 3D grid.*/
 void mpi_receive_data(float *u_time_chunk, float *v_time_chunk, float *w_time_chunk, \
                         float *ubuf, float *vbuf, float *wbuf, int size, int N, int MX, int MY, int MZ) {
 
@@ -139,8 +156,6 @@ void mpi_receive_data(float *u_time_chunk, float *v_time_chunk, float *w_time_ch
         MPI_Recv(&(w_time_chunk[t*MX*MY*MZ]), N, MPI_FLOAT, t, 3, MPI_COMM_WORLD, &status);
         cout << "Received from: " << status.MPI_SOURCE << " Error: " << status.MPI_ERROR << endl;
     }
-
-
 }
 
 
@@ -166,8 +181,6 @@ int main(int argc, char **argv ) {
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Errhandler_set(MPI_COMM_WORLD,MPI_ERRORS_RETURN); /* return info about
                                                                    errors */
-    // read in the metadata
-    datagrid requested_grid;
 
     // the number of time steps we have is 
     // the number of MPI ranks there are
@@ -180,10 +193,30 @@ int main(int argc, char **argv ) {
     // and zonal line of parcels
     int nParcels = 10000;
     parcel_pos parcels;
+    datagrid requested_grid;
+
+    // allocate memory for the parcels
+    // we are integrating for the entirety 
+    // of the simulation.
+    parcels.xpos = new float[nParcels * nT];
+    parcels.ypos = new float[nParcels * nT];
+    parcels.zpos = new float[nParcels * nT];
+    parcels.nParcels = nParcels;
+    parcels.nTimes = nT;
 
     for (int tChunk = 0; tChunk < nTimeChunks; ++tChunk) {
 
+        // read in the metadata - later we will make
+        // the requested grid dynamic based on the
+        // parcel seeds
         loadMetadataAndGrid(base_dir, &requested_grid); 
+
+        // if this is the first chunk of time, seed the
+        // parcel start locations
+        if (tChunk == 0) {
+            seed_parcels(&parcels, &requested_grid);
+        }
+
         // the number of grid points requested
         N = (requested_grid.NX+1)*(requested_grid.NY+1)*(requested_grid.NZ+1);
 
