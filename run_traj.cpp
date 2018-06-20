@@ -73,89 +73,6 @@ void seed_parcels(parcel_pos *parcels, datagrid *requested_grid) {
 
 }
 
-/* This function is called to request girdded data from LOFS.
- * It is passed pointers to previously allocated memory buffers, 
- * the integer chunk of time being worked on, the total size of
- * the buffer N, and the MPI size and rank number.
- *
- * All ranks call the data loading function.
- * If the rank is not the master rank, then is sends the data
- * to the master rank (rank == 0) and then deallocates the
- * buffers used on the slave nodes. */
-void mpi_fetch_data(datagrid *requested_grid, float *ubuf, float *vbuf, float *wbuf, int tChunk, int N, int rank, int size) {
-    int ierr_u, ierr_v, ierr_w, errclass;
-    cout << "TIMESTEP " << rank << " " << alltimes[rank + tChunk*size] <<  endl;
-    // load u, v, and w into memory
-    loadVectorsFromDisk(requested_grid, ubuf, vbuf, wbuf, alltimes[rank + tChunk*size]);
-
-
-    // if this is nor the master rank, communicate
-    // the data to the master rank and then delete
-    // the buffers since only rank 0 is used from
-    // here on out
-    if (rank != 0) {
-        int dest = 0;
-        cout << "Sending from: " << rank << endl;
-        // send the U, V, and W arrays to the destination rank (0)
-        // and use tag 1 for U, tag 2 for V, and tag 3 for W
-        ierr_u = MPI_Send(ubuf, N, MPI_FLOAT, dest, 1, MPI_COMM_WORLD);
-        ierr_v = MPI_Send(vbuf, N, MPI_FLOAT, dest, 2, MPI_COMM_WORLD);
-        ierr_w = MPI_Send(wbuf, N, MPI_FLOAT, dest, 3, MPI_COMM_WORLD);
-
-        // lets do some error handling just in case
-        if ((ierr_u != MPI_SUCCESS) || (ierr_v != MPI_SUCCESS) || (ierr_w != MPI_SUCCESS)) {
-            cout << "MPI Communication Error on rank: " << rank << endl;
-            cout << "U array error status: " << ierr_u << endl;
-            cout << "V array error status: " << ierr_v << endl;
-            cout << "W array error status: " << ierr_w << endl;
-        }
-        if ((ierr_u == MPI_SUCCESS) && (ierr_v == MPI_SUCCESS) && (ierr_w == MPI_SUCCESS)) {
-            cout << "Succeffully passed U/V/W arrays from rank: " << rank << endl;
-        }
-        // de-allocate the memory the rank uses after communicating
-        delete[] wbuf;
-        delete[] ubuf;
-        delete[] vbuf;
-    }
-}
-
-
-
-/* This function is used to recieve data from the slave MPI ranks and the data
- * acquired from the master rank and then puts all of it into a 4D array chunk.
- *
- * It is given the 4D array chunk buffers, the 3D array buffers acquired from the
- * grid acquision by the master rank, the MPI rank size, and parameters about the
- * size of the 3D grid.*/
-void mpi_receive_data(float *u_time_chunk, float *v_time_chunk, float *w_time_chunk, \
-                        float *ubuf, float *vbuf, float *wbuf, int size, int N, int MX, int MY, int MZ) {
-
-    MPI_Status status;
-    // we need to add the buffered data to the 4D array
-    // for our rank (rank 0)
-    for (int i = 0; i < MX; ++i) {
-        for (int j = 0; j < MY; ++j) {
-            for (int k = 0; k < MZ; ++k) {
-                // obviously since it's time 0 this doesn't matter
-                // but I'm showing it for clarity
-                u_time_chunk[P4(k, j, i, 0, MX, MY, MZ)] = ubuf[P3(k, j, i, MX, MY)];
-                v_time_chunk[P4(k, j, i, 0, MX, MY, MZ)] = vbuf[P3(k, j, i, MX, MY)];
-                w_time_chunk[P4(k, j, i, 0, MX, MY, MZ)] = wbuf[P3(k, j, i, MX, MY)];
-            }
-        }
-    }
-
-    // loop over the MPI ranks and receive the data 
-    // transmitted from each rank
-    for (int t = 1; t < size; ++t) {
-        // get the buffers from the other MPI ranks
-        // and place it into our 4D array at the corresponding time
-        MPI_Recv(&(u_time_chunk[t*MX*MY*MZ]), N, MPI_FLOAT, t, 1, MPI_COMM_WORLD, &status);
-        MPI_Recv(&(v_time_chunk[t*MX*MY*MZ]), N, MPI_FLOAT, t, 2, MPI_COMM_WORLD, &status);
-        MPI_Recv(&(w_time_chunk[t*MX*MY*MZ]), N, MPI_FLOAT, t, 3, MPI_COMM_WORLD, &status);
-        cout << "Received from: " << status.MPI_SOURCE << " Error: " << status.MPI_ERROR << endl;
-    }
-}
 
 
 void write_data(parcel_pos parcels) {
@@ -195,7 +112,7 @@ int main(int argc, char **argv ) {
     string base_dir = "/u/sciteam/halbert/project_bagm/khalbert/30m-every-time-step/3D";
     int rank, size;
     long N, MX, MY, MZ;
-    int nTimeChunks = 3;
+    int nTimeChunks = 1;
 
     // initialize a bunch of MPI stuff.
     // Rank tells you which process
@@ -204,8 +121,9 @@ int main(int argc, char **argv ) {
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
-    MPI_Errhandler_set(MPI_COMM_WORLD,MPI_ERRORS_RETURN); /* return info about
+    MPI_Errhandler_set(MPI_COMM_WORLD,MPI_ERRORS_ARE_FATAL); /* return info about
                                                                    errors */
+    MPI_Barrier(MPI_COMM_WORLD);
 
     // the number of time steps we have is 
     // the number of MPI ranks there are
@@ -264,13 +182,20 @@ int main(int argc, char **argv ) {
         float *u_time_chunk = new float[N*size];
         float *v_time_chunk = new float[N*size];
         float *w_time_chunk = new float[N*size];
-        mpi_fetch_data(&requested_grid, ubuf, vbuf, wbuf, tChunk, N, rank, size);
+
+        cout << "TIMESTEP " << rank << " " << alltimes[rank + tChunk*size] <<  endl;
+        // load u, v, and w into memory
+        loadVectorsFromDisk(&requested_grid, ubuf, vbuf, wbuf, alltimes[rank + tChunk*size]);
+
+        MPI_Gather(ubuf, N, MPI_FLOAT, u_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        MPI_Gather(vbuf, N, MPI_FLOAT, v_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        MPI_Gather(wbuf, N, MPI_FLOAT, w_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
         if (rank == 0) {
-            mpi_receive_data(u_time_chunk, v_time_chunk, w_time_chunk, ubuf, vbuf, wbuf, size, N, MX, MY, MZ); 
             cout << "I received all the data!" << endl;
             // send to the GPU
-            cudaIntegrateParcels(requested_grid, parcels, u_time_chunk, v_time_chunk, w_time_chunk, MX, MY, MZ, size, tChunk, nTotTimes); 
+            // comment out if you're running on XE node
+            //cudaIntegrateParcels(requested_grid, parcels, u_time_chunk, v_time_chunk, w_time_chunk, MX, MY, MZ, size, tChunk, nTotTimes); 
             
             // if the last integration has been performed, write the data to disk
             if (tChunk == nTimeChunks-1) {
