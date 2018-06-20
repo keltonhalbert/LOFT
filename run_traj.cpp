@@ -159,6 +159,7 @@ void mpi_receive_data(float *u_time_chunk, float *v_time_chunk, float *w_time_ch
 
 
 void write_data(parcel_pos parcels) {
+    cout << "WRITING DATA" << endl;
     ofstream outfile;
     outfile.open("./result.csv");
     int nParcels = parcels.nParcels;
@@ -210,7 +211,7 @@ int main(int argc, char **argv ) {
     // the number of MPI ranks there are
     // times the number of integration time chunks,
     // plus the very last integration end time
-    int nT = (size+nTimeChunks)+1;
+    int nTotTimes = (size*nTimeChunks)+1;
 
     // we're gonna make a test by creating a horizontal
     // and zonal line of parcels
@@ -221,11 +222,11 @@ int main(int argc, char **argv ) {
     // allocate memory for the parcels
     // we are integrating for the entirety 
     // of the simulation.
-    parcels.xpos = new float[nParcels * nT];
-    parcels.ypos = new float[nParcels * nT];
-    parcels.zpos = new float[nParcels * nT];
+    parcels.xpos = new float[nParcels * nTotTimes];
+    parcels.ypos = new float[nParcels * nTotTimes];
+    parcels.zpos = new float[nParcels * nTotTimes];
     parcels.nParcels = nParcels;
-    parcels.nTimes = nT;
+    parcels.nTimes = nTotTimes;
 
     for (int tChunk = 0; tChunk < nTimeChunks; ++tChunk) {
 
@@ -240,7 +241,7 @@ int main(int argc, char **argv ) {
             seed_parcels(&parcels, &requested_grid);
             // make sure it's all gucci
             for (int pid = 0; pid < nParcels; ++pid) {
-                cout << "PID " << pid << " X: " << parcels.xpos[pid*nT] << " Y: " << parcels.ypos[pid*nT] << " Z: " << parcels.zpos[pid*nT] << endl;
+                cout << "PID " << pid << " X: " << parcels.xpos[pid*nTotTimes] << " Y: " << parcels.ypos[pid*nTotTimes] << " Z: " << parcels.zpos[pid*nTotTimes] << endl;
             }
         }
 
@@ -273,7 +274,7 @@ int main(int argc, char **argv ) {
             mpi_receive_data(u_time_chunk, v_time_chunk, w_time_chunk, ubuf, vbuf, wbuf, size, N, MX, MY, MZ); 
             cout << "I received all the data!" << endl;
             // send to the GPU
-            cudaIntegrateParcels(requested_grid, parcels, u_time_chunk, v_time_chunk, w_time_chunk, MX, MY, MZ, size, tChunk); 
+            cudaIntegrateParcels(requested_grid, parcels, u_time_chunk, v_time_chunk, w_time_chunk, MX, MY, MZ, size, tChunk, nTotTimes); 
             
             // if the last integration has been performed, write the data to disk
             if (tChunk == nTimeChunks-1) {

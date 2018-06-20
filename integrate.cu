@@ -33,7 +33,7 @@ __global__ void test(datagrid grid, parcel_pos parcels, float *u_time_chunk, flo
 
         // loop over the number of time steps we are
         // integrating over
-        for (int tidx = 0 + (nT*tChunk); tidx < nT + (nT*tChunk); ++tidx) {
+        for (int tidx = 0; tidx < nT; ++tidx) {
             point[0] = parcels.xpos[tidx + (totTime * parcel_id)];
             point[1] = parcels.ypos[tidx + (totTime * parcel_id)];
             point[2] = parcels.zpos[tidx + (totTime * parcel_id)];
@@ -82,10 +82,9 @@ __global__ void test(datagrid grid, parcel_pos parcels, float *u_time_chunk, flo
 arrays to GPU global memory, calling the integrate GPU kernel, and then
 updating the position vectors with the new stuff*/
 void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk, float *v_time_chunk, float *w_time_chunk, \
-                            int MX, int MY, int MZ, int nT, int tChunk) {
+                            int MX, int MY, int MZ, int nT, int tChunk, int totTime) {
     // pointers to device memory
     float *device_u_time_chunk, *device_v_time_chunk, *device_w_time_chunk;
-    int totTime = (nT * tChunk) + 1;
 
     parcel_pos device_parcels;
     datagrid device_grid;
