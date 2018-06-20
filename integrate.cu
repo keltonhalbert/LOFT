@@ -1,7 +1,6 @@
 #include <iostream>
 #include "datastructs.cpp"
 #include "interp.cu"
-#include <fstream>
 #ifndef INTEGRATE_CU
 #define INTEGRATE_CU
 
@@ -20,7 +19,7 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 }
 
 
-__global__ void test(datagrid grid, parcel_pos parcels, float *u_time_chunk, float *v_time_chunk, float *w_time_chunk, int MX, int MY, int MZ, int nT) {
+__global__ void test(datagrid grid, parcel_pos parcels, float *u_time_chunk, float *v_time_chunk, float *w_time_chunk, int MX, int MY, int MZ, int nT, int tChunk, int totTime) {
 	int parcel_id = blockIdx.x;
     // safety check to make sure our thread index doesn't
     // go out of our array bounds
@@ -34,10 +33,10 @@ __global__ void test(datagrid grid, parcel_pos parcels, float *u_time_chunk, flo
 
         // loop over the number of time steps we are
         // integrating over
-        for (int tidx = 0; tidx < nT-1; ++tidx) {
-            point[0] = parcels.xpos[tidx + (nT * parcel_id)];
-            point[1] = parcels.ypos[tidx + (nT * parcel_id)];
-            point[2] = parcels.zpos[tidx + (nT * parcel_id)];
+        for (int tidx = 0 + (nT*tChunk); tidx < nT + (nT*tChunk); ++tidx) {
+            point[0] = parcels.xpos[tidx + (totTime * parcel_id)];
+            point[1] = parcels.ypos[tidx + (totTime * parcel_id)];
+            point[2] = parcels.zpos[tidx + (totTime * parcel_id)];
             //printf("My Point to Integrate: x = %f\t y = %f\t z = %f\t parcel_id = %d\t time = %d\n", point[0], point[1], point[2], parcel_id, tidx);
 
 
@@ -71,9 +70,9 @@ __global__ void test(datagrid grid, parcel_pos parcels, float *u_time_chunk, flo
                 point[2] += pcl_w * (1.0f/6.0f);
 
 
-                parcels.xpos[(tidx + 1) + (nT * parcel_id)] = point[0]; 
-                parcels.ypos[(tidx + 1) + (nT * parcel_id)] = point[1];
-                parcels.zpos[(tidx + 1) + (nT * parcel_id)] = point[2];
+                parcels.xpos[(tidx + 1) + (totTime * parcel_id)] = point[0]; 
+                parcels.ypos[(tidx + 1) + (totTime * parcel_id)] = point[1];
+                parcels.zpos[(tidx + 1) + (totTime * parcel_id)] = point[2];
             }
         }
     }
@@ -82,9 +81,12 @@ __global__ void test(datagrid grid, parcel_pos parcels, float *u_time_chunk, flo
 /*This function handles allocating memory on the GPU, transferring the CPU
 arrays to GPU global memory, calling the integrate GPU kernel, and then
 updating the position vectors with the new stuff*/
-void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk, float *v_time_chunk, float *w_time_chunk, int MX, int MY, int MZ, int nT) {
+void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk, float *v_time_chunk, float *w_time_chunk, \
+                            int MX, int MY, int MZ, int nT, int tChunk) {
     // pointers to device memory
     float *device_u_time_chunk, *device_v_time_chunk, *device_w_time_chunk;
+    int totTime = (nT * tChunk) + 1;
+
     parcel_pos device_parcels;
     datagrid device_grid;
 
@@ -102,34 +104,34 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     gpuErrchk( cudaMalloc(&(device_grid.yh), device_grid.NY*sizeof(float)) );
     gpuErrchk( cudaMalloc(&(device_grid.zh), device_grid.NZ*sizeof(float)) );
     // allocate the device memory for U/V/W
-    gpuErrchk( cudaMalloc(&device_u_time_chunk, MX*MY*MZ*(nT-1)*sizeof(float)) );
-    gpuErrchk( cudaMalloc(&device_v_time_chunk, MX*MY*MZ*(nT-1)*sizeof(float)) );
-    gpuErrchk( cudaMalloc(&device_w_time_chunk, MX*MY*MZ*(nT-1)*sizeof(float)) );
+    gpuErrchk( cudaMalloc(&device_u_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
+    gpuErrchk( cudaMalloc(&device_v_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
+    gpuErrchk( cudaMalloc(&device_w_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
     // allocate device memory for our parcel positions
-    gpuErrchk( cudaMalloc(&(device_parcels.xpos), parcels.nParcels * nT * sizeof(float)) );
-    gpuErrchk( cudaMalloc(&(device_parcels.ypos), parcels.nParcels * nT * sizeof(float)) );
-    gpuErrchk( cudaMalloc(&(device_parcels.zpos), parcels.nParcels * nT * sizeof(float)) );
+    gpuErrchk( cudaMalloc(&(device_parcels.xpos), parcels.nParcels * (nT+1) * sizeof(float)) );
+    gpuErrchk( cudaMalloc(&(device_parcels.ypos), parcels.nParcels * (nT+1) * sizeof(float)) );
+    gpuErrchk( cudaMalloc(&(device_parcels.zpos), parcels.nParcels * (nT+1) * sizeof(float)) );
 
     // copy the arrays to device memory
-    gpuErrchk( cudaMemcpy(device_u_time_chunk, u_time_chunk, MX*MY*MZ*(nT-1)*sizeof(float), cudaMemcpyHostToDevice) );
-    gpuErrchk( cudaMemcpy(device_v_time_chunk, v_time_chunk, MX*MY*MZ*(nT-1)*sizeof(float), cudaMemcpyHostToDevice) );
-    gpuErrchk( cudaMemcpy(device_w_time_chunk, w_time_chunk, MX*MY*MZ*(nT-1)*sizeof(float), cudaMemcpyHostToDevice) );
+    gpuErrchk( cudaMemcpy(device_u_time_chunk, u_time_chunk, MX*MY*MZ*nT*sizeof(float), cudaMemcpyHostToDevice) );
+    gpuErrchk( cudaMemcpy(device_v_time_chunk, v_time_chunk, MX*MY*MZ*nT*sizeof(float), cudaMemcpyHostToDevice) );
+    gpuErrchk( cudaMemcpy(device_w_time_chunk, w_time_chunk, MX*MY*MZ*nT*sizeof(float), cudaMemcpyHostToDevice) );
 
-    gpuErrchk( cudaMemcpy(device_parcels.xpos, parcels.xpos, parcels.nParcels * nT * sizeof(float), cudaMemcpyHostToDevice) );
-    gpuErrchk( cudaMemcpy(device_parcels.ypos, parcels.ypos, parcels.nParcels * nT * sizeof(float), cudaMemcpyHostToDevice) );
-    gpuErrchk( cudaMemcpy(device_parcels.zpos, parcels.zpos, parcels.nParcels * nT * sizeof(float), cudaMemcpyHostToDevice) );
+    gpuErrchk( cudaMemcpy(device_parcels.xpos, parcels.xpos, parcels.nParcels * totTime * sizeof(float), cudaMemcpyHostToDevice) );
+    gpuErrchk( cudaMemcpy(device_parcels.ypos, parcels.ypos, parcels.nParcels * totTime * sizeof(float), cudaMemcpyHostToDevice) );
+    gpuErrchk( cudaMemcpy(device_parcels.zpos, parcels.zpos, parcels.nParcels * totTime * sizeof(float), cudaMemcpyHostToDevice) );
 
     // don't need the staggered mesh sent
     gpuErrchk( cudaMemcpy(device_grid.xh, grid.xh, device_grid.NX*sizeof(float), cudaMemcpyHostToDevice) );
     gpuErrchk( cudaMemcpy(device_grid.yh, grid.yh, device_grid.NY*sizeof(float), cudaMemcpyHostToDevice) );
     gpuErrchk( cudaMemcpy(device_grid.zh, grid.zh, device_grid.NZ*sizeof(float), cudaMemcpyHostToDevice) );
 
-    test<<<parcels.nParcels,1>>>(device_grid, device_parcels, device_u_time_chunk, device_v_time_chunk, device_w_time_chunk, MX, MY, MZ, nT);
+    test<<<parcels.nParcels,1>>>(device_grid, device_parcels, device_u_time_chunk, device_v_time_chunk, device_w_time_chunk, MX, MY, MZ, nT, tChunk, totTime);
     gpuErrchk( cudaDeviceSynchronize() );
 
-    gpuErrchk( cudaMemcpy(parcels.xpos, device_parcels.xpos, parcels.nParcels * nT * sizeof(float), cudaMemcpyDeviceToHost) );
-    gpuErrchk( cudaMemcpy(parcels.ypos, device_parcels.ypos, parcels.nParcels * nT * sizeof(float), cudaMemcpyDeviceToHost) );
-    gpuErrchk( cudaMemcpy(parcels.zpos, device_parcels.zpos, parcels.nParcels * nT * sizeof(float), cudaMemcpyDeviceToHost) );
+    gpuErrchk( cudaMemcpy(parcels.xpos, device_parcels.xpos, parcels.nParcels * totTime * sizeof(float), cudaMemcpyDeviceToHost) );
+    gpuErrchk( cudaMemcpy(parcels.ypos, device_parcels.ypos, parcels.nParcels * totTime * sizeof(float), cudaMemcpyDeviceToHost) );
+    gpuErrchk( cudaMemcpy(parcels.zpos, device_parcels.zpos, parcels.nParcels * totTime * sizeof(float), cudaMemcpyDeviceToHost) );
     gpuErrchk( cudaDeviceSynchronize() );
 
     cudaFree(device_grid.xh);
@@ -139,26 +141,6 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     cudaFree(device_parcels.ypos);
     cudaFree(device_parcels.zpos);
 
-
-    ofstream outfile;
-    outfile.open("./result.csv");
-    
-    // loop over each parcel
-    for (int pcl = 0; pcl < parcels.nParcels; ++ pcl) {
-        // print the parcel start flag 
-        outfile << "!Parcel " << pcl << endl; 
-        // loop over the times
-        for (int t = 0; t < nT; ++t) {
-            // for each row: x position, y position, z position
-            for (int row = 0; row < 3; ++row) {
-                if (row == 0) outfile << parcels.xpos[t + (pcl*nT)] << ", ";
-                if (row == 1) outfile << parcels.ypos[t + (pcl*nT)] << ", ";
-                if (row == 2) outfile << parcels.zpos[t + (pcl*nT)] << endl;
-            }
-        }
-        // parcel end flag
-        outfile << "!End " << pcl << endl;
-    }
 
     cout << "FINISHED CUDA" << endl;
 }

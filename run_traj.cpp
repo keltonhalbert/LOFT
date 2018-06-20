@@ -3,6 +3,7 @@
 #include "readlofs.cpp"
 #include "loadseeds.cpp"
 #include <iostream>
+#include <fstream>
 #include <string>
 #include <vector>
 #include "integrate.h"
@@ -10,7 +11,6 @@
 #define P3(x,y,z,mx,my) (((z)*(mx)*(my))+((y)*(mx))+(x))
 // I made this myself by stealing from LOFS
 #define P4(x,y,z,t,mx,my,mz) ((t*mx*my*mz)+((z)*(mx)*(my))+((y)*(mx))+(x))
-
 using namespace std;
 
 
@@ -59,7 +59,6 @@ void seed_parcels(parcel_pos *parcels, datagrid *requested_grid) {
             parcels->xpos[0 + (parcels->nTimes*pid)] = requested_grid->xh[i];
             parcels->ypos[0 + (parcels->nTimes*pid)] = requested_grid->yh[j];
             parcels->zpos[0 + (parcels->nTimes*pid)] = 1005.;
-            cout << "PID: " << pid << endl;
             pid += 1;
         }
     }
@@ -159,6 +158,31 @@ void mpi_receive_data(float *u_time_chunk, float *v_time_chunk, float *w_time_ch
 }
 
 
+void write_data(parcel_pos parcels) {
+    ofstream outfile;
+    outfile.open("./result.csv");
+    int nParcels = parcels.nParcels;
+    int nT = parcels.nTimes;
+    
+    // loop over each parcel
+    for (int pcl = 0; pcl < nParcels; ++pcl) {
+        // print the parcel start flag 
+        outfile << "!Parcel " << pcl << endl; 
+        // loop over the times
+        for (int t = 0; t < nT; ++t) {
+            // for each row: x position, y position, z position
+            for (int row = 0; row < 3; ++row) {
+                if (row == 0) outfile << parcels.xpos[t + (pcl*nT)] << ", ";
+                if (row == 1) outfile << parcels.ypos[t + (pcl*nT)] << ", ";
+                if (row == 2) outfile << parcels.zpos[t + (pcl*nT)] << endl;
+            }
+        }
+        // parcel end flag
+        outfile << "!End " << pcl << endl;
+    }
+}
+
+
 /* This is the main program that does the parcel trajectory analysis.
  * It first sets up the parcel vectors and seeds the starting locations.
  * It then loads a chunk of times into memory by calling the LOFS api
@@ -184,10 +208,9 @@ int main(int argc, char **argv ) {
 
     // the number of time steps we have is 
     // the number of MPI ranks there are
-    // plus the last integration time, and
-    // then multplied by the number of chunks
-    // of time we're integrating over
-    int nT = (size+1)*nTimeChunks;
+    // times the number of integration time chunks,
+    // plus the very last integration end time
+    int nT = (size+nTimeChunks)+1;
 
     // we're gonna make a test by creating a horizontal
     // and zonal line of parcels
@@ -215,6 +238,10 @@ int main(int argc, char **argv ) {
         // parcel start locations
         if (tChunk == 0) {
             seed_parcels(&parcels, &requested_grid);
+            // make sure it's all gucci
+            for (int pid = 0; pid < nParcels; ++pid) {
+                cout << "PID " << pid << " X: " << parcels.xpos[pid*nT] << " Y: " << parcels.ypos[pid*nT] << " Z: " << parcels.zpos[pid*nT] << endl;
+            }
         }
 
         // the number of grid points requested
@@ -232,6 +259,7 @@ int main(int argc, char **argv ) {
         float *ubuf = new float[N];
         float *vbuf = new float[N];
         float *wbuf = new float[N];
+
         // construct a 4D contiguous array to store stuff in.
         // bufsize is the size of the 3D component and size is
         // the number of MPI ranks (which is also the number of times)
@@ -244,9 +272,15 @@ int main(int argc, char **argv ) {
         if (rank == 0) {
             mpi_receive_data(u_time_chunk, v_time_chunk, w_time_chunk, ubuf, vbuf, wbuf, size, N, MX, MY, MZ); 
             cout << "I received all the data!" << endl;
+            // send to the GPU
+            cudaIntegrateParcels(requested_grid, parcels, u_time_chunk, v_time_chunk, w_time_chunk, MX, MY, MZ, size, tChunk); 
+            
+            // if the last integration has been performed, write the data to disk
+            if (tChunk == nTimeChunks-1) {
+                write_data(parcels);
+            }
         }
     }
 
     MPI_Finalize();
-
 }
