@@ -27,8 +27,8 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid) {
 
     // for right now, set the grid bounds to the saved
     // bounds for testing purposes
-    requested_grid->X0 = saved_X0 + 180; requested_grid->Y0 = saved_Y0 + 180;
-    requested_grid->X1 = saved_X0 + 380; requested_grid->Y1 = saved_Y0 + 380;
+    requested_grid->X0 = saved_X0 + 380; requested_grid->Y0 = saved_Y0 + 80;
+    requested_grid->X1 = saved_X0 + 580; requested_grid->Y1 = saved_Y0 + 280;
     requested_grid->Z0 = 0; requested_grid->Z1 = 100;
 
     // request a grid subset based on 
@@ -195,7 +195,7 @@ int main(int argc, char **argv ) {
     string base_dir = "/u/sciteam/halbert/project_bagm/khalbert/30m-every-time-step/3D";
     int rank, size;
     long N, MX, MY, MZ;
-    int nTimeChunks = 2;
+    int nTimeChunks = 3;
 
     // initialize a bunch of MPI stuff.
     // Rank tells you which process
@@ -239,10 +239,6 @@ int main(int argc, char **argv ) {
         // parcel start locations
         if (tChunk == 0) {
             seed_parcels(&parcels, &requested_grid);
-            // make sure it's all gucci
-            for (int pid = 0; pid < nParcels; ++pid) {
-                cout << "PID " << pid << " X: " << parcels.xpos[pid*nTotTimes] << " Y: " << parcels.ypos[pid*nTotTimes] << " Z: " << parcels.zpos[pid*nTotTimes] << endl;
-            }
         }
 
         // the number of grid points requested
