@@ -1,12 +1,11 @@
-#include "mpi.h"
-#include "datastructs.cpp"
-#include "readlofs.cpp"
-#include "loadseeds.cpp"
 #include <iostream>
 #include <fstream>
 #include <string>
-#include <vector>
+#include "mpi.h"
+#include "readlofs.cpp"
+#include "datastructs.cpp"
 #include "integrate.h"
+
 // stole this define from LOFS
 #define P3(x,y,z,mx,my) (((z)*(mx)*(my))+((y)*(mx))+(x))
 // I made this myself by stealing from LOFS
@@ -27,8 +26,8 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid) {
 
     // for right now, set the grid bounds to the saved
     // bounds for testing purposes
-    requested_grid->X0 = saved_X0 + 380; requested_grid->Y0 = saved_Y0 + 80;
-    requested_grid->X1 = saved_X0 + 580; requested_grid->Y1 = saved_Y0 + 280;
+    requested_grid->X0 = saved_X0 + 80; requested_grid->Y0 = saved_Y0 + 40;
+    requested_grid->X1 = saved_X0 + 280; requested_grid->Y1 = saved_Y0 + 240;
     requested_grid->Z0 = 0; requested_grid->Z1 = 100;
 
     // request a grid subset based on 
@@ -42,9 +41,10 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid) {
  */
 void loadVectorsFromDisk(datagrid *requested_grid, float *ubuffer, float *vbuffer, float *wbuffer, double t0) {
     // request 3D field!
-    lofs_read_3dvar(requested_grid, ubuffer, (char *)"u", t0);
-    lofs_read_3dvar(requested_grid, vbuffer, (char *)"v", t0);
-    lofs_read_3dvar(requested_grid, wbuffer, (char *)"w", t0);
+
+    lofs_read_3dvar(requested_grid, ubuffer, (char *)"uinterp", t0);
+    lofs_read_3dvar(requested_grid, vbuffer, (char *)"vinterp", t0);
+    lofs_read_3dvar(requested_grid, wbuffer, (char *)"winterp", t0);
 }
 
 
@@ -54,8 +54,8 @@ void seed_parcels(parcel_pos *parcels, datagrid *requested_grid) {
 
     int nParcels = parcels->nParcels;
     int pid = 0;
-    for (int i = 30; i < 130; ++i) {
-        for (int j = 100; j < 200; ++j) {
+    for (int i = 30; i < 100; ++i) {
+        for (int j = 100; j < 170; ++j) {
             parcels->xpos[0 + (parcels->nTimes*pid)] = requested_grid->xh[i];
             parcels->ypos[0 + (parcels->nTimes*pid)] = requested_grid->yh[j];
             parcels->zpos[0 + (parcels->nTimes*pid)] = 1005.;
@@ -74,7 +74,9 @@ void seed_parcels(parcel_pos *parcels, datagrid *requested_grid) {
 }
 
 
-
+/* Write out the parcel arrays to a 
+ * CSV file format on the disk.
+ */
 void write_data(parcel_pos parcels) {
     cout << "WRITING DATA" << endl;
     ofstream outfile;
@@ -133,7 +135,7 @@ int main(int argc, char **argv ) {
 
     // we're gonna make a test by creating a horizontal
     // and zonal line of parcels
-    int nParcels = 10000;
+    int nParcels = 4900;
     parcel_pos parcels;
     datagrid requested_grid;
 
@@ -183,7 +185,7 @@ int main(int argc, char **argv ) {
         float *v_time_chunk = new float[N*size];
         float *w_time_chunk = new float[N*size];
 
-        cout << "TIMESTEP " << rank << " " << alltimes[rank + tChunk*size] <<  endl;
+        printf("TIMESTEP %d %d %f\n", rank, rank + tChunk*size, alltimes[rank + tChunk*size]);
         // load u, v, and w into memory
         loadVectorsFromDisk(&requested_grid, ubuf, vbuf, wbuf, alltimes[rank + tChunk*size]);
 
@@ -191,11 +193,11 @@ int main(int argc, char **argv ) {
         MPI_Gather(vbuf, N, MPI_FLOAT, v_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
         MPI_Gather(wbuf, N, MPI_FLOAT, w_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
+
         if (rank == 0) {
-            cout << "I received all the data!" << endl;
             // send to the GPU
             // comment out if you're running on XE node
-            //cudaIntegrateParcels(requested_grid, parcels, u_time_chunk, v_time_chunk, w_time_chunk, MX, MY, MZ, size, tChunk, nTotTimes); 
+            cudaIntegrateParcels(requested_grid, parcels, u_time_chunk, v_time_chunk, w_time_chunk, MX, MY, MZ, size, tChunk, nTotTimes); 
             
             // if the last integration has been performed, write the data to disk
             if (tChunk == nTimeChunks-1) {

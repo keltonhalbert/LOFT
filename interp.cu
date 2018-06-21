@@ -202,7 +202,6 @@ __host__ __device__ float _tri_interp(float *data_arr, float* weights, int *idx_
 		  data_arr[idx6] * weights[5] + \
 		  data_arr[idx7] * weights[6] + \
 		  data_arr[idx8] * weights[7];
-
 	return out;
 
 }
@@ -226,9 +225,6 @@ __host__ __device__ float interp3D(float *x_grd, float *y_grd, float *z_grd, flo
 
     // get the interpolation weights
     _calc_weights(x_grd, y_grd, z_grd, weights, point, idx_4D, ugrd, vgrd, wgrd, nX, nY, nZ); 
-    if (tstep == 0) {
-        //printf("Interpolation W0 at T0: %f\n", weights[0]);
-    }
 
     // interpolate the value
     output_val = _tri_interp(data_grd, weights, idx_4D, nX, nY, nZ);

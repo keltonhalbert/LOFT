@@ -190,24 +190,6 @@ void lofs_read_3dvar(datagrid *grid, float *buffer, char *varname, double t0) {
     // X0, Y0, X1, Y1, Z0, Y1, nx, ny, nz all from lofs_get_grid
     read_hdf_mult_md(buffer,topdir,timedir,nodedir,ntimedirs,dn,dirtimes,alltimes,ntottimes,t0,varname, \
             grid->X0,grid->Y0,grid->X1,grid->Y1,grid->Z0,grid->Z1,nx,ny,nz,nodex,nodey);
-    /*
-    // print out some grid stats for fun so we can see what all is going on
-    // in the file
-    float min = 9999.;
-    float max = -9999.;
-    float avg = 0;
-    int N = (grid->NX+1) * (grid->NY+1) * (grid->NZ+1);
-    for (int i = 0; i < N; ++i) {
-        if (buffer[i] < min) min = buffer[i];
-        if (buffer[i] > max) max = buffer[i];
-        avg += buffer[i];
-    }
-
-    std::cout << (std::string)varname << " min: " << min << " m/s" <<  std::endl;
-    std::cout << (std::string)varname << " max: " << max << " m/s" << std::endl;
-    std::cout << (std::string)varname << " avg: " << avg / ((float) N) << " m/s" << std::endl;
-    */
-
 }
 #endif
 

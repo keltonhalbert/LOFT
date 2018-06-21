@@ -38,7 +38,6 @@ __global__ void test(datagrid grid, parcel_pos parcels, float *u_time_chunk, flo
             point[0] = parcels.xpos[tidx + (totTime * parcel_id)];
             point[1] = parcels.ypos[tidx + (totTime * parcel_id)];
             point[2] = parcels.zpos[tidx + (totTime * parcel_id)];
-            //printf("My Point to Integrate: x = %f\t y = %f\t z = %f\t parcel_id = %d\t time = %d\n", point[0], point[1], point[2], parcel_id, tidx);
 
 
             is_ugrd = true;
@@ -55,14 +54,15 @@ __global__ void test(datagrid grid, parcel_pos parcels, float *u_time_chunk, flo
             is_vgrd = false;
             is_wgrd = true;
             pcl_w = interp3D(grid.xh, grid.yh, grid.zh, w_time_chunk, point, is_ugrd, is_vgrd, is_wgrd, tLocal, MX, MY, MZ);
-            //printf("My Parcel Vector Field: u = %f\t v = %f\t w = %f\n", pcl_u, pcl_v, pcl_w);
 
             // if the parcel has left the domain, exit
+            tLocal += 1;
             if ((pcl_u == -999.0) || (pcl_v == -999.0) || (pcl_w == -999.0)) {
+                printf("Warning: missing values detected at x: %f y:%f z:%f with ground bounds X0: %f Y0: %f Z0: %f X1: %f Y1: %f Z1: %f\n", \
+                        point[0], point[1], point[2], grid.xh[0], grid.yh[0], grid.zh[0], grid.xh[grid.NX-1], grid.yh[grid.NY-1], grid.zh[grid.NZ-1]);
                 return;
             }
             else {
-
                 // integrate X position forward by the U wind
                 point[0] += pcl_u * (1.0f/6.0f);
                 // integrate Y position forward by the V wind
@@ -74,7 +74,6 @@ __global__ void test(datagrid grid, parcel_pos parcels, float *u_time_chunk, flo
                 parcels.ypos[(tidx + 1) + (totTime * parcel_id)] = point[1];
                 parcels.zpos[(tidx + 1) + (totTime * parcel_id)] = point[2];
             }
-            tLocal += 1;
         }
     }
 }
