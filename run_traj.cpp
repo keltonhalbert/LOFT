@@ -93,14 +93,19 @@ void write_data(parcel_pos parcels, float *uparcels, float *vparcels, float *wpa
         // loop over the times
         for (int t = 0; t < nT; ++t) {
             // for each row: x position, y position, z position
-            for (int row = 0; row < 6; ++row) {
-                if (row == 0) outfile << parcels.xpos[P2(t, pcl, nT)] << ", ";
-                if (row == 1) outfile << parcels.ypos[P2(t, pcl, nT)] << ", ";
-                if (row == 2) outfile << parcels.zpos[P2(t, pcl, nT)] << ", ";
-                if (row == 3) outfile << uparcels[P2(t, pcl, nT)] << ", ";
-                if (row == 4) outfile << vparcels[P2(t, pcl, nT)] << ", ";
-                if (row == 5) outfile << wparcels[P2(t, pcl, nT)] << endl;
-            }
+                outfile << parcels.xpos[P2(t, pcl, nT)] << ", ";
+                outfile << parcels.ypos[P2(t, pcl, nT)] << ", ";
+                outfile << parcels.zpos[P2(t, pcl, nT)] << ", ";
+                if (t == nT-1) {
+                    outfile << -999.0 << ", ";
+                    outfile << -999.0 << ", ";
+                    outfile << -999.0 << endl;
+                }
+                else {
+                    outfile << uparcels[P2(t, pcl, nT)] << ", ";
+                    outfile << vparcels[P2(t, pcl, nT)] << ", ";
+                    outfile << wparcels[P2(t, pcl, nT)] << endl;
+                }
         }
         // parcel end flag
         outfile << "!End " << pcl << endl;
