@@ -9,7 +9,7 @@ using namespace std;
 // I made this myself by stealing from LOFS
 #define P4(x,y,z,t,mx,my,mz) (((t)*(mx)*(my)*(mz))+((z)*(mx)*(my))+((y)*(mx))+(x))
 __host__ __device__ int arrayIndex(int x, int y, int z, int t,  int mx, int my, int mz) {
-	return P4(x, y, z, t, mx, my, mz);
+	return (((t)*(mx)*(my)*(mz))+((z)*(mx)*(my))+((y)*(mx))+(x));
 }
 
 
