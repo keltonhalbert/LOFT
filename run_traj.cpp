@@ -28,8 +28,8 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid) {
 
     // for right now, set the grid bounds to the saved
     // bounds for testing purposes
-    requested_grid->X0 = saved_X0 + 80; requested_grid->Y0 = saved_Y0 + 40;
-    requested_grid->X1 = saved_X0 + 280; requested_grid->Y1 = saved_Y0 + 240;
+    requested_grid->X0 = saved_X0 + 180; requested_grid->Y0 = saved_Y0 + 180;
+    requested_grid->X1 = saved_X0 + 380; requested_grid->Y1 = saved_Y0 + 380;
     requested_grid->Z0 = 0; requested_grid->Z1 = 100;
     //requested_grid->X0 = saved_X0; requested_grid->Y0 = saved_Y0;
     //requested_grid->X1 = saved_X1; requested_grid->Y1 = saved_Y1;
