@@ -127,7 +127,7 @@ int main(int argc, char **argv ) {
     string base_dir = "/u/sciteam/halbert/project_bagm/khalbert/30m-every-time-step/3D";
     int rank, size;
     long N, MX, MY, MZ;
-    int nTimeChunks = 1;
+    int nTimeChunks = 3;
 
     // initialize a bunch of MPI stuff.
     // Rank tells you which process
@@ -176,16 +176,15 @@ int main(int argc, char **argv ) {
         }
 
         // the number of grid points requested
-        //N = (requested_grid.NX+1)*(requested_grid.NY+1)*(requested_grid.NZ+1);
         N = (requested_grid.NX)*(requested_grid.NY)*(requested_grid.NZ);
 
 
         // get the size of the domain we will
         // be requesting. The +1 is safety for
         // staggered grids
-        MX = (long) (requested_grid.NX);//+1);
-        MY = (long) (requested_grid.NY);//+1);
-        MZ = (long) (requested_grid.NZ);//+1);
+        MX = (long) (requested_grid.NX);
+        MY = (long) (requested_grid.NY);
+        MZ = (long) (requested_grid.NZ);
 
         // allocate space for U, V, and W arrays
         long bufsize = (long) (requested_grid.NX+1) * (long) (requested_grid.NY+1) * (long) (requested_grid.NZ+1) * (long) sizeof(float);
@@ -215,15 +214,10 @@ int main(int argc, char **argv ) {
         float *w_time_chunk = new float[N*size];
         */
 
-        printf("TIMESTEP %d/%d %d %f\n", rank, size, rank + tChunk*size, alltimes[5]);
+        printf("TIMESTEP %d/%d %d %f\n", rank, size, rank + tChunk*size, alltimes[rank + tChunk*size]);
         // load u, v, and w into memory
-        //loadVectorsFromDisk(&requested_grid, ubuf, vbuf, wbuf, alltimes[rank + tChunk*size]);
+        loadVectorsFromDisk(&requested_grid, ubuf, vbuf, wbuf, alltimes[rank + tChunk*size]);
         
-        // DEBUG: Let's have all ranks read in only 1 time, reducing any time variance.
-        // Maybe this will help us track down our memory bug.
-        loadVectorsFromDisk(&requested_grid, ubuf, vbuf, wbuf, alltimes[5]);
-
-
         int senderr_u = MPI_Gather(ubuf, N, MPI_FLOAT, u_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
         int senderr_v = MPI_Gather(vbuf, N, MPI_FLOAT, v_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
         int senderr_w = MPI_Gather(wbuf, N, MPI_FLOAT, w_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
@@ -237,27 +231,6 @@ int main(int argc, char **argv ) {
             float *uparcels = new float[nParcels * nTotTimes];
             float *vparcels = new float[nParcels * nTotTimes];
             float *wparcels = new float[nParcels * nTotTimes];
-
-            /*
-            float wmax = -999;
-            int max_i = 0;
-            int max_j = 0;
-            int max_k = 0;
-            for (int i = 0; i < MX; ++i) {
-                for (int j = 0; j < MY; ++j) {
-                    for (int k = 0; k < MZ; ++k) {
-                        if (w_time_chunk[P3(i, j, k, MX, MY)] > wmax) {
-                            wmax = w_time_chunk[P3(i, j, k, MX, MY)];
-                            max_i = i;
-                            max_j = j;
-                            max_k = k;
-                        }
-                    }
-                }
-            }
-            cout << "WMAX: " << wmax << " at i = " << max_i << " j = " << max_j << " k = " << max_k  << " idx in python: i = 249, j = 270, k = 315" << endl;
-            cout << "MX: " << MX << " MY: " << MY << " MZ: " << MZ << endl;
-            */
             cudaIntegrateParcels(requested_grid, parcels, u_time_chunk, v_time_chunk, w_time_chunk, uparcels, vparcels, wparcels, MX, MY, MZ, size, tChunk, nTotTimes); 
             
             // if the last integration has been performed, write the data to disk
