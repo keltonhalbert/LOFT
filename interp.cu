@@ -202,6 +202,8 @@ __host__ __device__ float _tri_interp(float *data_arr, float* weights, int *idx_
 		  data_arr[idx6] * weights[5] + \
 		  data_arr[idx7] * weights[6] + \
 		  data_arr[idx8] * weights[7];
+    // DEBUGGING - just return the value of the nearest point for now?
+    out = data_arr[idx1];
 	return out;
 
 }

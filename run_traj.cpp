@@ -31,6 +31,9 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid) {
     requested_grid->X0 = saved_X0 + 80; requested_grid->Y0 = saved_Y0 + 40;
     requested_grid->X1 = saved_X0 + 280; requested_grid->Y1 = saved_Y0 + 240;
     requested_grid->Z0 = 0; requested_grid->Z1 = 100;
+    //requested_grid->X0 = saved_X0; requested_grid->Y0 = saved_Y0;
+    //requested_grid->X1 = saved_X1; requested_grid->Y1 = saved_Y1;
+    //requested_grid->Z0 = 0; requested_grid->Z1 = 379;
 
     // request a grid subset based on 
     // the subset information provided to
@@ -173,15 +176,16 @@ int main(int argc, char **argv ) {
         }
 
         // the number of grid points requested
-        N = (requested_grid.NX+1)*(requested_grid.NY+1)*(requested_grid.NZ+1);
+        //N = (requested_grid.NX+1)*(requested_grid.NY+1)*(requested_grid.NZ+1);
+        N = (requested_grid.NX)*(requested_grid.NY)*(requested_grid.NZ);
 
 
         // get the size of the domain we will
         // be requesting. The +1 is safety for
         // staggered grids
-        MX = (long) (requested_grid.NX+1);
-        MY = (long) (requested_grid.NY+1);
-        MZ = (long) (requested_grid.NZ+1);
+        MX = (long) (requested_grid.NX);//+1);
+        MY = (long) (requested_grid.NY);//+1);
+        MZ = (long) (requested_grid.NZ);//+1);
 
         // allocate space for U, V, and W arrays
         long bufsize = (long) (requested_grid.NX+1) * (long) (requested_grid.NY+1) * (long) (requested_grid.NZ+1) * (long) sizeof(float);
@@ -233,6 +237,27 @@ int main(int argc, char **argv ) {
             float *uparcels = new float[nParcels * nTotTimes];
             float *vparcels = new float[nParcels * nTotTimes];
             float *wparcels = new float[nParcels * nTotTimes];
+
+            /*
+            float wmax = -999;
+            int max_i = 0;
+            int max_j = 0;
+            int max_k = 0;
+            for (int i = 0; i < MX; ++i) {
+                for (int j = 0; j < MY; ++j) {
+                    for (int k = 0; k < MZ; ++k) {
+                        if (w_time_chunk[P3(i, j, k, MX, MY)] > wmax) {
+                            wmax = w_time_chunk[P3(i, j, k, MX, MY)];
+                            max_i = i;
+                            max_j = j;
+                            max_k = k;
+                        }
+                    }
+                }
+            }
+            cout << "WMAX: " << wmax << " at i = " << max_i << " j = " << max_j << " k = " << max_k  << " idx in python: i = 249, j = 270, k = 315" << endl;
+            cout << "MX: " << MX << " MY: " << MY << " MZ: " << MZ << endl;
+            */
             cudaIntegrateParcels(requested_grid, parcels, u_time_chunk, v_time_chunk, w_time_chunk, uparcels, vparcels, wparcels, MX, MY, MZ, size, tChunk, nTotTimes); 
             
             // if the last integration has been performed, write the data to disk
