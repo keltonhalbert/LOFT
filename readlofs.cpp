@@ -60,7 +60,8 @@ void lofs_get_dataset_structure(std::string base_dir) {
 
     // query the number of directories corresponding to 
     // times in the dataset
-    int ntimedirs = get_num_time_dirs(topdir, debug);
+    ntimedirs = get_num_time_dirs(topdir, debug);
+    cout << "MY TIME DIRS = " << ntimedirs << endl;
 
     // allocate an array containing
     // all of the directories for all times

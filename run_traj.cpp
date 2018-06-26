@@ -46,9 +46,9 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *
     // our parcels
     float point[3];
     int idx_4D[4];
-    int min_i = 999999;
-    int min_j = 999999;
-    int min_k = 999999;
+    int min_i = temp_grid.NX+1;
+    int min_j = temp_grid.NY+1;
+    int min_k = temp_grid.NZ+1;
     int max_i = -1;
     int max_j = -1;
     int max_k = -1;
@@ -58,6 +58,13 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *
         point[2] = parcels->zpos[P2(tstep, pcl, parcels->nTimes)];
         // find the nearest grid point!
         _nearest_grid_idx(point, temp_grid.xh, temp_grid.yh, temp_grid.zh, idx_4D, temp_grid.NX, temp_grid.NY, temp_grid.NZ);
+        if ( (idx_4D[0] == -1) || (idx_4D[1] == -1) || (idx_4D[2] == -1) ) {
+            cout << "INVALID POINT X " << point[0] << " Y " << point[1] << " Z " << point[2] << endl;
+            cout << "Parcel X " << parcels->xpos[P2(tstep, pcl, parcels->nTimes)];
+            cout << " Parcel Y " << parcels->ypos[P2(tstep, pcl, parcels->nTimes)];
+            cout << " Parcel Z " << parcels->zpos[P2(tstep, pcl, parcels->nTimes)] << endl;
+            cout << tstep << " " << pcl << " " << parcels->nTimes << endl;
+        }
         // check to see if we've found the min/max
         // for the dimension
         if (idx_4D[0] < min_i) min_i = idx_4D[0]; 
@@ -66,24 +73,31 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *
         if (idx_4D[1] > max_j) max_j = idx_4D[1]; 
         if (idx_4D[2] < min_k) min_k = idx_4D[2]; 
         if (idx_4D[2] > max_k) max_k = idx_4D[2]; 
+        //cout << "min i " << min_i << " max i " << max_i << endl;
+        //cout << "min j " << min_j << " max i " << max_j << endl;
+        //cout << "min k " << min_k << " max i " << max_k << endl;
     }
 
     // we want to add a buffer to our dimensions so that
     // the parcels don't accidentally move outside of our
     // requested data. If the buffer goes outside the 
     // saved dimensions, set it to the saved dimensions
-    min_i = saved_X0 + min_i - 10;
-    max_i = saved_X0 + max_i + 10;
-    min_j = saved_Y0 + min_j - 10;
-    max_j = saved_Y0 + max_j + 10;
-    min_k = min_k - 10;
-    max_k = max_k + 10;
+    min_i = saved_X0 + min_i - 20;
+    max_i = saved_X0 + max_i + 20;
+    min_j = saved_Y0 + min_j - 20;
+    max_j = saved_Y0 + max_j + 20;
+    min_k = min_k - 20;
+    max_k = max_k + 20;
+    cout << "Attempted Parcel Bounds In Grid" << endl;
+    cout << "X0: " << min_i << " X1: " << max_i << endl;
+    cout << "Y0: " << min_j << " Y1: " << max_j << endl;
+    cout << "Z0: " << min_k << " Z1: " << max_k << endl;
 
     // keep the data in our saved bounds
     if (min_i < saved_X0) min_i = saved_X0;
     if (max_i > saved_X1) max_i = saved_X1;
-    if (min_j < saved_Y0) min_i = saved_X0;
-    if (max_j > saved_Y1) max_i = saved_X1;
+    if (min_j < saved_Y0) min_j = saved_Y0;
+    if (max_j > saved_Y1) max_j = saved_Y1;
     if (min_k < 0) min_k = 0;
     if (max_k > nz-1) max_k = nz-1;
 
@@ -110,7 +124,6 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *
     delete[] temp_grid.xf;
     delete[] temp_grid.yf;
     delete[] temp_grid.zf;
-
 }
 
 /* Read in the U, V, and W vector components from the disk, provided previously allocated memory buffers
@@ -133,14 +146,16 @@ void seed_parcels(parcel_pos *parcels, int nTotTimes) {
     // place a cube of parcels in the domain between xstart, 
     // xend, ystart, yend, zstart, and zend in spacing
     // increments dx, dy, dz
-    float xstart = -8000; float xend = -6500; float dx = 30;
-    float ystart = -3500; float yend = -2000; float dy = 30;
-    float zstart = 15; float zend = 1015; float dz = 30;
+    float xstart = -6015; float xend = -3015; float dx = 30;
+    float ystart = -4215; float yend = -3045; float dy = 30;
+    float zstart = 30; float zend = 530; float dz = 30;
     // the number of parcels we will be seeding
     // - note I kind of made this by trial and error. 
     // It may be subject to seg faults?
-    int nParcels = (int) ( (int)(((zend - zstart) + dz)/dz - 1) * (int)(((yend - ystart)+dy)/dy - 1) * (int)(((xend - xstart) + dx)/dx - 1));
-    cout << "SEEDING " << nParcels << " PARCELS" << endl;
+    int pnx = (int) ceil((xend - xstart) / dx);
+    int pny = (int) ceil((yend - ystart) / dy);
+    int pnz = (int) ceil((zend - zstart) / dz);
+    int nParcels = pnx*pny*pnz;
 
     // allocate memory for the parcels
     // we are integrating for the entirety 
@@ -166,11 +181,12 @@ void seed_parcels(parcel_pos *parcels, int nTotTimes) {
     // fill the remaining portions of the array
     // with the missing value flag for the future
     // times that we haven't integrated to yet.
+    cout <<  parcels->zpos[P2(0, 29, parcels->nTimes)] << endl;
     for (int p = 0; p < nParcels; ++p) {
         for (int t = 1; t < parcels->nTimes; ++t) {
-            parcels->xpos[P2(t, pid, parcels->nTimes)] = -99999.0;
-            parcels->ypos[P2(t, pid, parcels->nTimes)] = -99999.0;
-            parcels->zpos[P2(t, pid, parcels->nTimes)] = -99999.0;
+            parcels->xpos[P2(t, p, parcels->nTimes)] = -99999.0;
+            parcels->ypos[P2(t, p, parcels->nTimes)] = -99999.0;
+            parcels->zpos[P2(t, p, parcels->nTimes)] = -99999.0;
         }
     }
     cout << "END PARCEL SEED" << endl;
@@ -189,6 +205,8 @@ void write_data(parcel_pos parcels, float *uparcels, float *vparcels, float *wpa
     int nT = parcels.nTimes;
     
     // loop over each parcel
+    float max_u, max_v, max_w;
+    max_u = -1; max_v = -1; max_w = -1;
     for (int pcl = 0; pcl < nParcels; ++pcl) {
         // print the parcel start flag 
         outfile << "!Parcel " << pcl << endl; 
@@ -226,7 +244,7 @@ int main(int argc, char **argv ) {
     string base_dir = "/u/sciteam/halbert/project_bagm/khalbert/30m-every-time-step/3D";
     int rank, size;
     long N, MX, MY, MZ;
-    int nTimeChunks = 1;
+    int nTimeChunks = 8;
 
     // initialize a bunch of MPI stuff.
     // Rank tells you which process
@@ -249,13 +267,16 @@ int main(int argc, char **argv ) {
     // and zonal line of parcels
     parcel_pos parcels;
     datagrid requested_grid;
+    float *uparcels;
+    float *vparcels;
+    float *wparcels;
 
 
     for (int tChunk = 0; tChunk < nTimeChunks; ++tChunk) {
         // if this is the first chunk of time, seed the
         // parcel start locations
+        cout << "SEEDING PARCELS" << endl;
         if (tChunk == 0) {
-            cout << "SEEDING PARCELS" << endl;
             seed_parcels(&parcels, nTotTimes);
         }
 
@@ -297,6 +318,10 @@ int main(int argc, char **argv ) {
             u_time_chunk = (float *) malloc ((size_t)bufsize*size);
             v_time_chunk = (float *) malloc ((size_t)bufsize*size);
             w_time_chunk = (float *) malloc ((size_t)bufsize*size);
+
+            uparcels = new float[parcels.nParcels * nTotTimes];
+            vparcels = new float[parcels.nParcels * nTotTimes];
+            wparcels = new float[parcels.nParcels * nTotTimes];
         }
         /*
         float *u_time_chunk = new float[N*size];
@@ -304,30 +329,53 @@ int main(int argc, char **argv ) {
         float *w_time_chunk = new float[N*size];
         */
 
-        printf("TIMESTEP %d/%d %d %f\n", rank, size, rank + tChunk*size, alltimes[rank + tChunk*size]);
+        printf("TIMESTEP %d/%d %d %f\n", rank, size, rank + tChunk*size, alltimes[12000 + rank + tChunk*size]);
         // load u, v, and w into memory
-        loadVectorsFromDisk(&requested_grid, ubuf, vbuf, wbuf, alltimes[rank + tChunk*size]);
+        loadVectorsFromDisk(&requested_grid, ubuf, vbuf, wbuf, alltimes[12000 + rank + tChunk*size]);
         
         int senderr_u = MPI_Gather(ubuf, N, MPI_FLOAT, u_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
         int senderr_v = MPI_Gather(vbuf, N, MPI_FLOAT, v_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
         int senderr_w = MPI_Gather(wbuf, N, MPI_FLOAT, w_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        cout << "GATHER ERROR CODE: " << senderr_u << " " << senderr_v << " " << senderr_w << endl;
 
+        if (rank != 0) {
+            delete[] requested_grid.xf;
+            delete[] requested_grid.yf;
+            delete[] requested_grid.zf;
 
+            delete[] requested_grid.xh;
+            delete[] requested_grid.yh;
+            delete[] requested_grid.zh;
+
+            delete[] ubuf;
+            delete[] vbuf;
+            delete[] wbuf;
+        }
 
         if (rank == 0) {
             // send to the GPU
             // comment out if you're running on XE node
             int nParcels = parcels.nParcels;
-            float *uparcels = new float[nParcels * nTotTimes];
-            float *vparcels = new float[nParcels * nTotTimes];
-            float *wparcels = new float[nParcels * nTotTimes];
             cudaIntegrateParcels(requested_grid, parcels, u_time_chunk, v_time_chunk, w_time_chunk, uparcels, vparcels, wparcels, MX, MY, MZ, size, tChunk, nTotTimes); 
+
+
+            // communicate the data to the other ranks
+            for (int r = 1; r < size; ++r) {
+                MPI_Send(parcels.xpos, nParcels*nTotTimes, MPI_FLOAT, r, 0, MPI_COMM_WORLD);
+                MPI_Send(parcels.ypos, nParcels*nTotTimes, MPI_FLOAT, r, 1, MPI_COMM_WORLD);
+                MPI_Send(parcels.zpos, nParcels*nTotTimes, MPI_FLOAT, r, 2, MPI_COMM_WORLD);
+            }
             
             // if the last integration has been performed, write the data to disk
             if (tChunk == nTimeChunks-1) {
                 write_data(parcels, uparcels, vparcels, wparcels);
             }
+        }
+
+        else {
+            MPI_Status status;
+            MPI_Recv(parcels.xpos, parcels.nParcels*nTotTimes, MPI_FLOAT, 0, 0, MPI_COMM_WORLD, &status);
+            MPI_Recv(parcels.ypos, parcels.nParcels*nTotTimes, MPI_FLOAT, 0, 1, MPI_COMM_WORLD, &status);
+            MPI_Recv(parcels.zpos, parcels.nParcels*nTotTimes, MPI_FLOAT, 0, 2, MPI_COMM_WORLD, &status);
         }
     }
 
