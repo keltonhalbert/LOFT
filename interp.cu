@@ -86,7 +86,7 @@ __host__ __device__ void _calc_weights(float *x_grd, float *y_grd, float *z_grd,
 	// the requested grid point is out
 	// of the bounds of the domain
 	for (int i = 0; i < 8; i++) {
-		weights[i] = -1;
+		weights[i] = -999;
 	}
 
 	// check to see if the requested point is within the grid domain.
@@ -175,7 +175,7 @@ __host__ __device__ float _tri_interp(float *data_arr, float* weights, int *idx_
 
 	// if the given weights are invalid, return -999.0
 	for (int idx = 0; idx < 8; idx++) {
-		if (weights[idx] == -1) {
+		if (weights[idx] == -999) {
 			return out;
 		}
 	}
@@ -228,6 +228,9 @@ __host__ __device__ float interp3D(float *x_grd, float *y_grd, float *z_grd, flo
 
     // interpolate the value
     output_val = _tri_interp(data_grd, weights, idx_4D, nX, nY, nZ);
+    if (output_val == -999.0) {
+        printf("val = %f x = %f y = %f z = %f i = %d j = %d k = %d\n", output_val, point[0], point[1], point[2], idx_4D[0], idx_4D[1], idx_4D[2]);
+    }
 
     return output_val;
 }
