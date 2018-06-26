@@ -82,12 +82,12 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *
     // the parcels don't accidentally move outside of our
     // requested data. If the buffer goes outside the 
     // saved dimensions, set it to the saved dimensions
-    min_i = saved_X0 + min_i - 20;
-    max_i = saved_X0 + max_i + 20;
-    min_j = saved_Y0 + min_j - 20;
-    max_j = saved_Y0 + max_j + 20;
-    min_k = min_k - 20;
-    max_k = max_k + 20;
+    min_i = saved_X0 + min_i - 10;
+    max_i = saved_X0 + max_i + 10;
+    min_j = saved_Y0 + min_j - 10;
+    max_j = saved_Y0 + max_j + 10;
+    min_k = min_k - 10;
+    max_k = max_k + 10;
     cout << "Attempted Parcel Bounds In Grid" << endl;
     cout << "X0: " << min_i << " X1: " << max_i << endl;
     cout << "Y0: " << min_j << " Y1: " << max_j << endl;
@@ -146,9 +146,9 @@ void seed_parcels(parcel_pos *parcels, int nTotTimes) {
     // place a cube of parcels in the domain between xstart, 
     // xend, ystart, yend, zstart, and zend in spacing
     // increments dx, dy, dz
-    float xstart = -6015; float xend = -3015; float dx = 30;
-    float ystart = -4215; float yend = -3045; float dy = 30;
-    float zstart = 30; float zend = 530; float dz = 30;
+    float xstart = -6015; float xend = -3015; float dx = 60;
+    float ystart = -4215; float yend = -3045; float dy = 60;
+    float zstart = 30; float zend = 530; float dz = 60;
     // the number of parcels we will be seeding
     // - note I kind of made this by trial and error. 
     // It may be subject to seg faults?
