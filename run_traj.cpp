@@ -5,6 +5,7 @@
 #include "readlofs.cpp"
 #include "datastructs.cpp"
 #include "integrate.h"
+#include "writenc.cpp"
 
 // I made this myself by stealing from LOFS
 #define P2(t,p,mt) (((p)*(mt))+(t))
@@ -146,9 +147,9 @@ void seed_parcels(parcel_pos *parcels, int nTotTimes) {
     // place a cube of parcels in the domain between xstart, 
     // xend, ystart, yend, zstart, and zend in spacing
     // increments dx, dy, dz
-    float xstart = -6015; float xend = -3015; float dx = 60;
-    float ystart = -4215; float yend = -3045; float dy = 60;
-    float zstart = 30; float zend = 530; float dz = 60;
+    float xstart = -3855; float xend = -2025; float dx = 30;
+    float ystart = -3975; float yend = -3075; float dy = 30;
+    float zstart = 30; float zend = 330; float dz = 30;
     // the number of parcels we will be seeding
     // - note I kind of made this by trial and error. 
     // It may be subject to seg faults?
@@ -244,7 +245,7 @@ int main(int argc, char **argv ) {
     string base_dir = "/u/sciteam/halbert/project_bagm/khalbert/30m-every-time-step/3D";
     int rank, size;
     long N, MX, MY, MZ;
-    int nTimeChunks = 8;
+    int nTimeChunks = 1;
 
     // initialize a bunch of MPI stuff.
     // Rank tells you which process
@@ -329,9 +330,9 @@ int main(int argc, char **argv ) {
         float *w_time_chunk = new float[N*size];
         */
 
-        printf("TIMESTEP %d/%d %d %f\n", rank, size, rank + tChunk*size, alltimes[12000 + rank + tChunk*size]);
+        printf("TIMESTEP %d/%d %d %f\n", rank, size, rank + tChunk*size, alltimes[15000 + rank + tChunk*size]);
         // load u, v, and w into memory
-        loadVectorsFromDisk(&requested_grid, ubuf, vbuf, wbuf, alltimes[12000 + rank + tChunk*size]);
+        loadVectorsFromDisk(&requested_grid, ubuf, vbuf, wbuf, alltimes[15000 + rank + tChunk*size]);
         
         int senderr_u = MPI_Gather(ubuf, N, MPI_FLOAT, u_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
         int senderr_v = MPI_Gather(vbuf, N, MPI_FLOAT, v_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
@@ -367,6 +368,7 @@ int main(int argc, char **argv ) {
             
             // if the last integration has been performed, write the data to disk
             if (tChunk == nTimeChunks-1) {
+                initnc("test.nc", parcels.nParcels, parcels.nTimes);
                 write_data(parcels, uparcels, vparcels, wparcels);
             }
         }
