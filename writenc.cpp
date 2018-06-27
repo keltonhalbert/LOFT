@@ -1,6 +1,7 @@
 #ifndef WRITENC_CPP
 #define WRITENC_CPP
 
+#include "datastructs.cpp"
 #include <iostream>
 #include <string>
 #include <netcdf>
@@ -10,58 +11,43 @@ using namespace netCDF;
 using namespace netCDF::exceptions;
 
  
-void initnc(string filename, int nParcels, int nTimes) {
+void write_parcels(string filename, parcel_pos *parcels ) { 
     // Create the file.
     NcFile output(filename, NcFile::replace);
 
-    NcDim pclDim = output.addDim("nParcels", nParcels);
-    NcDim timeDim = output.addDim("nTimes", nTimes);
-    //NcDim lvlDim = test.addDim(LVL_NAME, NLVL);
-    //NcDim latDim = test.addDim(LAT_NAME, NLAT);
-    //NcDim lonDim = test.addDim(LON_NAME, NLON);
+    NcDim pclDim = output.addDim("nParcels", parcels->nParcels);
+    NcDim timeDim = output.addDim("nTimes");
     //NcDim recDim = test.addDim(REC_NAME);
 
     // define the coordinate variables
-    //std::vector<NcDim> gridDimVector;
-    //gridDimVector.push_back(latDim);
-    //gridDimVector.push_back(lonDim);
-    //NcVar latVar = test.addVar(LAT_NAME, ncFloat, gridDimVector);
-    //NcVar lonVar = test.addVar(LON_NAME, ncFloat, gridDimVector);
+    vector<NcDim> gridDimVector;
+    gridDimVector.push_back(pclDim);
+    gridDimVector.push_back(timeDim);
+    NcVar xVar = output.addVar("parcel_x_pos", ncFloat, gridDimVector);
+    NcVar yVar = output.addVar("parcel_y_pos", ncFloat, gridDimVector);
+    NcVar zVar = output.addVar("parcel_z_pos", ncFloat, gridDimVector);
 
     // Define the units attributes for coordinate vars. This
     // attatches a test attribute to each of the coordinate 
     // cariables containing the units
-    //latVar.putAtt(UNITS, DEGREES_NORTH);
-    //lonVar.putAtt(UNITS, DEGREES_EAST);
+    xVar.putAtt("units", "meters from simulation origin");
+    yVar.putAtt("units", "meters from simulation origin");
+    zVar.putAtt("units", "meters from simulation origin");
 
-    // Define the netCDF variables for the fields
-    // we want to store
-    vector<NcDim> dimVector;
-    //dimVector.push_back(lvlDim);
-    //dimVector.push_back(latDim);
-    //dimVector.push_back(lonDim);
-    //NcVar sfccape_var = test.addVar(SFCCAPE_NAME, ncFloat, dimVector);
-    //NcVar sfccinh_var = test.addVar(SFCCINH_NAME, ncFloat, dimVector);
-    //NcVar sfclcl_var = test.addVar(SFCLCL_NAME, ncFloat, dimVector);
-    //NcVar sfclfc_var = test.addVar(SFCLFC_NAME, ncFloat, dimVector);
+    vector<size_t> startp,countp;
+    startp.push_back(0);
+    startp.push_back(0);
+    countp.push_back(parcels->nParcels);
+    countp.push_back(parcels->nTimes);
 
 
     // Write the coordinate variable data to the file
-    // latVar.putVar(lats);
-    // lonVar.putVar(lons);
+    xVar.putVar(startp,countp,parcels->xpos);
+    yVar.putVar(startp,countp,parcels->ypos);
+    zVar.putVar(startp,countp,parcels->zpos);
     cout << "*** SUCCESS writing file " << filename << "!" << endl;
     return;
 }
 
-void write_data(string filename, string varname, float *var_data) {
-
-    NcFile dataFile(filename, NcFile::write);
-    NcVar dataVar; 
-    dataVar = dataFile.getVar(varname);
-    dataVar.putVar(var_data);
-
-    return;
-
-}
 #endif
 

@@ -195,45 +195,6 @@ void seed_parcels(parcel_pos *parcels, int nTotTimes) {
 }
 
 
-/* Write out the parcel arrays to a 
- * CSV file format on the disk.
- */
-void write_data(parcel_pos parcels, float *uparcels, float *vparcels, float *wparcels) {
-    cout << "WRITING DATA" << endl;
-    ofstream outfile;
-    outfile.open("./result.csv");
-    int nParcels = parcels.nParcels;
-    int nT = parcels.nTimes;
-    
-    // loop over each parcel
-    float max_u, max_v, max_w;
-    max_u = -1; max_v = -1; max_w = -1;
-    for (int pcl = 0; pcl < nParcels; ++pcl) {
-        // print the parcel start flag 
-        outfile << "!Parcel " << pcl << endl; 
-        // loop over the times
-        for (int t = 0; t < nT; ++t) {
-            // for each row: x position, y position, z position
-                outfile << parcels.xpos[P2(t, pcl, nT)] << ", ";
-                outfile << parcels.ypos[P2(t, pcl, nT)] << ", ";
-                outfile << parcels.zpos[P2(t, pcl, nT)] << ", ";
-                if (t == nT-1) {
-                    outfile << -999.0 << ", ";
-                    outfile << -999.0 << ", ";
-                    outfile << -999.0 << endl;
-                }
-                else {
-                    outfile << uparcels[P2(t, pcl, nT)] << ", ";
-                    outfile << vparcels[P2(t, pcl, nT)] << ", ";
-                    outfile << wparcels[P2(t, pcl, nT)] << endl;
-                }
-        }
-        // parcel end flag
-        outfile << "!End " << pcl << endl;
-    }
-}
-
-
 /* This is the main program that does the parcel trajectory analysis.
  * It first sets up the parcel vectors and seeds the starting locations.
  * It then loads a chunk of times into memory by calling the LOFS api
@@ -245,7 +206,7 @@ int main(int argc, char **argv ) {
     string base_dir = "/u/sciteam/halbert/project_bagm/khalbert/30m-every-time-step/3D";
     int rank, size;
     long N, MX, MY, MZ;
-    int nTimeChunks = 1;
+    int nTimeChunks = 8;
 
     // initialize a bunch of MPI stuff.
     // Rank tells you which process
@@ -368,8 +329,7 @@ int main(int argc, char **argv ) {
             
             // if the last integration has been performed, write the data to disk
             if (tChunk == nTimeChunks-1) {
-                initnc("test.nc", parcels.nParcels, parcels.nTimes);
-                write_data(parcels, uparcels, vparcels, wparcels);
+                write_parcels("test.nc", &parcels);
             }
         }
 
