@@ -219,6 +219,7 @@ int main(int argc, char **argv ) {
                                                                    errors */
     MPI_Barrier(MPI_COMM_WORLD);
 
+
     // the number of time steps we have is 
     // the number of MPI ranks there are
     // times the number of integration time chunks,
@@ -240,6 +241,7 @@ int main(int argc, char **argv ) {
         cout << "SEEDING PARCELS" << endl;
         if (tChunk == 0) {
             seed_parcels(&parcels, nTotTimes);
+            if (rank == 0) init_nc("test.nc", &parcels);
         }
 
         // read in the metadata - later we will make

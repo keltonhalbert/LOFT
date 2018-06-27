@@ -10,8 +10,7 @@ using namespace std;
 using namespace netCDF;
 using namespace netCDF::exceptions;
 
- 
-void write_parcels(string filename, parcel_pos *parcels ) { 
+void init_nc(string filename, parcel_pos *parcels) {
     // Create the file.
     NcFile output(filename, NcFile::replace);
 
@@ -33,13 +32,20 @@ void write_parcels(string filename, parcel_pos *parcels ) {
     xVar.putAtt("units", "meters from simulation origin");
     yVar.putAtt("units", "meters from simulation origin");
     zVar.putAtt("units", "meters from simulation origin");
+}
+ 
+void write_parcels(string filename, parcel_pos *parcels ) { 
+    NcFile output(filename, NcFile::write);
+
+    NcVar xVar = output.getVar("parcel_x_pos");
+    NcVar yVar = output.getVar("parcel_y_pos");
+    NcVar zVar = output.getVar("parcel_z_pos");
 
     vector<size_t> startp,countp;
     startp.push_back(0);
     startp.push_back(0);
     countp.push_back(parcels->nParcels);
     countp.push_back(parcels->nTimes);
-
 
     // Write the coordinate variable data to the file
     xVar.putVar(startp,countp,parcels->xpos);
