@@ -18,6 +18,8 @@ struct datagrid {
     float *zf;
     float *zh;
 
+    int isValid;
+
     // dimensions for
     // the arrays
     long NX;
@@ -29,6 +31,7 @@ struct datagrid {
     long X0; long Y0;
     long X1; long Y1;
     long Z0; long Z1;
+
 
 
 };

@@ -180,6 +180,11 @@ void lofs_get_grid( datagrid *grid ) {
     grid->yf = yfout;
     grid->zh = zhout;
     grid->zf = zfout;
+
+    delete[] xffull;
+    delete[] yffull;
+    delete[] xhfull;
+    delete[] yhfull;
 }
 
 void lofs_read_3dvar(datagrid *grid, float *buffer, char *varname, double t0) {

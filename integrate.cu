@@ -79,6 +79,8 @@ __global__ void test(datagrid grid, parcel_pos parcels, float *u_time_chunk, flo
                 // integrate Z position forward by the W wind
                 point[2] += pcl_w * (1.0f/6.0f);
 
+                if (point[2] < 0.) point[2] = 0;
+
                 parcels.xpos[P2(tidx+1, parcel_id, totTime)] = point[0]; 
                 parcels.ypos[P2(tidx+1, parcel_id, totTime)] = point[1];
                 parcels.zpos[P2(tidx+1, parcel_id, totTime)] = point[2];

@@ -2,8 +2,8 @@
 #include <fstream>
 #include <string>
 #include "mpi.h"
-#include "readlofs.cpp"
 #include "datastructs.cpp"
+#include "readlofs.cpp"
 #include "integrate.h"
 #include "writenc.cpp"
 
@@ -24,9 +24,6 @@ using namespace std;
  * are currently and request a subset that is relevent to those parcels.   
  */
 void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *parcels) {
-
-    // query the dataset structure
-    lofs_get_dataset_structure(base_dir);
     // get the HDF metadata - return the first filename
     get_hdf_metadata(firstfilename,&nx,&ny,&nz,&nodex,&nodey);
 
@@ -67,6 +64,7 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *
             cout << " Parcel Z " << parcels->zpos[P2(0, pcl, parcels->nTimes)] << endl;
             invalidCount += 1;
         }
+
         // check to see if we've found the min/max
         // for the dimension
         if (idx_4D[0] < min_i) min_i = idx_4D[0]; 
@@ -79,6 +77,17 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *
         //cout << "min j " << min_j << " max i " << max_j << endl;
         //cout << "min k " << min_k << " max i " << max_k << endl;
     }
+    if (invalidCount == parcels->nParcels) {
+        requested_grid->isValid = 0;
+        delete[] temp_grid.xh;
+        delete[] temp_grid.yh;
+        delete[] temp_grid.zh;
+        delete[] temp_grid.xf;
+        delete[] temp_grid.yf;
+        delete[] temp_grid.zf;
+        return;
+    }
+    requested_grid->isValid = 1;
     // clear the memory from the temp grid
     delete[] temp_grid.xh;
     delete[] temp_grid.yh;
@@ -127,6 +136,7 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *
     cout << "REQUESTING METADATA & GRID" << endl;
     lofs_get_grid(requested_grid);
     cout << "END METADATA & GRID REQUEST" << endl;
+
 }
 
 /* Read in the U, V, and W vector components from the disk, provided previously allocated memory buffers
@@ -187,9 +197,9 @@ void seed_parcels(parcel_pos *parcels, int nTotTimes) {
     cout <<  parcels->zpos[P2(0, 29, parcels->nTimes)] << endl;
     for (int p = 0; p < nParcels; ++p) {
         for (int t = 1; t < parcels->nTimes; ++t) {
-            parcels->xpos[P2(t, p, parcels->nTimes)] = -9999999.0;
-            parcels->ypos[P2(t, p, parcels->nTimes)] = -9999999.0;
-            parcels->zpos[P2(t, p, parcels->nTimes)] = -9999999.0;
+            parcels->xpos[P2(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
+            parcels->ypos[P2(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
+            parcels->zpos[P2(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
         }
     }
     cout << "END PARCEL SEED" << endl;
@@ -206,9 +216,11 @@ void seed_parcels(parcel_pos *parcels, int nTotTimes) {
  */
 int main(int argc, char **argv ) {
     string base_dir = "/u/sciteam/halbert/project_bagm/khalbert/30m-every-time-step/3D";
+    // query the dataset structure
+    lofs_get_dataset_structure(base_dir);
     int rank, size;
     long N, MX, MY, MZ;
-    int nTimeChunks = 16;
+    int nTimeChunks = 25;
 
     // initialize a bunch of MPI stuff.
     // Rank tells you which process
@@ -229,9 +241,6 @@ int main(int argc, char **argv ) {
 
     parcel_pos parcels;
     datagrid requested_grid;
-    float *uparcels;
-    float *vparcels;
-    float *wparcels;
 
 
     for (int tChunk = 0; tChunk < nTimeChunks; ++tChunk) {
@@ -247,7 +256,7 @@ int main(int argc, char **argv ) {
         // the requested grid dynamic based on the
         // parcel seeds
         loadMetadataAndGrid(base_dir, &requested_grid, &parcels); 
-
+        if (requested_grid.isValid == 0) continue;
 
 
         // the number of grid points requested
@@ -264,6 +273,9 @@ int main(int argc, char **argv ) {
         // allocate space for U, V, and W arrays
         long bufsize = (long) (requested_grid.NX+1) * (long) (requested_grid.NY+1) * (long) (requested_grid.NZ+1) * (long) sizeof(float);
         float *ubuf, *vbuf, *wbuf;
+        float *uparcels;
+        float *vparcels;
+        float *wparcels;
         ubuf = (float *) malloc ((size_t)bufsize);
         vbuf = (float *) malloc ((size_t)bufsize);
         wbuf = (float *) malloc ((size_t)bufsize);
@@ -301,19 +313,6 @@ int main(int argc, char **argv ) {
         int senderr_v = MPI_Gather(vbuf, N, MPI_FLOAT, v_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
         int senderr_w = MPI_Gather(wbuf, N, MPI_FLOAT, w_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-        if (rank != 0) {
-            delete[] requested_grid.xf;
-            delete[] requested_grid.yf;
-            delete[] requested_grid.zf;
-
-            delete[] requested_grid.xh;
-            delete[] requested_grid.yh;
-            delete[] requested_grid.zh;
-
-            delete[] ubuf;
-            delete[] vbuf;
-            delete[] wbuf;
-        }
 
         if (rank == 0) {
             // send to the GPU
@@ -327,9 +326,9 @@ int main(int argc, char **argv ) {
                 parcels.ypos[P2(0, pcl, parcels.nTimes)] = parcels.ypos[P2(parcels.nTimes-1, pcl, parcels.nTimes)];
                 parcels.zpos[P2(0, pcl, parcels.nTimes)] = parcels.zpos[P2(parcels.nTimes-1, pcl, parcels.nTimes)];
                 for (int t = 1; t < parcels.nTimes; ++t) {
-                    parcels.xpos[P2(t, pcl, parcels.nTimes)] = -9999999.0;
-                    parcels.ypos[P2(t, pcl, parcels.nTimes)] = -9999999.0;
-                    parcels.zpos[P2(t, pcl, parcels.nTimes)] = -9999999.0;
+                    parcels.xpos[P2(t, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
+                    parcels.ypos[P2(t, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
+                    parcels.zpos[P2(t, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
                 }
             }
 
@@ -342,9 +341,25 @@ int main(int argc, char **argv ) {
 
 
 
+            delete[] requested_grid.xf;
+            delete[] requested_grid.yf;
+            delete[] requested_grid.zf;
+
+            delete[] requested_grid.xh;
+            delete[] requested_grid.yh;
+            delete[] requested_grid.zh;
+
+            delete[] ubuf;
+            delete[] vbuf;
+            delete[] wbuf;
+
             delete[] u_time_chunk;
             delete[] v_time_chunk;
             delete[] w_time_chunk;
+
+            delete[] uparcels;
+            delete[] vparcels;
+            delete[] wparcels;
         }
 
         else {
@@ -352,6 +367,17 @@ int main(int argc, char **argv ) {
             MPI_Recv(parcels.xpos, parcels.nParcels*nTotTimes, MPI_FLOAT, 0, 0, MPI_COMM_WORLD, &status);
             MPI_Recv(parcels.ypos, parcels.nParcels*nTotTimes, MPI_FLOAT, 0, 1, MPI_COMM_WORLD, &status);
             MPI_Recv(parcels.zpos, parcels.nParcels*nTotTimes, MPI_FLOAT, 0, 2, MPI_COMM_WORLD, &status);
+            delete[] requested_grid.xf;
+            delete[] requested_grid.yf;
+            delete[] requested_grid.zf;
+
+            delete[] requested_grid.xh;
+            delete[] requested_grid.yh;
+            delete[] requested_grid.zh;
+
+            delete[] ubuf;
+            delete[] vbuf;
+            delete[] wbuf;
         }
 
     }
