@@ -92,7 +92,7 @@ __global__ void test(datagrid grid, parcel_pos parcels, float *u_time_chunk, flo
 arrays to GPU global memory, calling the integrate GPU kernel, and then
 updating the position vectors with the new stuff*/
 void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk, float *v_time_chunk, float *w_time_chunk, \
-                            float *uparcels, float *vparcels, float *wparcels, int MX, int MY, int MZ, int nT, int tChunk, int totTime) {
+                            float *uparcels, float *vparcels, float *wparcels, int MX, int MY, int MZ, int nT, int totTime) {
     // pointers to device memory
     float *device_u_time_chunk, *device_v_time_chunk, *device_w_time_chunk;
     float *device_uparcels, *device_vparcels, *device_wparcels;
@@ -101,8 +101,8 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     datagrid device_grid;
 
     int tStart, tEnd;
-    tStart = 0 + (nT*tChunk);
-    tEnd = nT + (tChunk*nT);
+    tStart = 0;
+    tEnd = nT;
 
     // copy over our integer and long
     // constants to our device struct

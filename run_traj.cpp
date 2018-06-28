@@ -23,7 +23,7 @@ using namespace std;
  * When the next chunk of time is read in, check and see where the parcels
  * are currently and request a subset that is relevent to those parcels.   
  */
-void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *parcels, int tstep) {
+void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *parcels) {
 
     // query the dataset structure
     lofs_get_dataset_structure(base_dir);
@@ -53,18 +53,19 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *
     int max_i = -1;
     int max_j = -1;
     int max_k = -1;
+    int invalidCount = 0;
     for (int pcl = 0; pcl < parcels->nParcels; ++pcl) {
-        point[0] = parcels->xpos[P2(tstep, pcl, parcels->nTimes)];
-        point[1] = parcels->ypos[P2(tstep, pcl, parcels->nTimes)];
-        point[2] = parcels->zpos[P2(tstep, pcl, parcels->nTimes)];
+        point[0] = parcels->xpos[P2(0, pcl, parcels->nTimes)];
+        point[1] = parcels->ypos[P2(0, pcl, parcels->nTimes)];
+        point[2] = parcels->zpos[P2(0, pcl, parcels->nTimes)];
         // find the nearest grid point!
         _nearest_grid_idx(point, temp_grid.xh, temp_grid.yh, temp_grid.zh, idx_4D, temp_grid.NX, temp_grid.NY, temp_grid.NZ);
         if ( (idx_4D[0] == -1) || (idx_4D[1] == -1) || (idx_4D[2] == -1) ) {
             cout << "INVALID POINT X " << point[0] << " Y " << point[1] << " Z " << point[2] << endl;
-            cout << "Parcel X " << parcels->xpos[P2(tstep, pcl, parcels->nTimes)];
-            cout << " Parcel Y " << parcels->ypos[P2(tstep, pcl, parcels->nTimes)];
-            cout << " Parcel Z " << parcels->zpos[P2(tstep, pcl, parcels->nTimes)] << endl;
-            cout << tstep << " " << pcl << " " << parcels->nTimes << endl;
+            cout << "Parcel X " << parcels->xpos[P2(0, pcl, parcels->nTimes)];
+            cout << " Parcel Y " << parcels->ypos[P2(0, pcl, parcels->nTimes)];
+            cout << " Parcel Z " << parcels->zpos[P2(0, pcl, parcels->nTimes)] << endl;
+            invalidCount += 1;
         }
         // check to see if we've found the min/max
         // for the dimension
@@ -78,6 +79,14 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *
         //cout << "min j " << min_j << " max i " << max_j << endl;
         //cout << "min k " << min_k << " max i " << max_k << endl;
     }
+    // clear the memory from the temp grid
+    delete[] temp_grid.xh;
+    delete[] temp_grid.yh;
+    delete[] temp_grid.zh;
+    delete[] temp_grid.xf;
+    delete[] temp_grid.yf;
+    delete[] temp_grid.zf;
+
 
     // we want to add a buffer to our dimensions so that
     // the parcels don't accidentally move outside of our
@@ -118,13 +127,6 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *
     cout << "REQUESTING METADATA & GRID" << endl;
     lofs_get_grid(requested_grid);
     cout << "END METADATA & GRID REQUEST" << endl;
-    // clear the memory from the temp grid
-    delete[] temp_grid.xh;
-    delete[] temp_grid.yh;
-    delete[] temp_grid.zh;
-    delete[] temp_grid.xf;
-    delete[] temp_grid.yf;
-    delete[] temp_grid.zf;
 }
 
 /* Read in the U, V, and W vector components from the disk, provided previously allocated memory buffers
@@ -185,9 +187,9 @@ void seed_parcels(parcel_pos *parcels, int nTotTimes) {
     cout <<  parcels->zpos[P2(0, 29, parcels->nTimes)] << endl;
     for (int p = 0; p < nParcels; ++p) {
         for (int t = 1; t < parcels->nTimes; ++t) {
-            parcels->xpos[P2(t, p, parcels->nTimes)] = -99999.0;
-            parcels->ypos[P2(t, p, parcels->nTimes)] = -99999.0;
-            parcels->zpos[P2(t, p, parcels->nTimes)] = -99999.0;
+            parcels->xpos[P2(t, p, parcels->nTimes)] = -9999999.0;
+            parcels->ypos[P2(t, p, parcels->nTimes)] = -9999999.0;
+            parcels->zpos[P2(t, p, parcels->nTimes)] = -9999999.0;
         }
     }
     cout << "END PARCEL SEED" << endl;
@@ -206,7 +208,7 @@ int main(int argc, char **argv ) {
     string base_dir = "/u/sciteam/halbert/project_bagm/khalbert/30m-every-time-step/3D";
     int rank, size;
     long N, MX, MY, MZ;
-    int nTimeChunks = 8;
+    int nTimeChunks = 20;
 
     // initialize a bunch of MPI stuff.
     // Rank tells you which process
@@ -222,12 +224,9 @@ int main(int argc, char **argv ) {
 
     // the number of time steps we have is 
     // the number of MPI ranks there are
-    // times the number of integration time chunks,
     // plus the very last integration end time
-    int nTotTimes = (size*nTimeChunks)+1;
+    int nTotTimes = size+1;
 
-    // we're gonna make a test by creating a horizontal
-    // and zonal line of parcels
     parcel_pos parcels;
     datagrid requested_grid;
     float *uparcels;
@@ -238,8 +237,8 @@ int main(int argc, char **argv ) {
     for (int tChunk = 0; tChunk < nTimeChunks; ++tChunk) {
         // if this is the first chunk of time, seed the
         // parcel start locations
-        cout << "SEEDING PARCELS" << endl;
         if (tChunk == 0) {
+            cout << "SEEDING PARCELS" << endl;
             seed_parcels(&parcels, nTotTimes);
             if (rank == 0) init_nc("test.nc", &parcels);
         }
@@ -247,7 +246,8 @@ int main(int argc, char **argv ) {
         // read in the metadata - later we will make
         // the requested grid dynamic based on the
         // parcel seeds
-        loadMetadataAndGrid(base_dir, &requested_grid, &parcels, tChunk*size); 
+        loadMetadataAndGrid(base_dir, &requested_grid, &parcels); 
+
 
 
         // the number of grid points requested
@@ -319,20 +319,32 @@ int main(int argc, char **argv ) {
             // send to the GPU
             // comment out if you're running on XE node
             int nParcels = parcels.nParcels;
-            cudaIntegrateParcels(requested_grid, parcels, u_time_chunk, v_time_chunk, w_time_chunk, uparcels, vparcels, wparcels, MX, MY, MZ, size, tChunk, nTotTimes); 
+            cudaIntegrateParcels(requested_grid, parcels, u_time_chunk, v_time_chunk, w_time_chunk, uparcels, vparcels, wparcels, MX, MY, MZ, size, nTotTimes); 
+            write_parcels("test.nc", &parcels, tChunk);
 
+            for (int pcl = 0; pcl < parcels.nParcels; ++pcl) {
+                parcels.xpos[P2(0, pcl, parcels.nTimes)] = parcels.xpos[P2(parcels.nTimes-1, pcl, parcels.nTimes)];
+                parcels.ypos[P2(0, pcl, parcels.nTimes)] = parcels.ypos[P2(parcels.nTimes-1, pcl, parcels.nTimes)];
+                parcels.zpos[P2(0, pcl, parcels.nTimes)] = parcels.zpos[P2(parcels.nTimes-1, pcl, parcels.nTimes)];
+                for (int t = 1; t < parcels.nTimes; ++t) {
+                    parcels.xpos[P2(t, pcl, parcels.nTimes)] = -9999999.0;
+                    parcels.ypos[P2(t, pcl, parcels.nTimes)] = -9999999.0;
+                    parcels.zpos[P2(t, pcl, parcels.nTimes)] = -9999999.0;
+                }
+            }
 
             // communicate the data to the other ranks
             for (int r = 1; r < size; ++r) {
-                MPI_Send(parcels.xpos, nParcels*nTotTimes, MPI_FLOAT, r, 0, MPI_COMM_WORLD);
-                MPI_Send(parcels.ypos, nParcels*nTotTimes, MPI_FLOAT, r, 1, MPI_COMM_WORLD);
-                MPI_Send(parcels.zpos, nParcels*nTotTimes, MPI_FLOAT, r, 2, MPI_COMM_WORLD);
-            }
-            
-            // if the last integration has been performed, write the data to disk
-            if (tChunk == nTimeChunks-1) {
-                write_parcels("test.nc", &parcels);
-            }
+                 MPI_Send(parcels.xpos, nParcels*nTotTimes, MPI_FLOAT, r, 0, MPI_COMM_WORLD);
+                 MPI_Send(parcels.ypos, nParcels*nTotTimes, MPI_FLOAT, r, 1, MPI_COMM_WORLD);
+                 MPI_Send(parcels.zpos, nParcels*nTotTimes, MPI_FLOAT, r, 2, MPI_COMM_WORLD);
+             }
+
+
+
+            delete[] u_time_chunk;
+            delete[] v_time_chunk;
+            delete[] w_time_chunk;
         }
 
         else {
@@ -341,6 +353,7 @@ int main(int argc, char **argv ) {
             MPI_Recv(parcels.ypos, parcels.nParcels*nTotTimes, MPI_FLOAT, 0, 1, MPI_COMM_WORLD, &status);
             MPI_Recv(parcels.zpos, parcels.nParcels*nTotTimes, MPI_FLOAT, 0, 2, MPI_COMM_WORLD, &status);
         }
+
     }
 
     MPI_Finalize();

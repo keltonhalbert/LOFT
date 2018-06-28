@@ -34,7 +34,7 @@ void init_nc(string filename, parcel_pos *parcels) {
     zVar.putAtt("units", "meters from simulation origin");
 }
  
-void write_parcels(string filename, parcel_pos *parcels ) { 
+void write_parcels(string filename, parcel_pos *parcels, int writeIters ) { 
     NcFile output(filename, NcFile::write);
 
     NcVar xVar = output.getVar("parcel_x_pos");
@@ -43,7 +43,7 @@ void write_parcels(string filename, parcel_pos *parcels ) {
 
     vector<size_t> startp,countp;
     startp.push_back(0);
-    startp.push_back(0);
+    startp.push_back(parcels->nTimes * writeIters);
     countp.push_back(parcels->nParcels);
     countp.push_back(parcels->nTimes);
 
