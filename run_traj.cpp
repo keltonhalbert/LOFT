@@ -208,7 +208,7 @@ int main(int argc, char **argv ) {
     string base_dir = "/u/sciteam/halbert/project_bagm/khalbert/30m-every-time-step/3D";
     int rank, size;
     long N, MX, MY, MZ;
-    int nTimeChunks = 20;
+    int nTimeChunks = 16;
 
     // initialize a bunch of MPI stuff.
     // Rank tells you which process
