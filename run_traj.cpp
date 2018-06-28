@@ -77,16 +77,6 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *
         //cout << "min j " << min_j << " max i " << max_j << endl;
         //cout << "min k " << min_k << " max i " << max_k << endl;
     }
-    if (invalidCount == parcels->nParcels) {
-        requested_grid->isValid = 0;
-        delete[] temp_grid.xh;
-        delete[] temp_grid.yh;
-        delete[] temp_grid.zh;
-        delete[] temp_grid.xf;
-        delete[] temp_grid.yf;
-        delete[] temp_grid.zf;
-        return;
-    }
     requested_grid->isValid = 1;
     // clear the memory from the temp grid
     delete[] temp_grid.xh;
@@ -95,6 +85,10 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *
     delete[] temp_grid.xf;
     delete[] temp_grid.yf;
     delete[] temp_grid.zf;
+    if (invalidCount == parcels->nParcels) {
+        requested_grid->isValid = 0;
+        return;
+    }
 
 
     // we want to add a buffer to our dimensions so that
@@ -159,9 +153,9 @@ void seed_parcels(parcel_pos *parcels, int nTotTimes) {
     // place a cube of parcels in the domain between xstart, 
     // xend, ystart, yend, zstart, and zend in spacing
     // increments dx, dy, dz
-    float xstart = -3855; float xend = -2025; float dx = 30;
-    float ystart = -3975; float yend = -3075; float dy = 30;
-    float zstart = 30; float zend = 330; float dz = 30;
+    float xstart = -3775; float xend = -2225; float dx = 30;
+    float ystart = -3775; float yend = -3225; float dy = 30;
+    float zstart = 120; float zend = 330; float dz = 30;
     // the number of parcels we will be seeding
     // - note I kind of made this by trial and error. 
     // It may be subject to seg faults?
@@ -216,11 +210,11 @@ void seed_parcels(parcel_pos *parcels, int nTotTimes) {
  */
 int main(int argc, char **argv ) {
     string base_dir = "/u/sciteam/halbert/project_bagm/khalbert/30m-every-time-step/3D";
+    string outfilename = "test2.nc";
     // query the dataset structure
-    lofs_get_dataset_structure(base_dir);
     int rank, size;
     long N, MX, MY, MZ;
-    int nTimeChunks = 25;
+    int nTimeChunks = 40;
 
     // initialize a bunch of MPI stuff.
     // Rank tells you which process
@@ -238,6 +232,7 @@ int main(int argc, char **argv ) {
     // the number of MPI ranks there are
     // plus the very last integration end time
     int nTotTimes = size+1;
+    lofs_get_dataset_structure(base_dir);
 
     parcel_pos parcels;
     datagrid requested_grid;
@@ -249,7 +244,7 @@ int main(int argc, char **argv ) {
         if (tChunk == 0) {
             cout << "SEEDING PARCELS" << endl;
             seed_parcels(&parcels, nTotTimes);
-            if (rank == 0) init_nc("test.nc", &parcels);
+            if (rank == 0) init_nc(outfilename, &parcels);
         }
 
         // read in the metadata - later we will make
@@ -273,17 +268,15 @@ int main(int argc, char **argv ) {
         // allocate space for U, V, and W arrays
         long bufsize = (long) (requested_grid.NX+1) * (long) (requested_grid.NY+1) * (long) (requested_grid.NZ+1) * (long) sizeof(float);
         float *ubuf, *vbuf, *wbuf;
-        float *uparcels;
-        float *vparcels;
-        float *wparcels;
-        ubuf = (float *) malloc ((size_t)bufsize);
-        vbuf = (float *) malloc ((size_t)bufsize);
-        wbuf = (float *) malloc ((size_t)bufsize);
+        ubuf = new float[(size_t)bufsize];
+        vbuf = new float[(size_t)bufsize];
+        wbuf = new float[(size_t)bufsize];
         /*
         float *ubuf = new float[N];
         float *vbuf = new float[N];
         float *wbuf = new float[N];
         */
+
 
         // construct a 4D contiguous array to store stuff in.
         // bufsize is the size of the 3D component and size is
@@ -295,16 +288,12 @@ int main(int argc, char **argv ) {
             v_time_chunk = (float *) malloc ((size_t)bufsize*size);
             w_time_chunk = (float *) malloc ((size_t)bufsize*size);
 
-            uparcels = new float[parcels.nParcels * nTotTimes];
-            vparcels = new float[parcels.nParcels * nTotTimes];
-            wparcels = new float[parcels.nParcels * nTotTimes];
         }
         /*
         float *u_time_chunk = new float[N*size];
         float *v_time_chunk = new float[N*size];
         float *w_time_chunk = new float[N*size];
         */
-
         printf("TIMESTEP %d/%d %d %f\n", rank, size, rank + tChunk*size, alltimes[15000 + rank + tChunk*size]);
         // load u, v, and w into memory
         loadVectorsFromDisk(&requested_grid, ubuf, vbuf, wbuf, alltimes[15000 + rank + tChunk*size]);
@@ -318,8 +307,8 @@ int main(int argc, char **argv ) {
             // send to the GPU
             // comment out if you're running on XE node
             int nParcels = parcels.nParcels;
-            cudaIntegrateParcels(requested_grid, parcels, u_time_chunk, v_time_chunk, w_time_chunk, uparcels, vparcels, wparcels, MX, MY, MZ, size, nTotTimes); 
-            write_parcels("test.nc", &parcels, tChunk);
+            cudaIntegrateParcels(requested_grid, parcels, u_time_chunk, v_time_chunk, w_time_chunk, MX, MY, MZ, size, nTotTimes); 
+            write_parcels(outfilename, &parcels, tChunk);
 
             for (int pcl = 0; pcl < parcels.nParcels; ++pcl) {
                 parcels.xpos[P2(0, pcl, parcels.nTimes)] = parcels.xpos[P2(parcels.nTimes-1, pcl, parcels.nTimes)];
@@ -356,10 +345,6 @@ int main(int argc, char **argv ) {
             delete[] u_time_chunk;
             delete[] v_time_chunk;
             delete[] w_time_chunk;
-
-            delete[] uparcels;
-            delete[] vparcels;
-            delete[] wparcels;
         }
 
         else {
@@ -367,6 +352,7 @@ int main(int argc, char **argv ) {
             MPI_Recv(parcels.xpos, parcels.nParcels*nTotTimes, MPI_FLOAT, 0, 0, MPI_COMM_WORLD, &status);
             MPI_Recv(parcels.ypos, parcels.nParcels*nTotTimes, MPI_FLOAT, 0, 1, MPI_COMM_WORLD, &status);
             MPI_Recv(parcels.zpos, parcels.nParcels*nTotTimes, MPI_FLOAT, 0, 2, MPI_COMM_WORLD, &status);
+
             delete[] requested_grid.xf;
             delete[] requested_grid.yf;
             delete[] requested_grid.zf;
