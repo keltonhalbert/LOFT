@@ -201,6 +201,45 @@ void seed_parcels(parcel_pos *parcels, int nTotTimes) {
 }
 
 
+void seed_parcels_cm1(parcel_pos *parcels, int nTotTimes) {
+
+    int nParcels = 36000;
+
+    // allocate memory for the parcels
+    // we are integrating for the entirety 
+    // of the simulation.
+    parcels->xpos = new float[nParcels * nTotTimes];
+    parcels->ypos = new float[nParcels * nTotTimes];
+    parcels->zpos = new float[nParcels * nTotTimes];
+    parcels->nParcels = nParcels;
+    parcels->nTimes = nTotTimes;
+
+    int pid = 0;
+    for (int k = 0; k < 10; ++k) {
+        for (int j = 0; j < 60; ++j) {
+            for (int i = 0; i < 60; ++i) {
+                parcels->xpos[P2(0, pid, parcels->nTimes)] = -6375 + 250.0*i;
+                parcels->ypos[P2(0, pid, parcels->nTimes)] = 5125 + 250.0*j;
+                parcels->zpos[P2(0, pid, parcels->nTimes)] = 50 + 250.0*k;
+                pid += 1;
+            }
+        }
+    }
+
+    // fill the remaining portions of the array
+    // with the missing value flag for the future
+    // times that we haven't integrated to yet.
+    for (int p = 0; p < nParcels; ++p) {
+        for (int t = 1; t < parcels->nTimes; ++t) {
+            parcels->xpos[P2(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
+            parcels->ypos[P2(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
+            parcels->zpos[P2(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
+        }
+    }
+    cout << "END PARCEL SEED" << endl;
+}
+
+
 /* This is the main program that does the parcel trajectory analysis.
  * It first sets up the parcel vectors and seeds the starting locations.
  * It then loads a chunk of times into memory by calling the LOFS api
@@ -209,12 +248,12 @@ void seed_parcels(parcel_pos *parcels, int nTotTimes) {
  * data chunks to the GPU, and then proceeds with another time chunk.
  */
 int main(int argc, char **argv ) {
-    string base_dir = "/u/sciteam/halbert/project_bagm/khalbert/30m-every-time-step/3D";
-    string outfilename = "test2.nc";
+    string base_dir = "/scratch/sciteam/halbert/24may2011-250m-1s/3D/";
+    string outfilename = "cuda-parcel.nc";
     // query the dataset structure
     int rank, size;
     long N, MX, MY, MZ;
-    int nTimeChunks = 40;
+    int nTimeChunks = 23;
 
     // initialize a bunch of MPI stuff.
     // Rank tells you which process
@@ -243,7 +282,7 @@ int main(int argc, char **argv ) {
         // parcel start locations
         if (tChunk == 0) {
             cout << "SEEDING PARCELS" << endl;
-            seed_parcels(&parcels, nTotTimes);
+            seed_parcels_cm1(&parcels, nTotTimes);
             if (rank == 0) init_nc(outfilename, &parcels);
         }
 
@@ -294,9 +333,9 @@ int main(int argc, char **argv ) {
         float *v_time_chunk = new float[N*size];
         float *w_time_chunk = new float[N*size];
         */
-        printf("TIMESTEP %d/%d %d %f\n", rank, size, rank + tChunk*size, alltimes[15000 + rank + tChunk*size]);
+        printf("TIMESTEP %d/%d %d %f\n", rank, size, rank + tChunk*size, alltimes[4199 + rank + tChunk*size]);
         // load u, v, and w into memory
-        loadVectorsFromDisk(&requested_grid, ubuf, vbuf, wbuf, alltimes[15000 + rank + tChunk*size]);
+        loadVectorsFromDisk(&requested_grid, ubuf, vbuf, wbuf, alltimes[4199 + rank + tChunk*size]);
         
         int senderr_u = MPI_Gather(ubuf, N, MPI_FLOAT, u_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
         int senderr_v = MPI_Gather(vbuf, N, MPI_FLOAT, v_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);

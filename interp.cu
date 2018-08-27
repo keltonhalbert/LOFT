@@ -18,9 +18,9 @@ __host__ __device__ int arrayIndex(int x, int y, int z, int t,  int mx, int my, 
 // grids, information about the X, Y, and Z grid points, and a set of scalar fields.
 // It is up to the user to specify grid spacing at run-time. It is assumed that there is
 // no grid stretching at this time (i.e. grid scale factor = 1.0) 
-static const float DX = 30.; 
-static const float DY = 30.; 
-static const float DZ = 30.;
+static const float DX = 250.; 
+static const float DY = 250.; 
+static const float DZ = 100.;
 static const float scale_x = 1.0;
 static const float scale_y = 1.0;
 static const float scale_z = 1.0;

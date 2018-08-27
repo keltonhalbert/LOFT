@@ -69,13 +69,13 @@ __global__ void test(datagrid grid, parcel_pos parcels, float *u_time_chunk, flo
             }
             else {
                 // integrate X position forward by the U wind
-                point[0] += pcl_u * (1.0f/6.0f);
+                point[0] += pcl_u * 1.0;//(1.0f/6.0f);
                 // integrate Y position forward by the V wind
-                point[1] += pcl_v * (1.0f/6.0f);
+                point[1] += pcl_v * 1.0;//(1.0f/6.0f);
                 // integrate Z position forward by the W wind
-                point[2] += pcl_w * (1.0f/6.0f);
+                point[2] += pcl_w * 1.0;//(1.0f/6.0f);
 
-                if (point[2] < 0.) point[2] = 0;
+                if (point[2] < 50.) point[2] = 50;
 
                 parcels.xpos[P2(tidx+1, parcel_id, totTime)] = point[0]; 
                 parcels.ypos[P2(tidx+1, parcel_id, totTime)] = point[1];
