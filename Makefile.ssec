@@ -1,0 +1,30 @@
+# v5d.c, binio.c are from the vis5d+ distribution
+#
+# You will need to set these appropriately for your system
+# /sw/xe/visit/2.6.0/2.6.0/linux-x86_64/lib/
+
+CUDA=/usr/local/cuda
+LOFSINC=/home/khalbert/CODEBASE/LOFS/cm1tools-3.0
+OPENMPI=/home/khalbert/CODEBASE/spack/opt/spack/linux-centos7-x86_64/gcc-4.8.5/openmpi-3.1.2-5jxcjbyqgs6uqh6pubk7s2eqpqlyvttk
+HDF5=/home/khalbert/CODEBASE/spack/opt/spack/linux-centos7-x86_64/gcc-4.8.5/hdf5-1.10.2-2hzl665llbk6x4g4whv57tuiut4vpkgl
+HDF5ZFP=/home/khalbert/CODEBASE/spack/opt/spack/linux-centos7-x86_64/gcc-4.8.5/h5z-zfp-0.8.0-pv5lrnwvhkvurubzg3iz6t3us3kugasz
+ZFP=/home/khalbert/CODEBASE/spack/opt/spack/linux-centos7-x86_64/gcc-4.8.5/zfp-0.5.2-o2msg4mtuflapb3cwh26ub2m53ca2swy
+NETCDF=/home/khalbert/CODEBASE/spack/opt/spack/linux-centos7-x86_64/gcc-4.8.5/netcdf-4.6.1-yqfklxa7ikly2rlhxwwcmj4k7hpe3nvm
+NETCDFF=/home/khalbert/CODEBASE/spack/opt/spack/linux-centos7-x86_64/gcc-4.8.5/netcdf-fortran-4.4.4-lczwfnlkq62kp2rupjdy6sutquddgind
+NETCDFCXX4=/home/khalbert/CODEBASE/spack/opt/spack/linux-centos7-x86_64/gcc-4.8.5/netcdf-cxx4-4.3.0-vsgyoanktv5fkl2xiih6lmpb72jxdyfh
+
+CFLAGS   = -I$(HDF5)/include -I$(ZFP)/include -I$(HDF5ZFP)/include -I$(NETCDF)/include -I$(NETCDFCXX4)/include -I$(OPENMPI)/include -I$(LOFSINC)
+LINKOPTS = -L$(HDF5)/lib -L$(ZFP)/lib -L$(HDF5ZFP)/lib -L$(NETCDF)/lib -L$(NETCDFCXX4)/lib -L$(LOFSINC) -L$(CUDA)/lib64 -lh5zzfp -lzfp -lhdf5_hl -lhdf5 -lnetcdf -lnetcdf_c++4 -lcm -lcudart -lm -fopenmp 
+
+CC = /home/khalbert/CODEBASE/spack/opt/spack/linux-centos7-x86_64/gcc-4.8.5/openmpi-3.1.2-5jxcjbyqgs6uqh6pubk7s2eqpqlyvttk/bin/mpiCC
+
+all: integrate.o run
+
+integrate.o: integrate.cu
+	nvcc -c -gencode=arch=compute_61,code=compute_61 -o integrate.o integrate.cu
+
+run: run_traj.cpp integrate.o
+	$(CC) -std=c++11 -o run run_traj.cpp integrate.o $(LOFSINC)/libcm.a $(CFLAGS) $(LINKOPTS) 
+
+clean:
+	rm -rf *.o 
