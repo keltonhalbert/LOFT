@@ -1,4 +1,5 @@
 #include <iostream>
+#include <stdio.h>
 #include "datastructs.cpp"
 #include "interp.cu"
 #ifndef INTEGRATE_CU
@@ -32,6 +33,9 @@ __global__ void test(datagrid grid, parcel_pos parcels, float *u_time_chunk, flo
 
         float pcl_u, pcl_v, pcl_w;
         float point[3];
+        float uu1 = -999;
+        float vv1 = -999;
+        float ww1 = -999;
 
 
 
@@ -43,45 +47,58 @@ __global__ void test(datagrid grid, parcel_pos parcels, float *u_time_chunk, flo
             point[0] = parcels.xpos[P2(tidx, parcel_id, totTime)];
             point[1] = parcels.ypos[P2(tidx, parcel_id, totTime)];
             point[2] = parcels.zpos[P2(tidx, parcel_id, totTime)];
+            for (int nrkp = 1; nrkp <= 2; ++nrkp) {
+
+                is_ugrd = true;
+                is_vgrd = false;
+                is_wgrd = false;
+                pcl_u = interp3D(grid, u_time_chunk, point, is_ugrd, is_vgrd, is_wgrd, tLocal, MX, MY, MZ);
+
+                is_ugrd = false;
+                is_vgrd = true;
+                is_wgrd = false;
+                pcl_v = interp3D(grid, v_time_chunk, point, is_ugrd, is_vgrd, is_wgrd, tLocal, MX, MY, MZ);
+
+                is_ugrd = false;
+                is_vgrd = false;
+                is_wgrd = true;
+                pcl_w = interp3D(grid, w_time_chunk, point, is_ugrd, is_vgrd, is_wgrd, tLocal, MX, MY, MZ);
 
 
-            is_ugrd = true;
-            is_vgrd = false;
-            is_wgrd = false;
-            pcl_u = interp3D(grid.xh, grid.yh, grid.zh, u_time_chunk, point, is_ugrd, is_vgrd, is_wgrd, tLocal, MX, MY, MZ);
+                // if the parcel has left the domain, exit
+                if (nrkp == 1) {
+                    // integrate X position forward by the U wind
+                    point[0] += pcl_u * 1.0;//(1.0f/6.0f);
+                    // integrate Y position forward by the V wind
+                    point[1] += pcl_v * 1.0;//(1.0f/6.0f);
+                    // integrate Z position forward by the W wind
+                    point[2] += pcl_w * 1.0;//(1.0f/6.0f);
+                    if ((pcl_u == -999.0) || (pcl_v == -999.0) || (pcl_w == -999.0)) {
+                        printf("Warning SHIT: missing values detected at x: %f y:%f z:%f with ground bounds X0: %f Y0: %f Z0: %f X1: %f Y1: %f Z1: %f\n", \
+                            point[0], point[1], point[2], grid.xh[0], grid.yh[0], grid.zh[0], grid.xh[grid.NX-1], grid.yh[grid.NY-1], grid.zh[grid.NZ-1]);
+                        return;
+                    }
 
-            is_ugrd = false;
-            is_vgrd = true;
-            is_wgrd = false;
-            pcl_v = interp3D(grid.xh, grid.yh, grid.zh, v_time_chunk, point, is_ugrd, is_vgrd, is_wgrd, tLocal, MX, MY, MZ);
+                    uu1 = pcl_u; vv1 = pcl_v; ww1 = pcl_w;
+                }
+                else {
+                    point[0] = parcels.xpos[P2(tidx, parcel_id, totTime)] + (1.0/2.0)*(uu1+pcl_u);
+                    point[1] = parcels.ypos[P2(tidx, parcel_id, totTime)] + (1.0/2.0)*(vv1+pcl_v);
+                    point[2] = parcels.zpos[P2(tidx, parcel_id, totTime)] + (1.0/2.0)*(ww1+pcl_w);
+                    if ((pcl_u == -999.0) || (pcl_v == -999.0) || (pcl_w == -999.0)) {
+                        printf("Warning STUFF: missing values detected at x: %f y:%f z:%f with ground bounds X0: %f Y0: %f Z0: %f X1: %f Y1: %f Z1: %f\t uu1 %f vv1 %f ww1 %f\n", \
+                            point[0], point[1], point[2], grid.xh[0], grid.yh[0], grid.zh[0], grid.xh[grid.NX-1], grid.yh[grid.NY-1], grid.zh[grid.NZ-1], uu1, vv1, ww1);
+                        return;
+                    }
+                }
+            }
 
-            is_ugrd = false;
-            is_vgrd = false;
-            is_wgrd = true;
-            pcl_w = interp3D(grid.xh, grid.yh, grid.zh, w_time_chunk, point, is_ugrd, is_vgrd, is_wgrd, tLocal, MX, MY, MZ);
+            if (point[2] < 50.) point[2] = 50;
 
-            // if the parcel has left the domain, exit
+            parcels.xpos[P2(tidx+1, parcel_id, totTime)] = point[0]; 
+            parcels.ypos[P2(tidx+1, parcel_id, totTime)] = point[1];
+            parcels.zpos[P2(tidx+1, parcel_id, totTime)] = point[2];
             tLocal += 1;
-            if ((pcl_u == -999.0) || (pcl_v == -999.0) || (pcl_w == -999.0)) {
-                printf("Warning: missing values detected at x: %f y:%f z:%f with ground bounds X0: %f Y0: %f Z0: %f X1: %f Y1: %f Z1: %f\n", \
-                        point[0], point[1], point[2], grid.xh[0], grid.yh[0], grid.zh[0], grid.xh[grid.NX-1], grid.yh[grid.NY-1], grid.zh[grid.NZ-1]);
-                return;
-            }
-            else {
-                // integrate X position forward by the U wind
-                point[0] += pcl_u * 1.0;//(1.0f/6.0f);
-                // integrate Y position forward by the V wind
-                point[1] += pcl_v * 1.0;//(1.0f/6.0f);
-                // integrate Z position forward by the W wind
-                point[2] += pcl_w * 1.0;//(1.0f/6.0f);
-
-                if (point[2] < 50.) point[2] = 50;
-
-                parcels.xpos[P2(tidx+1, parcel_id, totTime)] = point[0]; 
-                parcels.ypos[P2(tidx+1, parcel_id, totTime)] = point[1];
-                parcels.zpos[P2(tidx+1, parcel_id, totTime)] = point[2];
-
-            }
         }
     }
 }
@@ -113,6 +130,10 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     gpuErrchk( cudaMalloc(&(device_grid.xh), device_grid.NX*sizeof(float)) );
     gpuErrchk( cudaMalloc(&(device_grid.yh), device_grid.NY*sizeof(float)) );
     gpuErrchk( cudaMalloc(&(device_grid.zh), device_grid.NZ*sizeof(float)) );
+
+    gpuErrchk( cudaMalloc(&(device_grid.xf), device_grid.NX*sizeof(float)) );
+    gpuErrchk( cudaMalloc(&(device_grid.yf), device_grid.NY*sizeof(float)) );
+    gpuErrchk( cudaMalloc(&(device_grid.zf), device_grid.NZ*sizeof(float)) );
     // allocate the device memory for U/V/W
     gpuErrchk( cudaMalloc(&device_u_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
     gpuErrchk( cudaMalloc(&device_v_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
@@ -131,10 +152,13 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     gpuErrchk( cudaMemcpy(device_parcels.ypos, parcels.ypos, parcels.nParcels * totTime * sizeof(float), cudaMemcpyHostToDevice) );
     gpuErrchk( cudaMemcpy(device_parcels.zpos, parcels.zpos, parcels.nParcels * totTime * sizeof(float), cudaMemcpyHostToDevice) );
 
-    // don't need the staggered mesh sent
     gpuErrchk( cudaMemcpy(device_grid.xh, grid.xh, device_grid.NX*sizeof(float), cudaMemcpyHostToDevice) );
     gpuErrchk( cudaMemcpy(device_grid.yh, grid.yh, device_grid.NY*sizeof(float), cudaMemcpyHostToDevice) );
     gpuErrchk( cudaMemcpy(device_grid.zh, grid.zh, device_grid.NZ*sizeof(float), cudaMemcpyHostToDevice) );
+
+    gpuErrchk( cudaMemcpy(device_grid.xf, grid.xf, device_grid.NX*sizeof(float), cudaMemcpyHostToDevice) );
+    gpuErrchk( cudaMemcpy(device_grid.yf, grid.yf, device_grid.NY*sizeof(float), cudaMemcpyHostToDevice) );
+    gpuErrchk( cudaMemcpy(device_grid.zf, grid.zf, device_grid.NZ*sizeof(float), cudaMemcpyHostToDevice) );
     test<<<parcels.nParcels,1>>>(device_grid, device_parcels, device_u_time_chunk, device_v_time_chunk, device_w_time_chunk, MX, MY, MZ, tStart, tEnd, totTime);
     gpuErrchk( cudaDeviceSynchronize() );
 
@@ -147,6 +171,9 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     cudaFree(device_grid.xh);
     cudaFree(device_grid.yh);
     cudaFree(device_grid.zh);
+    cudaFree(device_grid.xf);
+    cudaFree(device_grid.yf);
+    cudaFree(device_grid.zf);
     cudaFree(device_parcels.xpos);
     cudaFree(device_parcels.ypos);
     cudaFree(device_parcels.zpos);

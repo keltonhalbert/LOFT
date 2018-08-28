@@ -21,7 +21,7 @@ CC = /home/khalbert/CODEBASE/spack/opt/spack/linux-centos7-x86_64/gcc-4.8.5/open
 all: integrate.o run
 
 integrate.o: integrate.cu
-	nvcc -c -gencode=arch=compute_61,code=compute_61 -o integrate.o integrate.cu
+	nvcc -c -gencode=arch=compute_60,code=compute_60 -o integrate.o integrate.cu
 
 run: run_traj.cpp integrate.o
 	$(CC) -std=c++11 -o run run_traj.cpp integrate.o $(LOFSINC)/libcm.a $(CFLAGS) $(LINKOPTS) 

@@ -1,4 +1,5 @@
 #include <iostream>
+#include <stdio.h>
 #include "math.h"
 using namespace std;
 
@@ -29,7 +30,7 @@ static const float scale_z = 1.0;
 // find the nearest grid index i, j, and k for a point contained inside of a cube.
 // i, j, and k are set to -1 if the point requested is out of the domain bounds
 // of the cube provided.
-__device__ __host__ void _nearest_grid_idx(float *point, float *x_grd, float *y_grd, float *z_grd, \
+__device__ __host__ void _nearest_grid_idx(float *point, datagrid grid, \
                                  int *idx_4D, int nX, int nY, int nZ) {
 
 	int near_i = -1;
@@ -42,21 +43,21 @@ __device__ __host__ void _nearest_grid_idx(float *point, float *x_grd, float *y_
 
 
 	// loop over the X grid
-	for ( int i = 0; i < nX; i++ ) {
+	for ( int i = 0; i < nX-1; i++ ) {
 		// find the nearest grid point index at X
-		if ( fabs( pt_x - x_grd[i] ) <= ( 0.5 * DX / scale_x ) ) { near_i = i; }
+		if ( fabs( pt_x - grid.xf[i] ) <= ( grid.xf[i+1] - grid.xf[i] ) ) { near_i = i; }
 	}
 
 	// loop over the Y grid
-	for ( int j = 0; j < nY; j++ ) {
+	for ( int j = 0; j < nY-1; j++ ) {
 		// find the nearest grid point index in the Y
-		if ( fabs( pt_y - y_grd[j] ) <= ( 0.5 * DY / scale_y ) ) { near_j = j; }
+		if ( fabs( pt_y - grid.yf[j] ) <= ( grid.yf[j+1] - grid.yf[j]) ) { near_j = j; }
 	}
 
 	// loop over the Z grid
-	for (int k = 0; k < nZ; k++ ) {
+	for (int k = 0; k < nZ-1; k++ ) {
 		// find the nearest grid point index in the Z
-		if ( fabs( pt_z - z_grd[k] ) <= ( 0.5 * DZ / scale_z ) ) { near_k = k; }
+		if ( fabs( pt_z - grid.zf[k] ) <= ( grid.zf[k+1] - grid.zf[k] ) ) { near_k = k; }
 	}
 
 	// if a nearest index was not found, set all indices to -1 to flag
@@ -71,7 +72,7 @@ __device__ __host__ void _nearest_grid_idx(float *point, float *x_grd, float *y_
 
 // calculate the 8 interpolation weights for a trilinear interpolation of a point inside of a cube.
 // Returns an array full of -1 if the requested poit is out of the domain bounds
-__host__ __device__ void _calc_weights(float *x_grd, float *y_grd, float *z_grd, float *weights, \
+__host__ __device__ void _calc_weights(datagrid grid, float *weights, \
                                        float *point, int *idx_4D, bool ugrd, bool vgrd, bool wgrd, \
                                        int nX, int nY, int nZ) {
 	int i, j, k;
@@ -105,30 +106,30 @@ __host__ __device__ void _calc_weights(float *x_grd, float *y_grd, float *z_grd,
 	// the U, V, and W grids are staggered so this
 	// takes care of that crap
 	if (ugrd) {
-		rx = ((x_pt - x_grd[i]) + (0.5 * DX / scale_x)) * (scale_x / DX);
-		ry = ((y_pt - y_grd[j])) * (scale_y / DY);
-		rz = ((z_pt - z_grd[k])) * (scale_z / DZ);
+		rx = (x_pt - grid.xf[i]) / (grid.xf[i+1] - grid.xf[i]); 
+		ry = (y_pt - grid.yh[j]) / (grid.yh[j+1] - grid.yh[j]); 
+		rz = (z_pt - grid.zh[k]) / (grid.zh[k+1] - grid.zh[k]); 
 	}
 
 	if (vgrd) {
-		rx = ((x_pt - x_grd[i])) * (scale_x / DX);
-		ry = ((y_pt - y_grd[j] + (0.5 * DX / scale_y))) * (scale_y / DY);
-		rz = ((z_pt - z_grd[k])) * (scale_z / DZ);
+		rx = (x_pt - grid.xh[i]) / (grid.xh[i+1] - grid.xh[i]); 
+		ry = (y_pt - grid.yf[j]) / (grid.yf[j+1] - grid.yf[j]); 
+		rz = (z_pt - grid.zh[k]) / (grid.zh[k+1] - grid.zh[k]); 
 
 	}
 
 	if (wgrd) {
-		rx = ((x_pt - x_grd[i])) * (scale_x / DX);
-		ry = ((y_pt - y_grd[j])) * (scale_y / DY);
-		rz = ((z_pt - z_grd[k]) - (0.5 * DZ  / scale_z)) * (scale_z / DZ);
+		rx = (x_pt - grid.xh[i]) / (grid.xh[i+1] - grid.xh[i]); 
+		ry = (y_pt - grid.yh[j]) / (grid.yh[j+1] - grid.yh[j]); 
+		rz = (z_pt - grid.zf[k]) / (grid.zf[k+1] - grid.zf[k]); 
 
 	}
 
 	// data on scalar grid
 	else {
-		rx = (x_pt - x_grd[i]) * (scale_x / DX);
-		ry = (y_pt - y_grd[j]) * (scale_y / DY);
-		rz = (z_pt - z_grd[k]) * (scale_z / DZ);
+		rx = (x_pt - grid.xh[i]) / (grid.xh[i+1] - grid.xh[i]); 
+		ry = (y_pt - grid.yh[j]) / (grid.yh[j+1] - grid.yh[j]); 
+		rz = (z_pt - grid.zh[k]) / (grid.zh[k+1] - grid.zh[k]); 
 	}
 
 	// calculate the weights
@@ -211,7 +212,7 @@ __host__ __device__ float _tri_interp(float *data_arr, float* weights, int *idx_
 // the nearest grid point, calculates the interpolation weights depending on whether or not the grid is staggered,
 // and then calls the trilinear interpolator. Returns -999.0 if the data is not inside the grid or the weights
 // are invalid.
-__host__ __device__ float interp3D(float *x_grd, float *y_grd, float *z_grd, float *data_grd, float *point, \
+__host__ __device__ float interp3D(datagrid grid, float *data_grd, float *point, \
                                     bool ugrd, bool vgrd, bool wgrd, int tstep, int nX, int nY, int nZ) {
     int idx_4D[4];
     float weights[8];
@@ -221,10 +222,10 @@ __host__ __device__ float interp3D(float *x_grd, float *y_grd, float *z_grd, flo
 
     // get the index of the nearest grid point to the
     // data we are requesting
-    _nearest_grid_idx(point, x_grd, y_grd, z_grd, idx_4D, nX, nY, nZ);
+    _nearest_grid_idx(point, grid, idx_4D, nX, nY, nZ);
 
     // get the interpolation weights
-    _calc_weights(x_grd, y_grd, z_grd, weights, point, idx_4D, ugrd, vgrd, wgrd, nX, nY, nZ); 
+    _calc_weights(grid, weights, point, idx_4D, ugrd, vgrd, wgrd, nX, nY, nZ); 
 
     // interpolate the value
     output_val = _tri_interp(data_grd, weights, idx_4D, nX, nY, nZ);

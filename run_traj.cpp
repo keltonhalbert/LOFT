@@ -56,7 +56,7 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *
         point[1] = parcels->ypos[P2(0, pcl, parcels->nTimes)];
         point[2] = parcels->zpos[P2(0, pcl, parcels->nTimes)];
         // find the nearest grid point!
-        _nearest_grid_idx(point, temp_grid.xh, temp_grid.yh, temp_grid.zh, idx_4D, temp_grid.NX, temp_grid.NY, temp_grid.NZ);
+        _nearest_grid_idx(point, temp_grid, idx_4D, temp_grid.NX, temp_grid.NY, temp_grid.NZ);
         if ( (idx_4D[0] == -1) || (idx_4D[1] == -1) || (idx_4D[2] == -1) ) {
             cout << "INVALID POINT X " << point[0] << " Y " << point[1] << " Z " << point[2] << endl;
             cout << "Parcel X " << parcels->xpos[P2(0, pcl, parcels->nTimes)];
@@ -248,12 +248,12 @@ void seed_parcels_cm1(parcel_pos *parcels, int nTotTimes) {
  * data chunks to the GPU, and then proceeds with another time chunk.
  */
 int main(int argc, char **argv ) {
-    string base_dir = "/scratch/sciteam/halbert/24may2011-250m-1s/3D/";
+    string base_dir = "/iliad/orfstore/khalbert/24may2011-250m-1s/3D";
     string outfilename = "cuda-parcel.nc";
     // query the dataset structure
     int rank, size;
     long N, MX, MY, MZ;
-    int nTimeChunks = 23;
+    int nTimeChunks = 100;
 
     // initialize a bunch of MPI stuff.
     // Rank tells you which process
@@ -333,9 +333,9 @@ int main(int argc, char **argv ) {
         float *v_time_chunk = new float[N*size];
         float *w_time_chunk = new float[N*size];
         */
-        printf("TIMESTEP %d/%d %d %f\n", rank, size, rank + tChunk*size, alltimes[4199 + rank + tChunk*size]);
+        printf("TIMESTEP %d/%d %d %f\n", rank, size, rank + tChunk*size, alltimes[4200 + rank + tChunk*size]);
         // load u, v, and w into memory
-        loadVectorsFromDisk(&requested_grid, ubuf, vbuf, wbuf, alltimes[4199 + rank + tChunk*size]);
+        loadVectorsFromDisk(&requested_grid, ubuf, vbuf, wbuf, alltimes[4200 + rank + tChunk*size]);
         
         int senderr_u = MPI_Gather(ubuf, N, MPI_FLOAT, u_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
         int senderr_v = MPI_Gather(vbuf, N, MPI_FLOAT, v_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
