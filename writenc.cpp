@@ -43,7 +43,8 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
 
     vector<size_t> startp,countp;
     startp.push_back(0);
-    startp.push_back(parcels->nTimes * writeIters);
+    if (writeIters == 0) startp.push_back(0);
+    else startp.push_back(parcels->nTimes * writeIters - writeIters);
     countp.push_back(parcels->nParcels);
     countp.push_back(parcels->nTimes);
 
