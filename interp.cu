@@ -22,9 +22,6 @@ __host__ __device__ int arrayIndex(int x, int y, int z, int t,  int mx, int my, 
 static const float DX = 250.; 
 static const float DY = 250.; 
 static const float DZ = 100.;
-static const float scale_x = 1.0;
-static const float scale_y = 1.0;
-static const float scale_z = 1.0;
 
 
 // find the nearest grid index i, j, and k for a point contained inside of a cube.
@@ -43,21 +40,21 @@ __device__ __host__ void _nearest_grid_idx(float *point, datagrid grid, \
 
 
 	// loop over the X grid
-	for ( int i = 0; i < nX-1; i++ ) {
+	for ( int i = 0; i < nX; i++ ) {
 		// find the nearest grid point index at X
-		if ( fabs( pt_x - grid.xf[i] ) <= ( grid.xf[i+1] - grid.xf[i] ) ) { near_i = i; }
+		if ( fabs( pt_x - grid.xf[i] ) <= ( DX ) ) { near_i = i; }
 	}
 
 	// loop over the Y grid
-	for ( int j = 0; j < nY-1; j++ ) {
+	for ( int j = 0; j < nY; j++ ) {
 		// find the nearest grid point index in the Y
-		if ( fabs( pt_y - grid.yf[j] ) <= ( grid.yf[j+1] - grid.yf[j]) ) { near_j = j; }
+		if ( fabs( pt_y - grid.yf[j] ) <= ( DY) ) { near_j = j; }
 	}
 
 	// loop over the Z grid
-	for (int k = 0; k < nZ-1; k++ ) {
+	for (int k = 0; k < nZ; k++ ) {
 		// find the nearest grid point index in the Z
-		if ( fabs( pt_z - grid.zf[k] ) <= ( grid.zf[k+1] - grid.zf[k] ) ) { near_k = k; }
+		if ( fabs( pt_z - grid.zf[k] ) <= ( DZ ) ) { near_k = k; }
 	}
 
 	// if a nearest index was not found, set all indices to -1 to flag
@@ -111,14 +108,14 @@ __host__ __device__ void _calc_weights(datagrid grid, float *weights, \
 		rz = (z_pt - grid.zh[k]) / (grid.zh[k+1] - grid.zh[k]); 
 	}
 
-	if (vgrd) {
+    else if (vgrd) {
 		rx = (x_pt - grid.xh[i]) / (grid.xh[i+1] - grid.xh[i]); 
 		ry = (y_pt - grid.yf[j]) / (grid.yf[j+1] - grid.yf[j]); 
 		rz = (z_pt - grid.zh[k]) / (grid.zh[k+1] - grid.zh[k]); 
 
 	}
 
-	if (wgrd) {
+    else if (wgrd) {
 		rx = (x_pt - grid.xh[i]) / (grid.xh[i+1] - grid.xh[i]); 
 		ry = (y_pt - grid.yh[j]) / (grid.yh[j+1] - grid.yh[j]); 
 		rz = (z_pt - grid.zf[k]) / (grid.zf[k+1] - grid.zf[k]); 
@@ -126,11 +123,13 @@ __host__ __device__ void _calc_weights(datagrid grid, float *weights, \
 	}
 
 	// data on scalar grid
+    /*
 	else {
 		rx = (x_pt - grid.xh[i]) / (grid.xh[i+1] - grid.xh[i]); 
 		ry = (y_pt - grid.yh[j]) / (grid.yh[j+1] - grid.yh[j]); 
 		rz = (z_pt - grid.zh[k]) / (grid.zh[k+1] - grid.zh[k]); 
 	}
+    */
 
 	// calculate the weights
     w1 = (1.0 - rx) * (1.0 - ry) * (1.0 - rz);

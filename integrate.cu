@@ -41,7 +41,6 @@ __global__ void test(datagrid grid, parcel_pos parcels, float *u_time_chunk, flo
 
         // loop over the number of time steps we are
         // integrating over
-        int tLocal = 0;
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             // GPU sanity test of data integrity
             point[0] = parcels.xpos[P2(tidx, parcel_id, totTime)];
@@ -52,17 +51,17 @@ __global__ void test(datagrid grid, parcel_pos parcels, float *u_time_chunk, flo
                 is_ugrd = true;
                 is_vgrd = false;
                 is_wgrd = false;
-                pcl_u = interp3D(grid, u_time_chunk, point, is_ugrd, is_vgrd, is_wgrd, tLocal, MX, MY, MZ);
+                pcl_u = interp3D(grid, u_time_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx, MX, MY, MZ);
 
                 is_ugrd = false;
                 is_vgrd = true;
                 is_wgrd = false;
-                pcl_v = interp3D(grid, v_time_chunk, point, is_ugrd, is_vgrd, is_wgrd, tLocal, MX, MY, MZ);
+                pcl_v = interp3D(grid, v_time_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx, MX, MY, MZ);
 
                 is_ugrd = false;
                 is_vgrd = false;
                 is_wgrd = true;
-                pcl_w = interp3D(grid, w_time_chunk, point, is_ugrd, is_vgrd, is_wgrd, tLocal, MX, MY, MZ);
+                pcl_w = interp3D(grid, w_time_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx, MX, MY, MZ);
 
 
                 // if the parcel has left the domain, exit
@@ -92,13 +91,12 @@ __global__ void test(datagrid grid, parcel_pos parcels, float *u_time_chunk, flo
                     }
                 }
             }
+            if (point[2] < grid.zf[0]) point[2] = grid.zf[0];
 
-            if (point[2] < 50.) point[2] = 50;
 
             parcels.xpos[P2(tidx+1, parcel_id, totTime)] = point[0]; 
             parcels.ypos[P2(tidx+1, parcel_id, totTime)] = point[1];
             parcels.zpos[P2(tidx+1, parcel_id, totTime)] = point[2];
-            tLocal += 1;
         }
     }
 }
