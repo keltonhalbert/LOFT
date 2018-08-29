@@ -95,12 +95,12 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *
     // the parcels don't accidentally move outside of our
     // requested data. If the buffer goes outside the 
     // saved dimensions, set it to the saved dimensions
-    min_i = saved_X0 + min_i - 10;
-    max_i = saved_X0 + max_i + 10;
-    min_j = saved_Y0 + min_j - 10;
-    max_j = saved_Y0 + max_j + 10;
-    min_k = min_k - 10;
-    max_k = max_k + 10;
+    min_i = saved_X0 + min_i - 5;
+    max_i = saved_X0 + max_i + 5;
+    min_j = saved_Y0 + min_j - 5;
+    max_j = saved_Y0 + max_j + 5;
+    min_k = min_k - 5;
+    max_k = max_k + 5;
     cout << "Attempted Parcel Bounds In Grid" << endl;
     cout << "X0: " << min_i << " X1: " << max_i << endl;
     cout << "Y0: " << min_j << " Y1: " << max_j << endl;
@@ -253,7 +253,7 @@ int main(int argc, char **argv ) {
     // query the dataset structure
     int rank, size;
     long N, MX, MY, MZ;
-    int nTimeChunks = 100;
+    int nTimeChunks = 125;
 
     // initialize a bunch of MPI stuff.
     // Rank tells you which process
@@ -333,9 +333,9 @@ int main(int argc, char **argv ) {
         float *v_time_chunk = new float[N*size];
         float *w_time_chunk = new float[N*size];
         */
-        printf("TIMESTEP %d/%d %d %f\n", rank, size, rank + tChunk*size, alltimes[4200 + rank + tChunk*size]);
+        printf("TIMESTEP %d/%d %d %f\n", rank, size, rank + tChunk*size, alltimes[4199 + rank + tChunk*size]);
         // load u, v, and w into memory
-        loadVectorsFromDisk(&requested_grid, ubuf, vbuf, wbuf, alltimes[4200 + rank + tChunk*size]);
+        loadVectorsFromDisk(&requested_grid, ubuf, vbuf, wbuf, alltimes[4199 + rank + tChunk*size]);
         
         int senderr_u = MPI_Gather(ubuf, N, MPI_FLOAT, u_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
         int senderr_v = MPI_Gather(vbuf, N, MPI_FLOAT, v_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
@@ -350,9 +350,9 @@ int main(int argc, char **argv ) {
             write_parcels(outfilename, &parcels, tChunk);
 
             for (int pcl = 0; pcl < parcels.nParcels; ++pcl) {
-                parcels.xpos[P2(0, pcl, parcels.nTimes)] = parcels.xpos[P2(parcels.nTimes-1, pcl, parcels.nTimes)];
-                parcels.ypos[P2(0, pcl, parcels.nTimes)] = parcels.ypos[P2(parcels.nTimes-1, pcl, parcels.nTimes)];
-                parcels.zpos[P2(0, pcl, parcels.nTimes)] = parcels.zpos[P2(parcels.nTimes-1, pcl, parcels.nTimes)];
+                parcels.xpos[P2(0, pcl, parcels.nTimes)] = parcels.xpos[P2(size, pcl, parcels.nTimes)];
+                parcels.ypos[P2(0, pcl, parcels.nTimes)] = parcels.ypos[P2(size, pcl, parcels.nTimes)];
+                parcels.zpos[P2(0, pcl, parcels.nTimes)] = parcels.zpos[P2(size, pcl, parcels.nTimes)];
                 for (int t = 1; t < parcels.nTimes; ++t) {
                     parcels.xpos[P2(t, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
                     parcels.ypos[P2(t, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
