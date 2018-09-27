@@ -19,9 +19,9 @@ __host__ __device__ int arrayIndex(int x, int y, int z, int t,  int mx, int my, 
 // grids, information about the X, Y, and Z grid points, and a set of scalar fields.
 // It is up to the user to specify grid spacing at run-time. It is assumed that there is
 // no grid stretching at this time (i.e. grid scale factor = 1.0) 
-static const float DX = 250.; 
-static const float DY = 250.; 
-static const float DZ = 100.;
+static const float DX = 200.; 
+static const float DY = 200.; 
+static const float DZ = 200.;
 
 
 // find the nearest grid index i, j, and k for a point contained inside of a cube.
@@ -40,22 +40,29 @@ __device__ __host__ void _nearest_grid_idx(float *point, datagrid grid, \
 
 
 	// loop over the X grid
-	for ( int i = 0; i < nX; i++ ) {
+	for ( int i = 0; i < nX-1; i++ ) {
 		// find the nearest grid point index at X
-		if ( fabs( pt_x - grid.xf[i] ) <= ( DX ) ) { near_i = i; }
+		if ( ( pt_x >= grid.xf[i] ) && ( pt_x <= grid.xf[i+1] ) ) { near_i = i; } 
 	}
 
+
 	// loop over the Y grid
-	for ( int j = 0; j < nY; j++ ) {
+	for ( int j = 0; j < nY-1; j++ ) {
 		// find the nearest grid point index in the Y
-		if ( fabs( pt_y - grid.yf[j] ) <= ( DY) ) { near_j = j; }
+		if ( ( pt_y >= grid.yf[j] ) && ( pt_y <= grid.yf[j+1] ) ) { near_j = j; } 
 	}
 
 	// loop over the Z grid
-	for (int k = 0; k < nZ; k++ ) {
+	//for (int k = 0; k < nZ-1; k++ ) {
 		// find the nearest grid point index in the Z
-		if ( fabs( pt_z - grid.zf[k] ) <= ( DZ ) ) { near_k = k; }
-	}
+	//	if ( ( pt_z >= grid.zf[k] ) ) { near_k = k; } 
+	//}
+
+    int k = 1;
+    while (pt_z >= grid.zf[0]) {
+        k += 1;
+    }
+    near_k = k;
 
 	// if a nearest index was not found, set all indices to -1 to flag
 	// that the point is not in the domain
@@ -98,17 +105,30 @@ __host__ __device__ void _calc_weights(datagrid grid, float *weights, \
 
 	// store the indices of the nearest grid point
 	// in i, j, k
-	i = idx_4D[0]; j = idx_4D[1]; k = idx_4D[2];
 
 	// the U, V, and W grids are staggered so this
 	// takes care of that crap
 	if (ugrd) {
+        if (y_pt < grid.yh[idx_4D[1]]) {
+            idx_4D[1] = idx_4D[1] - 1;
+        }
+        if (z_pt < grid.zh[idx_4D[2]]) {
+            idx_4D[2] = idx_4D[2] - 1;
+        }
+        i = idx_4D[0]; j = idx_4D[1]; k = idx_4D[2];
 		rx = (x_pt - grid.xf[i]) / (grid.xf[i+1] - grid.xf[i]); 
 		ry = (y_pt - grid.yh[j]) / (grid.yh[j+1] - grid.yh[j]); 
 		rz = (z_pt - grid.zh[k]) / (grid.zh[k+1] - grid.zh[k]); 
 	}
 
     else if (vgrd) {
+        if (x_pt < grid.xh[idx_4D[0]]) {
+            idx_4D[0] = idx_4D[0] - 1;
+        }
+        if (z_pt < grid.zh[idx_4D[2]]) {
+            idx_4D[2] = idx_4D[2] - 1;
+        }
+        i = idx_4D[0]; j = idx_4D[1]; k = idx_4D[2];
 		rx = (x_pt - grid.xh[i]) / (grid.xh[i+1] - grid.xh[i]); 
 		ry = (y_pt - grid.yf[j]) / (grid.yf[j+1] - grid.yf[j]); 
 		rz = (z_pt - grid.zh[k]) / (grid.zh[k+1] - grid.zh[k]); 
@@ -116,6 +136,13 @@ __host__ __device__ void _calc_weights(datagrid grid, float *weights, \
 	}
 
     else if (wgrd) {
+        if (x_pt < grid.xh[idx_4D[0]]) {
+            idx_4D[0] = idx_4D[0] - 1;
+        }
+        if (y_pt < grid.yh[idx_4D[1]]) {
+            idx_4D[1] = idx_4D[1] - 1;
+        }
+        i = idx_4D[0]; j = idx_4D[1]; k = idx_4D[2];
 		rx = (x_pt - grid.xh[i]) / (grid.xh[i+1] - grid.xh[i]); 
 		ry = (y_pt - grid.yh[j]) / (grid.yh[j+1] - grid.yh[j]); 
 		rz = (z_pt - grid.zf[k]) / (grid.zf[k+1] - grid.zf[k]); 
@@ -151,7 +178,7 @@ __host__ __device__ void _calc_weights(datagrid grid, float *weights, \
     weights[5] = w6;
     weights[6] = w7;
     weights[7] = w8;
-        
+
 }
 
 
@@ -194,14 +221,14 @@ __host__ __device__ float _tri_interp(float *data_arr, float* weights, int *idx_
 	idx7 = arrayIndex(i+1, j+1, k, t, NX, NY, NZ);
 	idx8 = arrayIndex(i+1, j+1, k+1, t, NX, NY, NZ);
 
-	out = data_arr[idx1] * weights[0] + \
-		  data_arr[idx2] * weights[1] + \
-		  data_arr[idx3] * weights[2] + \
-		  data_arr[idx4] * weights[3] + \
-		  data_arr[idx5] * weights[4] + \
-		  data_arr[idx6] * weights[5] + \
-		  data_arr[idx7] * weights[6] + \
-		  data_arr[idx8] * weights[7];
+	out = (data_arr[idx1] * weights[0]) + \
+		  (data_arr[idx2] * weights[1]) + \
+		  (data_arr[idx3] * weights[2]) + \
+		  (data_arr[idx4] * weights[3]) + \
+		  (data_arr[idx5] * weights[4]) + \
+		  (data_arr[idx6] * weights[5]) + \
+		  (data_arr[idx7] * weights[6]) + \
+		  (data_arr[idx8] * weights[7]);
 	return out;
 
 }

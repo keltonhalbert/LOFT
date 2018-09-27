@@ -170,6 +170,9 @@ void seed_parcels(parcel_pos *parcels, int nTotTimes) {
     parcels->xpos = new float[nParcels * nTotTimes];
     parcels->ypos = new float[nParcels * nTotTimes];
     parcels->zpos = new float[nParcels * nTotTimes];
+    parcels->pclu = new float[nParcels * nTotTimes];
+    parcels->pclv = new float[nParcels * nTotTimes];
+    parcels->pclw = new float[nParcels * nTotTimes];
     parcels->nParcels = nParcels;
     parcels->nTimes = nTotTimes;
 
@@ -211,6 +214,10 @@ void seed_parcels_cm1(parcel_pos *parcels, int nTotTimes) {
     parcels->xpos = new float[nParcels * nTotTimes];
     parcels->ypos = new float[nParcels * nTotTimes];
     parcels->zpos = new float[nParcels * nTotTimes];
+    parcels->pclu = new float[nParcels * nTotTimes];
+    parcels->pclv = new float[nParcels * nTotTimes];
+    parcels->pclw = new float[nParcels * nTotTimes];
+
     parcels->nParcels = nParcels;
     parcels->nTimes = nTotTimes;
 
@@ -220,7 +227,7 @@ void seed_parcels_cm1(parcel_pos *parcels, int nTotTimes) {
             for (int i = 0; i < 60; ++i) {
                 parcels->xpos[P2(0, pid, parcels->nTimes)] = -6375 + 250.0*i;
                 parcels->ypos[P2(0, pid, parcels->nTimes)] = 5125 + 250.0*j;
-                parcels->zpos[P2(0, pid, parcels->nTimes)] = 50 + 250.0*k;
+                parcels->zpos[P2(0, pid, parcels->nTimes)] = 100 + 250.0*k;
                 pid += 1;
             }
         }
@@ -234,6 +241,9 @@ void seed_parcels_cm1(parcel_pos *parcels, int nTotTimes) {
             parcels->xpos[P2(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
             parcels->ypos[P2(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
             parcels->zpos[P2(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
+            parcels->pclu[P2(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
+            parcels->pclv[P2(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
+            parcels->pclw[P2(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
         }
     }
     cout << "END PARCEL SEED" << endl;
@@ -248,12 +258,12 @@ void seed_parcels_cm1(parcel_pos *parcels, int nTotTimes) {
  * data chunks to the GPU, and then proceeds with another time chunk.
  */
 int main(int argc, char **argv ) {
-    string base_dir = "/iliad/orfstore/khalbert/24may2011-250m-1s/3D";
+    string base_dir = "/iliad/orfstore/khalbert/history.24May_r16_fixed-200-a/3D";
     string outfilename = "cuda-parcel.nc";
     // query the dataset structure
     int rank, size;
     long N, MX, MY, MZ;
-    int nTimeChunks = 125;
+    int nTimeChunks = 2;
 
     // initialize a bunch of MPI stuff.
     // Rank tells you which process
@@ -353,10 +363,16 @@ int main(int argc, char **argv ) {
                 parcels.xpos[P2(0, pcl, parcels.nTimes)] = parcels.xpos[P2(size, pcl, parcels.nTimes)];
                 parcels.ypos[P2(0, pcl, parcels.nTimes)] = parcels.ypos[P2(size, pcl, parcels.nTimes)];
                 parcels.zpos[P2(0, pcl, parcels.nTimes)] = parcels.zpos[P2(size, pcl, parcels.nTimes)];
+                parcels.pclu[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
+                parcels.pclv[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
+                parcels.pclw[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
                 for (int t = 1; t < parcels.nTimes; ++t) {
                     parcels.xpos[P2(t, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
                     parcels.ypos[P2(t, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
                     parcels.zpos[P2(t, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
+                    parcels.pclu[P2(t, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
+                    parcels.pclv[P2(t, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
+                    parcels.pclw[P2(t, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
                 }
             }
 

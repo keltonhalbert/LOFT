@@ -43,6 +43,9 @@ struct parcel_pos {
     float *xpos;
     float *ypos;
     float *zpos;
+    float *pclu;
+    float *pclv;
+    float *pclw;
 
     int nParcels;
     int nTimes;
