@@ -52,14 +52,9 @@ __device__ __host__ void _nearest_grid_idx(float *point, datagrid grid, \
 		if ( ( pt_y >= grid.yf[j] ) && ( pt_y <= grid.yf[j+1] ) ) { near_j = j; } 
 	}
 
-	// loop over the Z grid
-	//for (int k = 0; k < nZ-1; k++ ) {
-		// find the nearest grid point index in the Z
-	//	if ( ( pt_z >= grid.zf[k] ) ) { near_k = k; } 
-	//}
 
-    int k = 1;
-    while (pt_z >= grid.zf[0]) {
+    int k = 0;
+    while (pt_z >= grid.zf[k+1]) {
         k += 1;
     }
     near_k = k;
@@ -103,22 +98,40 @@ __host__ __device__ void _calc_weights(datagrid grid, float *weights, \
 		}
 	}
 
-	// store the indices of the nearest grid point
-	// in i, j, k
-
 	// the U, V, and W grids are staggered so this
-	// takes care of that crap
+	// takes care of that crap, as well as handling
+    // the changes between staggered and unstaggered 
+    // meshes
 	if (ugrd) {
         if (y_pt < grid.yh[idx_4D[1]]) {
             idx_4D[1] = idx_4D[1] - 1;
         }
         if (z_pt < grid.zh[idx_4D[2]]) {
             idx_4D[2] = idx_4D[2] - 1;
+            if (idx_4D[2] < 0) idx_4D[2] = 0;
         }
+        // enforce non-negative indices. The nearest grid
+        // point below zh[0] is zh[0]
+        if (idx_4D[2] < 0) idx_4D[2] = 0;
         i = idx_4D[0]; j = idx_4D[1]; k = idx_4D[2];
+
+        // this is some trickery done to ensure there is a
+        // free slip boundary condition below the lowest 
+        // physical gridpoint
+        if ( z_pt < grid.zh[k]) {
+            // instead of extrapolating below the lowest
+            // grid point, we can "enforce" the idea
+            // of free slip by effectively keeping
+            // the interpolation weights for the vertical
+            // dimension constant. It's dirty, and needs
+            // to be properly documented, hence this note
+            rz = 0;
+        }
+        else {
+            rz = (z_pt - grid.zh[k]) / (grid.zh[k+1] - grid.zh[k]); 
+        }
 		rx = (x_pt - grid.xf[i]) / (grid.xf[i+1] - grid.xf[i]); 
 		ry = (y_pt - grid.yh[j]) / (grid.yh[j+1] - grid.yh[j]); 
-		rz = (z_pt - grid.zh[k]) / (grid.zh[k+1] - grid.zh[k]); 
 	}
 
     else if (vgrd) {
@@ -128,10 +141,29 @@ __host__ __device__ void _calc_weights(datagrid grid, float *weights, \
         if (z_pt < grid.zh[idx_4D[2]]) {
             idx_4D[2] = idx_4D[2] - 1;
         }
+        // enforce non-negative indices. The nearest grid
+        // point below zh[0] is zh[0]
+        if (idx_4D[2] < 0) idx_4D[2] = 0;
         i = idx_4D[0]; j = idx_4D[1]; k = idx_4D[2];
-		rx = (x_pt - grid.xh[i]) / (grid.xh[i+1] - grid.xh[i]); 
+
+        // this is some trickery done to ensure there is a
+        // free slip boundary condition below the lowest 
+        // physical gridpoint
+        if ( z_pt < grid.zh[k]) {
+            // instead of extrapolating below the lowest
+            // grid point, we can "enforce" the idea
+            // of free slip by effectively keeping
+            // the interpolation weights for the vertical
+            // dimension constant. It's dirty, and needs
+            // to be properly documented, hence this note
+            rz = 0;
+        }
+        else {
+            rz = (z_pt - grid.zh[k]) / (grid.zh[k+1] - grid.zh[k]); 
+        }
+
+        rx = (x_pt - grid.xh[i]) / (grid.xh[i+1] - grid.xh[i]); 
 		ry = (y_pt - grid.yf[j]) / (grid.yf[j+1] - grid.yf[j]); 
-		rz = (z_pt - grid.zh[k]) / (grid.zh[k+1] - grid.zh[k]); 
 
 	}
 

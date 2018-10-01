@@ -263,7 +263,7 @@ int main(int argc, char **argv ) {
     // query the dataset structure
     int rank, size;
     long N, MX, MY, MZ;
-    int nTimeChunks = 2;
+    int nTimeChunks = 120;
 
     // initialize a bunch of MPI stuff.
     // Rank tells you which process
