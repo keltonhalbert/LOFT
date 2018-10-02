@@ -15,11 +15,19 @@
 #define P4(x,y,z,t,mx,my,mz) ((t*mx*my*mz)+((z)*(mx)*(my))+((y)*(mx))+(x))
 using namespace std;
 
-void	parse_cmdline_hdf2nc(int argc, char *argv[],
-	char *histpath, char *base, double *time,
+
+// this was stolen from LOFS/cm1tools-3.0 hdf2.c
+// under the parce_cmdline_hdf2nc function. I could
+// have just linked to it, but I want the LOFS dependency
+// to only be I/O so that other backends can be used, hence
+// copying it here.
+void parse_cmdline(int argc, char **argv, \
+	char *histpath, char *base, double *time, \
 	int *X0, int *Y0, int *X1, int *Y1, int *Z0, int *Z1 )
 {
 	int got_histpath,got_base,got_time,got_X0,got_X1,got_Y0,got_Y1,got_Z0,got_Z1;
+    int argc_hdf2nc_min=4;
+    int optcount=0;
 	enum { OPT_HISTPATH = 1000, OPT_BASE, OPT_TIME, OPT_X0, OPT_Y0, OPT_X1, OPT_Y1, OPT_Z0, OPT_Z1,
 		OPT_DEBUG, OPT_XYF, OPT_YES2D, OPT_NC3, OPT_COMPRESS, OPT_NTHREADS };
 	// see https://stackoverflow.com/questions/23758570/c-getopt-long-only-without-alias
@@ -132,11 +140,6 @@ void	parse_cmdline_hdf2nc(int argc, char *argv[],
 				break;
 			case OPT_NC3:
 				filetype=NC_64BIT_OFFSET;
-				optcount++;
-				break;
-			case OPT_NTHREADS:
-				nthreads=atoi(optarg);
-				omp_set_num_threads(nthreads);
 				optcount++;
 				break;
 			case '?':
@@ -403,6 +406,11 @@ void seed_parcels_cm1(parcel_pos *parcels, int nTotTimes) {
  * data chunks to the GPU, and then proceeds with another time chunk.
  */
 int main(int argc, char **argv ) {
+    int X0, X1, Y0, Y1, Z0, Z1;
+    double time;
+    char *base = new char[256];
+    char *histpath = new char[256];
+    parse_cmdline(argc, argv, histpath, base, &time, &X0, &Y0, &X1, &Y1, &Z0, &Z1 );
     string base_dir = "/iliad/orfstore/khalbert/history.24May_r16_fixed-200-a/3D";
     string outfilename = "cuda-parcel.nc";
     // query the dataset structure
