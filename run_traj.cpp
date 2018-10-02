@@ -15,6 +15,151 @@
 #define P4(x,y,z,t,mx,my,mz) ((t*mx*my*mz)+((z)*(mx)*(my))+((y)*(mx))+(x))
 using namespace std;
 
+void	parse_cmdline_hdf2nc(int argc, char *argv[],
+	char *histpath, char *base, double *time,
+	int *X0, int *Y0, int *X1, int *Y1, int *Z0, int *Z1 )
+{
+	int got_histpath,got_base,got_time,got_X0,got_X1,got_Y0,got_Y1,got_Z0,got_Z1;
+	enum { OPT_HISTPATH = 1000, OPT_BASE, OPT_TIME, OPT_X0, OPT_Y0, OPT_X1, OPT_Y1, OPT_Z0, OPT_Z1,
+		OPT_DEBUG, OPT_XYF, OPT_YES2D, OPT_NC3, OPT_COMPRESS, OPT_NTHREADS };
+	// see https://stackoverflow.com/questions/23758570/c-getopt-long-only-without-alias
+	static struct option long_options[] =
+	{
+		{"histpath", required_argument, 0, OPT_HISTPATH},
+		{"base",     required_argument, 0, OPT_BASE},
+		{"time",     required_argument, 0, OPT_TIME},
+		{"x0",       optional_argument, 0, OPT_X0},
+		{"y0",       optional_argument, 0, OPT_Y0},
+		{"x1",       optional_argument, 0, OPT_X1},
+		{"y1",       optional_argument, 0, OPT_Y1},
+		{"z0",       optional_argument, 0, OPT_Z0},
+		{"z1",       optional_argument, 0, OPT_Z1},
+		{"debug",    optional_argument, 0, OPT_DEBUG},
+		{"xyf",      optional_argument, 0, OPT_XYF},
+		{"yes2d",    optional_argument, 0, OPT_YES2D},
+		{"nc3",      optional_argument, 0, OPT_NC3},
+		{"compress", optional_argument, 0, OPT_COMPRESS},
+		{"nthreads", optional_argument, 0, OPT_NTHREADS},
+		{0, 0, 0, 0}//sentinel, needed!
+	};
+
+	got_histpath=got_base=got_time=got_X0=got_X1=got_Y0=got_Y1=got_Z0=got_Z1=0;
+
+	int bail = 0;
+
+	if (argc == 1)
+	{
+		fprintf(stderr,
+		"Usage: %s --histpath=[histpath] --base=[base] --x0=[X0] --y0=[Y0] --x1=[X1] --y1=[Y1] --z0=[Z0] --z1=[Z1] --time=[time] [varname1 ... varnameN] \n",argv[0]);
+		exit(0);
+	}
+
+	while (1)
+	{
+		int r;
+		int option_index = 0;
+		r = getopt_long_only (argc, argv,"",long_options,&option_index);
+		if (r == -1) break;
+
+		switch(r)
+		{
+			case OPT_HISTPATH:
+				strcpy(histpath,optarg);
+				got_histpath=1;
+				printf("histpath = %s\n",histpath);
+				break;
+			case OPT_BASE:
+				strcpy(base,optarg);
+				got_base=1;
+				printf("base = %s\n",base);
+				break;
+			case OPT_TIME:
+				*time = atof(optarg);
+				got_time=1;
+				printf("time = %f\n",*time);
+				break;
+			case OPT_X0:
+				*X0 = atoi(optarg);
+				got_X0=1;
+				optcount++;
+				printf("X0 = %i\n",*X0);
+				break;
+			case OPT_Y0:
+				*Y0 = atoi(optarg);
+				got_Y0=1;
+				optcount++;
+				printf("Y0 = %i\n",*Y0);
+				break;
+			case OPT_X1:
+				*X1 = atoi(optarg);
+				got_X1=1;
+				optcount++;
+				printf("X1 = %i\n",*X1);
+				break;
+			case OPT_Y1:
+				*Y1 = atoi(optarg);
+				got_Y1=1;
+				optcount++;
+				printf("Y1 = %i\n",*Y1);
+				break;
+			case OPT_Z0:
+				*Z0 = atoi(optarg);
+				got_Z0=1;
+				optcount++;
+				printf("Z0 = %i\n",*Z0);
+				break;
+			case OPT_Z1:
+				*Z1 = atoi(optarg);
+				got_Z1=1;
+				optcount++;
+				printf("Z1 = %i\n",*Z1);
+				break;
+			case OPT_DEBUG:
+				debug=1;
+				optcount++;
+				break;
+			case OPT_XYF:
+				saved_staggered_mesh_params=1;
+				optcount++;
+				break;
+			case OPT_YES2D:
+				yes2d=1;
+				optcount++;
+				break;
+			case OPT_COMPRESS:
+				gzip=1;
+				optcount++;
+				break;
+			case OPT_NC3:
+				filetype=NC_64BIT_OFFSET;
+				optcount++;
+				break;
+			case OPT_NTHREADS:
+				nthreads=atoi(optarg);
+				omp_set_num_threads(nthreads);
+				optcount++;
+				break;
+			case '?':
+				fprintf(stderr,"Exiting: unknown command line option.\n");
+				exit(0);
+				break;
+		}
+	}
+
+		if (got_histpath==0) { fprintf(stderr,"--histpath not specified\n"); bail = 1; }
+		if (got_base==0)   { fprintf(stderr,"--base not specified\n"); bail = 1; }
+		if (got_time==0)   { fprintf(stderr,"--time not specified\n"); bail = 1; }
+
+/* These are now optional */
+		if (!got_X0)      fprintf(stderr,"Will set X0 to saved_X0\n");
+		if (!got_Y0)      fprintf(stderr,"Will set Y0 to saved_Y0\n");
+		if (!got_X1)      fprintf(stderr,"Will set X1 to saved_X1\n");
+		if (!got_Y1)      fprintf(stderr,"Will set Y1 to saved_Y1\n");
+		if (!got_Z0)      fprintf(stderr,"Setting Z0 to default value of 0\n");
+		if (!got_Z1)      fprintf(stderr,"Setting Z1 to default value of nz-1\n");
+
+		if (bail)           { fprintf(stderr,"Insufficient arguments to %s, exiting.\n",argv[0]); exit(-1); }
+}
 
 /* Load the grid metadata and request a domain subset based on the 
  * current parcel positioning for the current time step. The idea is that 
@@ -263,7 +408,7 @@ int main(int argc, char **argv ) {
     // query the dataset structure
     int rank, size;
     long N, MX, MY, MZ;
-    int nTimeChunks = 120;
+    int nTimeChunks = 120*2;
 
     // initialize a bunch of MPI stuff.
     // Rank tells you which process
