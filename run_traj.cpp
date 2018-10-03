@@ -22,14 +22,13 @@ using namespace std;
 // to only be I/O so that other backends can be used, hence
 // copying it here.
 void parse_cmdline(int argc, char **argv, \
-	char *histpath, char *base, double *time, \
+	char *histpath, char *base, double *time, int *nTimes, \
 	double *X0, double *Y0, double *Z0, int *NX, int *NY, int *NZ, \
     double *DX, double *DY, double *DZ )
 {
-	int got_histpath,got_base,got_time,got_X0,got_NX,got_Y0,got_NY,got_Z0,got_NZ,got_DX,got_DY,got_DZ;
-    int argc_min=1;
+	int got_histpath,got_base,got_time,got_ntimes,got_X0,got_NX,got_Y0,got_NY,got_Z0,got_NZ,got_DX,got_DY,got_DZ;
     int optcount=0;
-	enum { OPT_HISTPATH = 1000, OPT_BASE, OPT_TIME, OPT_X0, OPT_Y0, OPT_Z0, OPT_NX, OPT_NY, OPT_NZ, OPT_DX,
+	enum { OPT_HISTPATH = 1000, OPT_BASE, OPT_TIME, OPT_NTIMES, OPT_X0, OPT_Y0, OPT_Z0, OPT_NX, OPT_NY, OPT_NZ, OPT_DX,
 		OPT_DY, OPT_DZ, OPT_DEBUG, OPT_XYF, OPT_YES2D, OPT_NC3, OPT_COMPRESS, OPT_NTHREADS };
 	// see https://stackoverflow.com/questions/23758570/c-getopt-long-only-without-alias
 	static struct option long_options[] =
@@ -37,6 +36,7 @@ void parse_cmdline(int argc, char **argv, \
 		{"histpath", required_argument, 0, OPT_HISTPATH},
 		{"base",     required_argument, 0, OPT_BASE},
 		{"time",     required_argument, 0, OPT_TIME},
+		{"ntimes",   required_argument, 0, OPT_NTIMES},
 		{"x0",       required_argument, 0, OPT_X0},
 		{"y0",       required_argument, 0, OPT_Y0},
 		{"z0",       required_argument, 0, OPT_Z0},
@@ -50,14 +50,14 @@ void parse_cmdline(int argc, char **argv, \
 		{0, 0, 0, 0}//sentinel, needed!
 	};
 
-	got_histpath=got_base=got_time=got_X0=got_NX=got_DX=got_Y0=got_NY=got_DY=got_Z0=got_NZ=got_DZ=0;
+	got_histpath=got_base=got_time=got_ntimes=got_X0=got_NX=got_DX=got_Y0=got_NY=got_DY=got_Z0=got_NZ=got_DZ=0;
 
 	int bail = 0;
 
 	if (argc == 1)
 	{
 		fprintf(stderr,
-		"Usage: %s --histpath=[histpath] --base=[base] --x0=[X0] --y0=[Y0] --z0=[Z0] --nx=[NX] --ny=[NY] --nz=[NZ] --dx=[DX] --dy=[DY] --dz=[DZ] --time=[time] [varname1 ... varnameN] \n",argv[0]);
+		"Usage: %s --histpath=[histpath] --base=[base] --x0=[X0] --y0=[Y0] --z0=[Z0] --nx=[NX] --ny=[NY] --nz=[NZ] --dx=[DX] --dy=[DY] --dz=[DZ] --time=[time] --ntimes[nTimes]\n",argv[0]);
 		exit(0);
 	}
 
@@ -84,6 +84,11 @@ void parse_cmdline(int argc, char **argv, \
 				*time = atof(optarg);
 				got_time=1;
 				printf("parcel start time time = %f\n",*time);
+				break;
+			case OPT_NTIMES:
+				*nTimes = atoi(optarg);
+				got_ntimes=1;
+				printf("number of steps to integrate ntimes = %i\n",*nTimes);
 				break;
 			case OPT_X0:
 				*X0 = atof(optarg);
@@ -150,9 +155,10 @@ void parse_cmdline(int argc, char **argv, \
 		}
 	}
 
-		if (got_histpath==0) { fprintf(stderr,"--histpath not specified\n"); bail = 1; }
-		if (got_base==0)   { fprintf(stderr,"--base not specified\n"); bail = 1; }
-		if (got_time==0)   { fprintf(stderr,"--time not specified\n"); bail = 1; }
+		if (got_histpath==0) { fprintf(stderr,"--histpath not specified; I need to know where your data resides!\n"); bail = 1; }
+		if (got_base==0)   { fprintf(stderr,"--base not specified; I need to know what you want your saved data called!\n"); bail = 1; }
+		if (got_time==0)   { fprintf(stderr,"--time not specified; I need to know when to start integration!\n"); bail = 1; }
+		if (got_ntimes==0)   { fprintf(stderr,"--ntimes not specified; I need to know how long to integrate for!\n"); bail = 1; }
 
 /* These are now optional */
 		if (!got_X0)      fprintf(stderr,"--x0 not specified; where do you want your parcels?\n");
@@ -410,16 +416,25 @@ void seed_parcels_cm1(parcel_pos *parcels, int nTotTimes) {
  * data chunks to the GPU, and then proceeds with another time chunk.
  */
 int main(int argc, char **argv ) {
-    double X0, DX, Y0, DY, Z0, DZ;
-    int NX, NY, NZ;
+    // variables for parcel seed locations,
+    // amount, and spacing
+    double pX0, pDX, pY0, pDY, pZ0, pDZ;
+    int pNX, pNY, pNZ;
+    // what is our integration start point in the simulation?
     double time;
+    int nTimeSteps;
+    // variables for specifying our
+    // data path and our output data 
+    // path
     char *base = new char[256];
     char *histpath = new char[256];
-    parse_cmdline(argc, argv, histpath, base, &time, &X0, &Y0, &Z0, &NX, &NY, &NZ, &DX, &DY, &DZ );
+    parse_cmdline(argc, argv, histpath, base, &time, &nTimeSteps, &pX0, &pY0, &pZ0, &pNX, &pNY, &pNZ, &pDX, &pDY, &pDZ );
     cout << "I'm leaving the command line parse and exiting" << endl;
     exit(-1);
-    string base_dir = "/iliad/orfstore/khalbert/history.24May_r16_fixed-200-a/3D";
-    string outfilename = "cuda-parcel.nc";
+    string base_dir = string(base);
+    string outfilename = string(base) + ".nc";
+    //string base_dir = "/iliad/orfstore/khalbert/history.24May_r16_fixed-200-a/3D";
+    //string outfilename = "cuda-parcel.nc";
     // query the dataset structure
     int rank, size;
     long N, MX, MY, MZ;
