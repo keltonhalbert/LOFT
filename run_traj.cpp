@@ -23,8 +23,8 @@ using namespace std;
 // copying it here.
 void parse_cmdline(int argc, char **argv, \
 	char *histpath, char *base, double *time, int *nTimes, \
-	double *X0, double *Y0, double *Z0, int *NX, int *NY, int *NZ, \
-    double *DX, double *DY, double *DZ )
+	float *X0, float *Y0, float *Z0, int *NX, int *NY, int *NZ, \
+    float *DX, float *DY, float *DZ )
 {
 	int got_histpath,got_base,got_time,got_ntimes,got_X0,got_NX,got_Y0,got_NY,got_Z0,got_NZ,got_DX,got_DY,got_DZ;
     int optcount=0;
@@ -307,20 +307,9 @@ void loadVectorsFromDisk(datagrid *requested_grid, float *ubuffer, float *vbuffe
  * fill the remainder of the parcel traces
  * with missing values. 
  */
-void seed_parcels(parcel_pos *parcels, int nTotTimes) {
-    // place a cube of parcels in the domain between xstart, 
-    // xend, ystart, yend, zstart, and zend in spacing
-    // increments dx, dy, dz
-    float xstart = -3775; float xend = -2225; float dx = 30;
-    float ystart = -3775; float yend = -3225; float dy = 30;
-    float zstart = 120; float zend = 330; float dz = 30;
-    // the number of parcels we will be seeding
-    // - note I kind of made this by trial and error. 
-    // It may be subject to seg faults?
-    int pnx = (int) ceil((xend - xstart) / dx);
-    int pny = (int) ceil((yend - ystart) / dy);
-    int pnz = (int) ceil((zend - zstart) / dz);
-    int nParcels = pnx*pny*pnz;
+void seed_parcels(parcel_pos *parcels, float X0, float Y0, float Z0, int NX, int NY, int NZ, \
+                    float DX, float DY, float DZ, int nTotTimes) {
+    int nParcels = NX*NY*NZ;
 
     // allocate memory for the parcels
     // we are integrating for the entirety 
@@ -335,12 +324,12 @@ void seed_parcels(parcel_pos *parcels, int nTotTimes) {
     parcels->nTimes = nTotTimes;
 
     int pid = 0;
-    for (float i = xstart; i < xend; i+=dx) {
-        for (float j = ystart; j < yend; j+=dy) {
-            for (float k = zstart; k < zend; k += dz) {
-                parcels->xpos[P2(0, pid, parcels->nTimes)] = i;
-                parcels->ypos[P2(0, pid, parcels->nTimes)] = j;
-                parcels->zpos[P2(0, pid, parcels->nTimes)] = k;
+    for (int i = 0; i < NX; i+=1) {
+        for (int j = 0; j < NY; j+=1) {
+            for (int k = 0; k < NZ; k+=1) {
+                parcels->xpos[P2(0, pid, parcels->nTimes)] = X0 + i*DX;
+                parcels->ypos[P2(0, pid, parcels->nTimes)] = Y0 + i*DY;
+                parcels->zpos[P2(0, pid, parcels->nTimes)] = Z0 + i*DZ;
                 pid += 1;
             }
         }
@@ -349,7 +338,6 @@ void seed_parcels(parcel_pos *parcels, int nTotTimes) {
     // fill the remaining portions of the array
     // with the missing value flag for the future
     // times that we haven't integrated to yet.
-    cout <<  parcels->zpos[P2(0, 29, parcels->nTimes)] << endl;
     for (int p = 0; p < nParcels; ++p) {
         for (int t = 1; t < parcels->nTimes; ++t) {
             parcels->xpos[P2(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
@@ -418,7 +406,7 @@ void seed_parcels_cm1(parcel_pos *parcels, int nTotTimes) {
 int main(int argc, char **argv ) {
     // variables for parcel seed locations,
     // amount, and spacing
-    double pX0, pDX, pY0, pDY, pZ0, pDZ;
+    float pX0, pDX, pY0, pDY, pZ0, pDZ;
     int pNX, pNY, pNZ;
     // what is our integration start point in the simulation?
     double time;
@@ -428,17 +416,34 @@ int main(int argc, char **argv ) {
     // path
     char *base = new char[256];
     char *histpath = new char[256];
+    
+    // call the command line parser and store the user input in the
+    // appropriate variables. Stole this and modified it from LOFS
+    // because I'm too lazy to write my own and using a library I
+    // have to link to sounds really cumbersome. 
     parse_cmdline(argc, argv, histpath, base, &time, &nTimeSteps, &pX0, &pY0, &pZ0, &pNX, &pNY, &pNZ, &pDX, &pDY, &pDZ );
-    cout << "I'm leaving the command line parse and exiting" << endl;
-    exit(-1);
-    string base_dir = string(base);
+
+    // convert the char arrays to strings
+    // because this is C++ and we can use
+    // objects in the 21st centuryc
+    string base_dir = string(histpath);
     string outfilename = string(base) + ".nc";
+    // get rid of useless dead weight
+    // because we're good programmers
+    delete[] base;
+    delete[] histpath;
     //string base_dir = "/iliad/orfstore/khalbert/history.24May_r16_fixed-200-a/3D";
     //string outfilename = "cuda-parcel.nc";
     // query the dataset structure
     int rank, size;
     long N, MX, MY, MZ;
-    int nTimeChunks = 120*2;
+    //int nTimeChunks = 120*2;
+    int nTimeChunks = nTimeSteps; // this is a temporary hack
+    // to make the command line parser stuff work with the
+    // existing code.
+    // KELTON PLEASE REMEMBER TO CHANGE THIS SO THAT WE
+    // DON'T HAVE 800000000 VARIABLES DOING THE SAME THING
+    // LYING AROUND
 
     // initialize a bunch of MPI stuff.
     // Rank tells you which process
@@ -467,7 +472,14 @@ int main(int argc, char **argv ) {
         // parcel start locations
         if (tChunk == 0) {
             cout << "SEEDING PARCELS" << endl;
-            seed_parcels_cm1(&parcels, nTotTimes);
+            //seed_parcels_cm1(&parcels, nTotTimes);
+            
+            // seed the parcel starting positions based on the command line
+            // arguments provided by the user. I don't think any sanity checking is done
+            // here for out of bounds positions so we probably need to be careful
+            // of this and consider fixing that
+            seed_parcels(&parcels, pX0, pY0, pZ0, pNX, pNY, pNZ, pDX, pDY, pDZ, nTotTimes);
+            // we also initialize the output netcdf file here
             if (rank == 0) init_nc(outfilename, &parcels);
         }
 
@@ -495,11 +507,6 @@ int main(int argc, char **argv ) {
         ubuf = new float[(size_t)bufsize];
         vbuf = new float[(size_t)bufsize];
         wbuf = new float[(size_t)bufsize];
-        /*
-        float *ubuf = new float[N];
-        float *vbuf = new float[N];
-        float *wbuf = new float[N];
-        */
 
 
         // construct a 4D contiguous array to store stuff in.
