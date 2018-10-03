@@ -15,12 +15,35 @@
 #define P4(x,y,z,t,mx,my,mz) ((t*mx*my*mz)+((z)*(mx)*(my))+((y)*(mx))+(x))
 using namespace std;
 
+/* Utility function to find the nearest index to a
+ * time value provided. It searches the array for the
+ * closest value to the one provided and returns the index.
+ * If the value isn't found, the index is returned as -1.
+ */
+int find_nearest_index(double *arr, double val, int N) {
+    int nearest = -1;
+    float mindist = 9999;
+    for (int idx = 0; idx < N; ++idx) {
+        float diff = fabs(val - arr[idx]);
+        if (diff < mindist) {
+            mindist = diff;
+            nearest = idx;
+        }
+    }
+    return nearest;
+}
 
 // this was stolen from LOFS/cm1tools-3.0 hdf2.c
 // under the parce_cmdline_hdf2nc function. I could
 // have just linked to it, but I want the LOFS dependency
 // to only be I/O so that other backends can be used, hence
 // copying it here.
+
+/* The command line parser takes information from the user
+ * on where to put the parcel initial seeds, how many parcels,
+ * and the spacing between parcels. It also is where the user
+ * specifies the integration start time and duration.
+ */
 void parse_cmdline(int argc, char **argv, \
 	char *histpath, char *base, double *time, int *nTimes, \
 	float *X0, float *Y0, float *Z0, int *NX, int *NY, int *NZ, \
@@ -54,6 +77,8 @@ void parse_cmdline(int argc, char **argv, \
 
 	int bail = 0;
 
+    // print the usage information for the
+    // command line options
 	if (argc == 1)
 	{
 		fprintf(stderr,
@@ -187,8 +212,9 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *
 
     datagrid temp_grid;
 
-    // for right now, set the grid bounds to the saved
-    // bounds for testing purposes
+    // load the saved grid dimmensions into 
+    // the temporary grid, then we will find
+    // a smaller subset to load into memory
     temp_grid.X0 = saved_X0; temp_grid.Y0 = saved_Y0;
     temp_grid.X1 = saved_X1; temp_grid.Y1 = saved_Y1;
     temp_grid.Z0 = 0; temp_grid.Z1 = nz-1; // nz comes from readlofs
@@ -231,9 +257,6 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *
         if (idx_4D[1] > max_j) max_j = idx_4D[1]; 
         if (idx_4D[2] < min_k) min_k = idx_4D[2]; 
         if (idx_4D[2] > max_k) max_k = idx_4D[2]; 
-        //cout << "min i " << min_i << " max i " << max_i << endl;
-        //cout << "min j " << min_j << " max i " << max_j << endl;
-        //cout << "min k " << min_k << " max i " << max_k << endl;
     }
     requested_grid->isValid = 1;
     // clear the memory from the temp grid
@@ -243,6 +266,9 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *
     delete[] temp_grid.xf;
     delete[] temp_grid.yf;
     delete[] temp_grid.zf;
+    // if literally all of our parcels aren't
+    // in the domain then something has gone
+    // horribly wrong
     if (invalidCount == parcels->nParcels) {
         requested_grid->isValid = 0;
         return;
@@ -296,6 +322,8 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *
  */
 void loadVectorsFromDisk(datagrid *requested_grid, float *ubuffer, float *vbuffer, float *wbuffer, double t0) {
     // request 3D field!
+    // u,v, and w are on their
+    // respective staggered grids
     lofs_read_3dvar(requested_grid, ubuffer, (char *)"u", t0);
     lofs_read_3dvar(requested_grid, vbuffer, (char *)"v", t0);
     lofs_read_3dvar(requested_grid, wbuffer, (char *)"w", t0);
@@ -328,8 +356,8 @@ void seed_parcels(parcel_pos *parcels, float X0, float Y0, float Z0, int NX, int
         for (int j = 0; j < NY; j+=1) {
             for (int k = 0; k < NZ; k+=1) {
                 parcels->xpos[P2(0, pid, parcels->nTimes)] = X0 + i*DX;
-                parcels->ypos[P2(0, pid, parcels->nTimes)] = Y0 + i*DY;
-                parcels->zpos[P2(0, pid, parcels->nTimes)] = Z0 + i*DZ;
+                parcels->ypos[P2(0, pid, parcels->nTimes)] = Y0 + j*DY;
+                parcels->zpos[P2(0, pid, parcels->nTimes)] = Z0 + k*DZ;
                 pid += 1;
             }
         }
@@ -349,7 +377,10 @@ void seed_parcels(parcel_pos *parcels, float X0, float Y0, float Z0, int NX, int
 
 }
 
-
+/* This parcel seed function is used
+ * when trying to match parcel locations
+ * to ones used in CM1. This is really
+ * only used for testing purposes. */
 void seed_parcels_cm1(parcel_pos *parcels, int nTotTimes) {
 
     int nParcels = 36000;
@@ -432,9 +463,7 @@ int main(int argc, char **argv ) {
     // because we're good programmers
     delete[] base;
     delete[] histpath;
-    //string base_dir = "/iliad/orfstore/khalbert/history.24May_r16_fixed-200-a/3D";
-    //string outfilename = "cuda-parcel.nc";
-    // query the dataset structure
+
     int rank, size;
     long N, MX, MY, MZ;
     //int nTimeChunks = 120*2;
@@ -461,12 +490,19 @@ int main(int argc, char **argv ) {
     // the number of MPI ranks there are
     // plus the very last integration end time
     int nTotTimes = size+1;
+    // Query our dataset structure.
+    // If this has been done before, it reads
+    // the information from cache files in the 
+    // runtime directory. If it hasn't been run,
+    // this step can take fair amount of time.
     lofs_get_dataset_structure(base_dir);
-
+    // our parcel struct containing 
+    // the position arrays
     parcel_pos parcels;
     datagrid requested_grid;
 
-
+    // This is the main loop that does the data reading and eventually
+    // calls the CUDA code to integrate forward.
     for (int tChunk = 0; tChunk < nTimeChunks; ++tChunk) {
         // if this is the first chunk of time, seed the
         // parcel start locations
@@ -483,11 +519,14 @@ int main(int argc, char **argv ) {
             if (rank == 0) init_nc(outfilename, &parcels);
         }
 
-        // read in the metadata - later we will make
-        // the requested grid dynamic based on the
-        // parcel seeds
+        // read in the metadata and request a grid subset 
+        // that is dynamically based on where our parcels
+        // are in the simulation
         loadMetadataAndGrid(base_dir, &requested_grid, &parcels); 
-        if (requested_grid.isValid == 0) continue;
+        if (requested_grid.isValid == 0) {
+            cout << "Something went horribly wrong when requesting a domain subset. Abort." << endl;
+            exit(-1);
+        }
 
 
         // the number of grid points requested
@@ -520,31 +559,40 @@ int main(int argc, char **argv ) {
             w_time_chunk = (float *) malloc ((size_t)bufsize*size);
 
         }
-        /*
-        float *u_time_chunk = new float[N*size];
-        float *v_time_chunk = new float[N*size];
-        float *w_time_chunk = new float[N*size];
-        */
-        printf("TIMESTEP %d/%d %d %f\n", rank, size, rank + tChunk*size, alltimes[4199 + rank + tChunk*size]);
+
+        // we need to find the index of the nearest time to the user requested
+        // time. If the index isn't found, abort.
+        int nearest_tidx = find_nearest_index(alltimes, time, ntottimes);
+        if (nearest_tidx < 0) {
+            cout << "Invalid time index: " << nearest_tidx << " for time " << time << ". Abort." << endl;
+        }
+        printf("TIMESTEP %d/%d %d %f\n", rank, size, rank + tChunk*size, alltimes[nearest_tidx + rank + tChunk*size]);
         // load u, v, and w into memory
-        loadVectorsFromDisk(&requested_grid, ubuf, vbuf, wbuf, alltimes[4199 + rank + tChunk*size]);
+        loadVectorsFromDisk(&requested_grid, ubuf, vbuf, wbuf, alltimes[nearest_tidx + rank + tChunk*size]);
         
+        // for MPI runs that load multiple time steps into memory,
+        // communicate the data you've read into our 4D array
         int senderr_u = MPI_Gather(ubuf, N, MPI_FLOAT, u_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
         int senderr_v = MPI_Gather(vbuf, N, MPI_FLOAT, v_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
         int senderr_w = MPI_Gather(wbuf, N, MPI_FLOAT, w_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
 
         if (rank == 0) {
-            // send to the GPU
-            // comment out if you're running on XE node
+            // send to the GPU!!
             int nParcels = parcels.nParcels;
             cudaIntegrateParcels(requested_grid, parcels, u_time_chunk, v_time_chunk, w_time_chunk, MX, MY, MZ, size, nTotTimes); 
+            // write out our information to disk
             write_parcels(outfilename, &parcels, tChunk);
 
+            // Now that we've integrated forward and written to disk, before we can go again
+            // we have to set the current end position of the parcel to the beginning for 
+            // the next leg of integration. Do that, and then reset all the other values
+            // to missing.
             for (int pcl = 0; pcl < parcels.nParcels; ++pcl) {
                 parcels.xpos[P2(0, pcl, parcels.nTimes)] = parcels.xpos[P2(size, pcl, parcels.nTimes)];
                 parcels.ypos[P2(0, pcl, parcels.nTimes)] = parcels.ypos[P2(size, pcl, parcels.nTimes)];
                 parcels.zpos[P2(0, pcl, parcels.nTimes)] = parcels.zpos[P2(size, pcl, parcels.nTimes)];
+                // empty out our parcel data arrays too
                 parcels.pclu[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
                 parcels.pclv[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
                 parcels.pclw[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
@@ -558,15 +606,16 @@ int main(int argc, char **argv ) {
                 }
             }
 
-            // communicate the data to the other ranks
+            // communicate our reset parcel arrays to the other ranks.
+            // Each rank needs to know where the parcels currently are
+            // so that they properly request the same domain subset. 
             for (int r = 1; r < size; ++r) {
                  MPI_Send(parcels.xpos, nParcels*nTotTimes, MPI_FLOAT, r, 0, MPI_COMM_WORLD);
                  MPI_Send(parcels.ypos, nParcels*nTotTimes, MPI_FLOAT, r, 1, MPI_COMM_WORLD);
                  MPI_Send(parcels.zpos, nParcels*nTotTimes, MPI_FLOAT, r, 2, MPI_COMM_WORLD);
              }
 
-
-
+            // memory management
             delete[] requested_grid.xf;
             delete[] requested_grid.yf;
             delete[] requested_grid.zf;
@@ -584,12 +633,18 @@ int main(int argc, char **argv ) {
             delete[] w_time_chunk;
         }
 
+        // house keeping for the non-master
+        // MPI ranks
         else {
+            // receive the updated parcel arrays
+            // so that we can do proper subseting. This happens
+            // after integration is complete from CUDA.
             MPI_Status status;
             MPI_Recv(parcels.xpos, parcels.nParcels*nTotTimes, MPI_FLOAT, 0, 0, MPI_COMM_WORLD, &status);
             MPI_Recv(parcels.ypos, parcels.nParcels*nTotTimes, MPI_FLOAT, 0, 1, MPI_COMM_WORLD, &status);
             MPI_Recv(parcels.zpos, parcels.nParcels*nTotTimes, MPI_FLOAT, 0, 2, MPI_COMM_WORLD, &status);
 
+            // memory management
             delete[] requested_grid.xf;
             delete[] requested_grid.yf;
             delete[] requested_grid.zf;
