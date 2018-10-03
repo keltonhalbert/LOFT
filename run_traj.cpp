@@ -23,42 +23,41 @@ using namespace std;
 // copying it here.
 void parse_cmdline(int argc, char **argv, \
 	char *histpath, char *base, double *time, \
-	int *X0, int *Y0, int *X1, int *Y1, int *Z0, int *Z1 )
+	double *X0, double *Y0, double *Z0, int *NX, int *NY, int *NZ, \
+    double *DX, double *DY, double *DZ )
 {
-	int got_histpath,got_base,got_time,got_X0,got_X1,got_Y0,got_Y1,got_Z0,got_Z1;
-    int argc_hdf2nc_min=4;
+	int got_histpath,got_base,got_time,got_X0,got_NX,got_Y0,got_NY,got_Z0,got_NZ,got_DX,got_DY,got_DZ;
+    int argc_min=1;
     int optcount=0;
-	enum { OPT_HISTPATH = 1000, OPT_BASE, OPT_TIME, OPT_X0, OPT_Y0, OPT_X1, OPT_Y1, OPT_Z0, OPT_Z1,
-		OPT_DEBUG, OPT_XYF, OPT_YES2D, OPT_NC3, OPT_COMPRESS, OPT_NTHREADS };
+	enum { OPT_HISTPATH = 1000, OPT_BASE, OPT_TIME, OPT_X0, OPT_Y0, OPT_Z0, OPT_NX, OPT_NY, OPT_NZ, OPT_DX,
+		OPT_DY, OPT_DZ, OPT_DEBUG, OPT_XYF, OPT_YES2D, OPT_NC3, OPT_COMPRESS, OPT_NTHREADS };
 	// see https://stackoverflow.com/questions/23758570/c-getopt-long-only-without-alias
 	static struct option long_options[] =
 	{
 		{"histpath", required_argument, 0, OPT_HISTPATH},
 		{"base",     required_argument, 0, OPT_BASE},
 		{"time",     required_argument, 0, OPT_TIME},
-		{"x0",       optional_argument, 0, OPT_X0},
-		{"y0",       optional_argument, 0, OPT_Y0},
-		{"x1",       optional_argument, 0, OPT_X1},
-		{"y1",       optional_argument, 0, OPT_Y1},
-		{"z0",       optional_argument, 0, OPT_Z0},
-		{"z1",       optional_argument, 0, OPT_Z1},
+		{"x0",       required_argument, 0, OPT_X0},
+		{"y0",       required_argument, 0, OPT_Y0},
+		{"z0",       required_argument, 0, OPT_Z0},
+		{"nx",       required_argument, 0, OPT_NX},
+		{"ny",       required_argument, 0, OPT_NY},
+		{"nz",       required_argument, 0, OPT_NZ},
+		{"dx",       required_argument, 0, OPT_DX},
+		{"dy",       required_argument, 0, OPT_DY},
+		{"dz",       required_argument, 0, OPT_DZ},
 		{"debug",    optional_argument, 0, OPT_DEBUG},
-		{"xyf",      optional_argument, 0, OPT_XYF},
-		{"yes2d",    optional_argument, 0, OPT_YES2D},
-		{"nc3",      optional_argument, 0, OPT_NC3},
-		{"compress", optional_argument, 0, OPT_COMPRESS},
-		{"nthreads", optional_argument, 0, OPT_NTHREADS},
 		{0, 0, 0, 0}//sentinel, needed!
 	};
 
-	got_histpath=got_base=got_time=got_X0=got_X1=got_Y0=got_Y1=got_Z0=got_Z1=0;
+	got_histpath=got_base=got_time=got_X0=got_NX=got_DX=got_Y0=got_NY=got_DY=got_Z0=got_NZ=got_DZ=0;
 
 	int bail = 0;
 
 	if (argc == 1)
 	{
 		fprintf(stderr,
-		"Usage: %s --histpath=[histpath] --base=[base] --x0=[X0] --y0=[Y0] --x1=[X1] --y1=[Y1] --z0=[Z0] --z1=[Z1] --time=[time] [varname1 ... varnameN] \n",argv[0]);
+		"Usage: %s --histpath=[histpath] --base=[base] --x0=[X0] --y0=[Y0] --z0=[Z0] --nx=[NX] --ny=[NY] --nz=[NZ] --dx=[DX] --dy=[DY] --dz=[DZ] --time=[time] [varname1 ... varnameN] \n",argv[0]);
 		exit(0);
 	}
 
@@ -84,62 +83,64 @@ void parse_cmdline(int argc, char **argv, \
 			case OPT_TIME:
 				*time = atof(optarg);
 				got_time=1;
-				printf("time = %f\n",*time);
+				printf("parcel start time time = %f\n",*time);
 				break;
 			case OPT_X0:
-				*X0 = atoi(optarg);
+				*X0 = atof(optarg);
 				got_X0=1;
 				optcount++;
-				printf("X0 = %i\n",*X0);
+				printf("parcel seed start X0 = %f\n",*X0);
 				break;
 			case OPT_Y0:
-				*Y0 = atoi(optarg);
+				*Y0 = atof(optarg);
 				got_Y0=1;
 				optcount++;
-				printf("Y0 = %i\n",*Y0);
-				break;
-			case OPT_X1:
-				*X1 = atoi(optarg);
-				got_X1=1;
-				optcount++;
-				printf("X1 = %i\n",*X1);
-				break;
-			case OPT_Y1:
-				*Y1 = atoi(optarg);
-				got_Y1=1;
-				optcount++;
-				printf("Y1 = %i\n",*Y1);
+				printf("parcel seed start Y0 = %f\n",*Y0);
 				break;
 			case OPT_Z0:
-				*Z0 = atoi(optarg);
+				*Z0 = atof(optarg);
 				got_Z0=1;
 				optcount++;
-				printf("Z0 = %i\n",*Z0);
+				printf("parcel seed start Z0 = %f\n",*Z0);
 				break;
-			case OPT_Z1:
-				*Z1 = atoi(optarg);
-				got_Z1=1;
+			case OPT_NX:
+				*NX = atoi(optarg);
+				got_NX=1;
 				optcount++;
-				printf("Z1 = %i\n",*Z1);
+				printf("number of parcels NX = %i\n",*NX);
+				break;
+			case OPT_NY:
+				*NY = atoi(optarg);
+				got_NY=1;
+				optcount++;
+				printf("number of parcels NY = %i\n",*NY);
+				break;
+			case OPT_NZ:
+				*NZ = atoi(optarg);
+				got_NZ=1;
+				optcount++;
+				printf("number of parcels NZ = %i\n",*NZ);
+				break;
+			case OPT_DX:
+				*DX = atof(optarg);
+				got_DX=1;
+				optcount++;
+				printf("spacing of parcels DX = %f\n",*DX);
+				break;
+			case OPT_DY:
+				*DY = atof(optarg);
+				got_DY=1;
+				optcount++;
+				printf("spacing of parcels DY = %f\n",*DY);
+				break;
+			case OPT_DZ:
+				*DZ = atof(optarg);
+				got_DZ=1;
+				optcount++;
+				printf("spacing of parcels DZ = %f\n",*DZ);
 				break;
 			case OPT_DEBUG:
 				debug=1;
-				optcount++;
-				break;
-			case OPT_XYF:
-				saved_staggered_mesh_params=1;
-				optcount++;
-				break;
-			case OPT_YES2D:
-				yes2d=1;
-				optcount++;
-				break;
-			case OPT_COMPRESS:
-				gzip=1;
-				optcount++;
-				break;
-			case OPT_NC3:
-				filetype=NC_64BIT_OFFSET;
 				optcount++;
 				break;
 			case '?':
@@ -154,12 +155,15 @@ void parse_cmdline(int argc, char **argv, \
 		if (got_time==0)   { fprintf(stderr,"--time not specified\n"); bail = 1; }
 
 /* These are now optional */
-		if (!got_X0)      fprintf(stderr,"Will set X0 to saved_X0\n");
-		if (!got_Y0)      fprintf(stderr,"Will set Y0 to saved_Y0\n");
-		if (!got_X1)      fprintf(stderr,"Will set X1 to saved_X1\n");
-		if (!got_Y1)      fprintf(stderr,"Will set Y1 to saved_Y1\n");
-		if (!got_Z0)      fprintf(stderr,"Setting Z0 to default value of 0\n");
-		if (!got_Z1)      fprintf(stderr,"Setting Z1 to default value of nz-1\n");
+		if (!got_X0)      fprintf(stderr,"--x0 not specified; where do you want your parcels?\n");
+		if (!got_Y0)      fprintf(stderr,"--y0 not specified; where do you want your parcels?\n");
+		if (!got_Z0)      fprintf(stderr,"--z0 not specified; where do you want your parcels?\n");
+		if (!got_NX)      fprintf(stderr,"--nx not specified; how many parcels do you want?\n");
+		if (!got_NY)      fprintf(stderr,"--ny not specified; how many parcels do you want?\n");
+		if (!got_NZ)      fprintf(stderr,"--nz not specified; how many parcels do you want?\n");
+		if (!got_DX)      fprintf(stderr,"--dx not specified; how dense do you want your parcels?\n");
+		if (!got_DY)      fprintf(stderr,"--dy not specified; how dense do you want your parcels?\n");
+		if (!got_DZ)      fprintf(stderr,"--dz not specified; how dense do you want your parcels?\n");
 
 		if (bail)           { fprintf(stderr,"Insufficient arguments to %s, exiting.\n",argv[0]); exit(-1); }
 }
@@ -406,11 +410,14 @@ void seed_parcels_cm1(parcel_pos *parcels, int nTotTimes) {
  * data chunks to the GPU, and then proceeds with another time chunk.
  */
 int main(int argc, char **argv ) {
-    int X0, X1, Y0, Y1, Z0, Z1;
+    double X0, DX, Y0, DY, Z0, DZ;
+    int NX, NY, NZ;
     double time;
     char *base = new char[256];
     char *histpath = new char[256];
-    parse_cmdline(argc, argv, histpath, base, &time, &X0, &Y0, &X1, &Y1, &Z0, &Z1 );
+    parse_cmdline(argc, argv, histpath, base, &time, &X0, &Y0, &Z0, &NX, &NY, &NZ, &DX, &DY, &DZ );
+    cout << "I'm leaving the command line parse and exiting" << endl;
+    exit(-1);
     string base_dir = "/iliad/orfstore/khalbert/history.24May_r16_fixed-200-a/3D";
     string outfilename = "cuda-parcel.nc";
     // query the dataset structure
