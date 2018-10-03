@@ -350,11 +350,12 @@ void seed_parcels(parcel_pos *parcels, float X0, float Y0, float Z0, int NX, int
     parcels->pclw = new float[nParcels * nTotTimes];
     parcels->nParcels = nParcels;
     parcels->nTimes = nTotTimes;
+    cout << X0 << " " << Y0 << " " << Z0 << endl;
 
     int pid = 0;
-    for (int i = 0; i < NX; i+=1) {
-        for (int j = 0; j < NY; j+=1) {
-            for (int k = 0; k < NZ; k+=1) {
+    for (int k = 0; k < NZ; ++k) {
+        for (int j = 0; j < NY; ++j) {
+            for (int i = 0; i < NX; ++i) {
                 parcels->xpos[P2(0, pid, parcels->nTimes)] = X0 + i*DX;
                 parcels->ypos[P2(0, pid, parcels->nTimes)] = Y0 + j*DY;
                 parcels->zpos[P2(0, pid, parcels->nTimes)] = Z0 + k*DZ;
@@ -467,12 +468,6 @@ int main(int argc, char **argv ) {
     int rank, size;
     long N, MX, MY, MZ;
     //int nTimeChunks = 120*2;
-    int nTimeChunks = nTimeSteps; // this is a temporary hack
-    // to make the command line parser stuff work with the
-    // existing code.
-    // KELTON PLEASE REMEMBER TO CHANGE THIS SO THAT WE
-    // DON'T HAVE 800000000 VARIABLES DOING THE SAME THING
-    // LYING AROUND
 
     // initialize a bunch of MPI stuff.
     // Rank tells you which process
@@ -483,6 +478,14 @@ int main(int argc, char **argv ) {
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_ARE_FATAL);
     MPI_Barrier(MPI_COMM_WORLD);
+
+    int nTimeChunks = (int) (nTimeSteps / size); // this is a temporary hack
+    if (nTimeSteps % size > 0) nTimeChunks += 1;
+    // to make the command line parser stuff work with the
+    // existing code.
+    // KELTON PLEASE REMEMBER TO CHANGE THIS SO THAT WE
+    // DON'T HAVE 800000000 VARIABLES DOING THE SAME THING
+    // LYING AROUND
 
 
     // the number of time steps we have is 
