@@ -14,16 +14,6 @@ __host__ __device__ int arrayIndex(int x, int y, int z, int t,  int mx, int my, 
 }
 
 
-// We are not working with full integration time data - some sort of subset of 
-// data from CM1 is expected. We expect there to be U, V, and W on native (uninterpolated)
-// grids, information about the X, Y, and Z grid points, and a set of scalar fields.
-// It is up to the user to specify grid spacing at run-time. It is assumed that there is
-// no grid stretching at this time (i.e. grid scale factor = 1.0) 
-static const float DX = 200.; 
-static const float DY = 200.; 
-static const float DZ = 200.;
-
-
 // find the nearest grid index i, j, and k for a point contained inside of a cube.
 // i, j, and k are set to -1 if the point requested is out of the domain bounds
 // of the cube provided.
