@@ -59,11 +59,11 @@ __global__ void test(datagrid grid, parcel_pos parcels, float *u_time_chunk, flo
 
 
             // integrate X position forward by the U wind
-            point[0] += pcl_u * 1.0;//(1.0f/6.0f);
+            point[0] += pcl_u * (1.0f/6.0f);
             // integrate Y position forward by the V wind
-            point[1] += pcl_v * 1.0;//(1.0f/6.0f);
+            point[1] += pcl_v * (1.0f/6.0f);
             // integrate Z position forward by the W wind
-            point[2] += pcl_w * 1.0;//(1.0f/6.0f);
+            point[2] += pcl_w * (1.0f/6.0f);
             if ((pcl_u == -999.0) || (pcl_v == -999.0) || (pcl_w == -999.0)) {
                 printf("Warning: missing values detected at x: %f y:%f z:%f with ground bounds X0: %f Y0: %f Z0: %f X1: %f Y1: %f Z1: %f\n", \
                     point[0], point[1], point[2], grid.xh[0], grid.yh[0], grid.zh[0], grid.xh[grid.NX-1], grid.yh[grid.NY-1], grid.zh[grid.NZ-1]);
