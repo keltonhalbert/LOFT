@@ -166,6 +166,11 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     cudaFree(device_parcels.pclu);
     cudaFree(device_parcels.pclv);
     cudaFree(device_parcels.pclw);
+    cudaFree(device_u_time_chunk);
+    cudaFree(device_v_time_chunk);
+    cudaFree(device_w_time_chunk);
+
+    gpuErrchk( cudaDeviceSynchronize() );
     cout << "FINISHED CUDA" << endl;
 }
 
