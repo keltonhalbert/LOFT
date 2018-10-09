@@ -28,9 +28,10 @@ __device__ void calc_zvort(datagrid grid, float *uarr, float *varr, float *zvort
 
     float dx = grid.xh[i+1] - grid.xh[i];
     float dy = grid.yh[j+1] - grid.yh[j];
-    float dv = varr[arrayIndex(i, j, k, t, MX, MY, MZ)] - varr[arrayIndex(i-1, j, k, t, MX, MY, MZ)];
-    float du = uarr[arrayIndex(i, j, k, t, MX, MY, MZ)] - uarr[arrayIndex(i, j-1, k, t, MX, MY, MZ)];
+    float dv = varr[arrayIndex(i+1, j, k, t, MX, MY, MZ)] - varr[arrayIndex(i, j, k, t, MX, MY, MZ)];
+    float du = uarr[arrayIndex(i, j+1, k, t, MX, MY, MZ)] - uarr[arrayIndex(i, j, k, t, MX, MY, MZ)];
     zvort[arrayIndex(i, j, k, t, MX, MY, MZ)] = ( dv / dx ) - ( du / dy);
+    //printf("%f, %i, %i, %i, %i\n", zvort[arrayIndex(i, j, k, t, MX, MY, MZ)], i, j, k, t);
 }
 
 /* Kernel for computing the components of vorticity
@@ -49,13 +50,15 @@ __global__ void calcvort(datagrid grid, float *u_time_chunk, float *v_time_chunk
     //printf("%i, %i, %i\n", i, j, k);
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < MX-1) && (j < MY-1) && (k < MZ-1)) { 
+    if ((i < MX) && (j < MY) && (k < MZ)) { 
+        if ((i+1 > MX) || (j+1) > MY) printf("i+1 or j+1 out of bounds\n");
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             //calc_xvort(grid, u_time_chunk, v_time_chunk, w_time_chunk, xvort, MX, MY, MZ);
             //calc_yvort(grid, u_time_chunk, v_time_chunk, w_time_chunk, yvort, MX, MY, MZ);
             // calculate the Z component of vorticity
+            //printf("%i, %i, %i, %i, %i, %i, %i\n", i, j, k, tidx, MX, MY, MZ);
             calc_zvort(grid, u_time_chunk, v_time_chunk, zvort, idx_4D, MX, MY, MZ);
         }
     }
@@ -163,7 +166,7 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     gpuErrchk( cudaMalloc(&device_w_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
 
     //vorticity device arrays we have to calculate
-    gpuErrchk( cudaMalloc(&device_zvort_time_chunk, MX*MY*MZ*nT*sizeof(float)));
+    gpuErrchk( cudaMalloc(&device_zvort_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
     // allocate device memory for our parcel positions
     gpuErrchk( cudaMalloc(&(device_parcels.xpos), parcels.nParcels * totTime * sizeof(float)) );
     gpuErrchk( cudaMalloc(&(device_parcels.ypos), parcels.nParcels * totTime * sizeof(float)) );
@@ -193,9 +196,9 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     dim3 threadsPerBlock(8, 8, 8);
     dim3 numBlocks((MX/threadsPerBlock.x)+1, (MY/threadsPerBlock.y)+1, (MZ/threadsPerBlock.z)+1); 
     cout << "Calculating vorticity" << endl;
-    cout << MX << " " << MY << " " << MZ << endl;
     cout << numBlocks.x << " " << numBlocks.y << " " << numBlocks.z << " " << endl;
     calcvort<<<numBlocks, threadsPerBlock>>>(device_grid, device_u_time_chunk, device_v_time_chunk, device_w_time_chunk, device_zvort_time_chunk, MX, MY, MZ, tStart, tEnd, totTime);
+    gpuErrchk( cudaDeviceSynchronize() );
     cout << "End vorticity calc" << endl;
     test<<<parcels.nParcels,1>>>(device_grid, device_parcels, device_u_time_chunk, device_v_time_chunk, device_w_time_chunk, MX, MY, MZ, tStart, tEnd, totTime);
     gpuErrchk( cudaDeviceSynchronize() );
