@@ -34,6 +34,24 @@ __device__ void calc_zvort(datagrid grid, float *uarr, float *varr, float *zvort
     //printf("%f, %i, %i, %i, %i\n", zvort[arrayIndex(i, j, k, t, MX, MY, MZ)], i, j, k, t);
 }
 
+/* For the vorticity calculations, you have to do a 4 point average
+of the neighbors to get the point onto the scalar grid. Calcvort does
+the initial pass, and then this gets called at the end to make sure that
+the averaging happens */
+__global__ void _doAvg(float *arr, int MX, int MY, int MZ, int tStart, int tEnd, int totTime) {
+    int i = blockIdx.x*blockDim.x + threadIdx.x;
+    int j = blockIdx.y*blockDim.y + threadIdx.y;
+    int k = blockIdx.z*blockDim.z + threadIdx.z;
+
+    if ((i < MX) && (j < MY) && (k < MZ)) { 
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            arr[arrayIndex(i, j, k, tidx, MX, MY, MZ)] = 0.25*(arr[arrayIndex(i, j, k, tidx, MX, MY, MZ)] + \
+                arr[arrayIndex(i+1, j, k, tidx, MX, MY, MZ)] + arr[arrayIndex(i, j+1, k, tidx, MX, MY, MZ)] + \
+                arr[arrayIndex(i+1, j+1, k, tidx, MX, MY, MZ)]);
+        }
+    }
+}
+
 /* Kernel for computing the components of vorticity
     and vorticity forcing terms. We do this using our domain subset containing the parcels
     instead of doing it locally for each parcel, as it would scale poorly for large 
@@ -196,8 +214,9 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     dim3 threadsPerBlock(8, 8, 8);
     dim3 numBlocks((MX/threadsPerBlock.x)+1, (MY/threadsPerBlock.y)+1, (MZ/threadsPerBlock.z)+1); 
     cout << "Calculating vorticity" << endl;
-    cout << numBlocks.x << " " << numBlocks.y << " " << numBlocks.z << " " << endl;
     calcvort<<<numBlocks, threadsPerBlock>>>(device_grid, device_u_time_chunk, device_v_time_chunk, device_w_time_chunk, device_zvort_time_chunk, MX, MY, MZ, tStart, tEnd, totTime);
+    gpuErrchk( cudaDeviceSynchronize() );
+    _doAvg<<<numBlocks, threadsPerBlock>>>(device_zvort_time_chunk, MX, MY, MZ, tStart, tEnd, totTime);
     gpuErrchk( cudaDeviceSynchronize() );
     cout << "End vorticity calc" << endl;
     test<<<parcels.nParcels,1>>>(device_grid, device_parcels, device_u_time_chunk, device_v_time_chunk, device_w_time_chunk, MX, MY, MZ, tStart, tEnd, totTime);
