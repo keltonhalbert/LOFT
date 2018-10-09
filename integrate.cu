@@ -20,6 +20,34 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
    }
 }
 
+__device__ void calc_xvort(datagrid grid, float *warr, float *varr, float *xvort, int *idx_4D, int MX, int MY, int MZ) {
+    int i = idx_4D[0];
+    int j = idx_4D[1];
+    int k = idx_4D[2];
+    int t = idx_4D[3];
+
+    float dz = grid.zh[k+1] - grid.zh[k];
+    float dy = grid.yh[j+1] - grid.yh[j];
+    float dw = warr[arrayIndex(i, j+1, k, t, MX, MY, MZ)] - warr[arrayIndex(i, j, k, t, MX, MY, MZ)];
+    float dv = varr[arrayIndex(i, j, k+1, t, MX, MY, MZ)] - varr[arrayIndex(i, j, k, t, MX, MY, MZ)];
+    xvort[arrayIndex(i, j, k, t, MX, MY, MZ)] = ( dw / dy ) - ( dv / dz);
+
+}
+
+__device__ void calc_yvort(datagrid grid, float *uarr, float *warr, float *yvort, int *idx_4D, int MX, int MY, int MZ) {
+    int i = idx_4D[0];
+    int j = idx_4D[1];
+    int k = idx_4D[2];
+    int t = idx_4D[3];
+
+    float dz = grid.zh[k+1] - grid.zh[k];
+    float dx = grid.xh[j+1] - grid.xh[j];
+    float dw = warr[arrayIndex(i+1, j, k, t, MX, MY, MZ)] - warr[arrayIndex(i, j, k, t, MX, MY, MZ)];
+    float du = uarr[arrayIndex(i, j, k+1, t, MX, MY, MZ)] - uarr[arrayIndex(i, j, k, t, MX, MY, MZ)];
+    yvort[arrayIndex(i, j, k, t, MX, MY, MZ)] = ( du / dz ) - ( dw / dx);
+
+}
+
 __device__ void calc_zvort(datagrid grid, float *uarr, float *varr, float *zvort, int *idx_4D, int MX, int MY, int MZ) {
     int i = idx_4D[0];
     int j = idx_4D[1];
@@ -38,13 +66,21 @@ __device__ void calc_zvort(datagrid grid, float *uarr, float *varr, float *zvort
 of the neighbors to get the point onto the scalar grid. Calcvort does
 the initial pass, and then this gets called at the end to make sure that
 the averaging happens */
-__global__ void doAvg(float *zvort, int MX, int MY, int MZ, int tStart, int tEnd, int totTime) {
+__global__ void doAvg(float *xvort, float *yvort, float *zvort, int MX, int MY, int MZ, int tStart, int tEnd, int totTime) {
     int i = blockIdx.x*blockDim.x + threadIdx.x;
     int j = blockIdx.y*blockDim.y + threadIdx.y;
     int k = blockIdx.z*blockDim.z + threadIdx.z;
 
     if ((i < MX) && (j < MY) && (k < MZ)) { 
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            xvort[arrayIndex(i, j, k, tidx, MX, MY, MZ)] = 0.25*(xvort[arrayIndex(i, j, k, tidx, MX, MY, MZ)] + \
+                xvort[arrayIndex(i, j+1, k, tidx, MX, MY, MZ)] + xvort[arrayIndex(i, j, k+1, tidx, MX, MY, MZ)] + \
+                xvort[arrayIndex(i, j+1, k+1, tidx, MX, MY, MZ)]);
+
+            yvort[arrayIndex(i, j, k, tidx, MX, MY, MZ)] = 0.25*(yvort[arrayIndex(i, j, k, tidx, MX, MY, MZ)] + \
+                yvort[arrayIndex(i+1, j, k, tidx, MX, MY, MZ)] + yvort[arrayIndex(i, j, k+1, tidx, MX, MY, MZ)] + \
+                yvort[arrayIndex(i+1, j, k+1, tidx, MX, MY, MZ)]);
+
             zvort[arrayIndex(i, j, k, tidx, MX, MY, MZ)] = 0.25*(zvort[arrayIndex(i, j, k, tidx, MX, MY, MZ)] + \
                 zvort[arrayIndex(i+1, j, k, tidx, MX, MY, MZ)] + zvort[arrayIndex(i, j+1, k, tidx, MX, MY, MZ)] + \
                 zvort[arrayIndex(i+1, j+1, k, tidx, MX, MY, MZ)]);
@@ -57,7 +93,7 @@ __global__ void doAvg(float *zvort, int MX, int MY, int MZ, int tStart, int tEnd
     instead of doing it locally for each parcel, as it would scale poorly for large 
     numbers of parcels. */
 __global__ void calcvort(datagrid grid, float *u_time_chunk, float *v_time_chunk, float *w_time_chunk, \
-                        float *zvort, \
+                        float *xvort, float *yvort, float *zvort, \
                         int MX, int MY, int MZ, int tStart, int tEnd, int totTime) {
 
     // get our 3D index based on our blocks/threads
@@ -73,8 +109,8 @@ __global__ void calcvort(datagrid grid, float *u_time_chunk, float *v_time_chunk
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
-            //calc_xvort(grid, u_time_chunk, v_time_chunk, w_time_chunk, xvort, MX, MY, MZ);
-            //calc_yvort(grid, u_time_chunk, v_time_chunk, w_time_chunk, yvort, MX, MY, MZ);
+            calc_xvort(grid, w_time_chunk, v_time_chunk, xvort, idx_4D, MX, MY, MZ);
+            calc_yvort(grid, u_time_chunk, w_time_chunk, yvort, idx_4D, MX, MY, MZ);
             // calculate the Z component of vorticity
             //printf("%i, %i, %i, %i, %i, %i, %i\n", i, j, k, tidx, MX, MY, MZ);
             calc_zvort(grid, u_time_chunk, v_time_chunk, zvort, idx_4D, MX, MY, MZ);
@@ -152,7 +188,7 @@ updating the position vectors with the new stuff*/
 void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk, float *v_time_chunk, float *w_time_chunk, int MX, int MY, int MZ, int nT, int totTime) {
     // pointers to device memory
     float *device_u_time_chunk, *device_v_time_chunk, *device_w_time_chunk;
-    float *device_zvort_time_chunk;
+    float *device_xvort_time_chunk, *device_yvort_time_chunk, *device_zvort_time_chunk;
 
     parcel_pos device_parcels;
     datagrid device_grid;
@@ -184,6 +220,8 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     gpuErrchk( cudaMalloc(&device_w_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
 
     //vorticity device arrays we have to calculate
+    gpuErrchk( cudaMalloc(&device_xvort_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
+    gpuErrchk( cudaMalloc(&device_yvort_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
     gpuErrchk( cudaMalloc(&device_zvort_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
     // allocate device memory for our parcel positions
     gpuErrchk( cudaMalloc(&(device_parcels.xpos), parcels.nParcels * totTime * sizeof(float)) );
@@ -214,9 +252,9 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     dim3 threadsPerBlock(8, 8, 8);
     dim3 numBlocks((MX/threadsPerBlock.x)+1, (MY/threadsPerBlock.y)+1, (MZ/threadsPerBlock.z)+1); 
     cout << "Calculating vorticity" << endl;
-    calcvort<<<numBlocks, threadsPerBlock>>>(device_grid, device_u_time_chunk, device_v_time_chunk, device_w_time_chunk, device_zvort_time_chunk, MX, MY, MZ, tStart, tEnd, totTime);
+    calcvort<<<numBlocks, threadsPerBlock>>>(device_grid, device_u_time_chunk, device_v_time_chunk, device_w_time_chunk, device_xvort_time_chunk, device_yvort_time_chunk, device_zvort_time_chunk, MX, MY, MZ, tStart, tEnd, totTime);
     gpuErrchk( cudaDeviceSynchronize() );
-    doAvg<<<numBlocks, threadsPerBlock>>>(device_zvort_time_chunk, MX, MY, MZ, tStart, tEnd, totTime);
+    doAvg<<<numBlocks, threadsPerBlock>>>(device_xvort_time_chunk, device_yvort_time_chunk, device_zvort_time_chunk, MX, MY, MZ, tStart, tEnd, totTime);
     gpuErrchk( cudaDeviceSynchronize() );
     cout << "End vorticity calc" << endl;
     test<<<parcels.nParcels,1>>>(device_grid, device_parcels, device_u_time_chunk, device_v_time_chunk, device_w_time_chunk, MX, MY, MZ, tStart, tEnd, totTime);
