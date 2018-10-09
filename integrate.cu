@@ -38,16 +38,16 @@ __device__ void calc_zvort(datagrid grid, float *uarr, float *varr, float *zvort
 of the neighbors to get the point onto the scalar grid. Calcvort does
 the initial pass, and then this gets called at the end to make sure that
 the averaging happens */
-__global__ void _doAvg(float *arr, int MX, int MY, int MZ, int tStart, int tEnd, int totTime) {
+__global__ void doAvg(float *zvort, int MX, int MY, int MZ, int tStart, int tEnd, int totTime) {
     int i = blockIdx.x*blockDim.x + threadIdx.x;
     int j = blockIdx.y*blockDim.y + threadIdx.y;
     int k = blockIdx.z*blockDim.z + threadIdx.z;
 
     if ((i < MX) && (j < MY) && (k < MZ)) { 
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            arr[arrayIndex(i, j, k, tidx, MX, MY, MZ)] = 0.25*(arr[arrayIndex(i, j, k, tidx, MX, MY, MZ)] + \
-                arr[arrayIndex(i+1, j, k, tidx, MX, MY, MZ)] + arr[arrayIndex(i, j+1, k, tidx, MX, MY, MZ)] + \
-                arr[arrayIndex(i+1, j+1, k, tidx, MX, MY, MZ)]);
+            zvort[arrayIndex(i, j, k, tidx, MX, MY, MZ)] = 0.25*(zvort[arrayIndex(i, j, k, tidx, MX, MY, MZ)] + \
+                zvort[arrayIndex(i+1, j, k, tidx, MX, MY, MZ)] + zvort[arrayIndex(i, j+1, k, tidx, MX, MY, MZ)] + \
+                zvort[arrayIndex(i+1, j+1, k, tidx, MX, MY, MZ)]);
         }
     }
 }
@@ -216,7 +216,7 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     cout << "Calculating vorticity" << endl;
     calcvort<<<numBlocks, threadsPerBlock>>>(device_grid, device_u_time_chunk, device_v_time_chunk, device_w_time_chunk, device_zvort_time_chunk, MX, MY, MZ, tStart, tEnd, totTime);
     gpuErrchk( cudaDeviceSynchronize() );
-    _doAvg<<<numBlocks, threadsPerBlock>>>(device_zvort_time_chunk, MX, MY, MZ, tStart, tEnd, totTime);
+    doAvg<<<numBlocks, threadsPerBlock>>>(device_zvort_time_chunk, MX, MY, MZ, tStart, tEnd, totTime);
     gpuErrchk( cudaDeviceSynchronize() );
     cout << "End vorticity calc" << endl;
     test<<<parcels.nParcels,1>>>(device_grid, device_parcels, device_u_time_chunk, device_v_time_chunk, device_w_time_chunk, MX, MY, MZ, tStart, tEnd, totTime);
