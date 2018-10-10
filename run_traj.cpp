@@ -348,6 +348,9 @@ void seed_parcels(parcel_pos *parcels, float X0, float Y0, float Z0, int NX, int
     parcels->pclu = new float[nParcels * nTotTimes];
     parcels->pclv = new float[nParcels * nTotTimes];
     parcels->pclw = new float[nParcels * nTotTimes];
+    parcels->pclxvort = new float[nParcels * nTotTimes];
+    parcels->pclyvort = new float[nParcels * nTotTimes];
+    parcels->pclzvort = new float[nParcels * nTotTimes];
     parcels->nParcels = nParcels;
     parcels->nTimes = nTotTimes;
     cout << X0 << " " << Y0 << " " << Z0 << endl;
@@ -598,26 +601,9 @@ int main(int argc, char **argv ) {
                 parcels.pclu[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
                 parcels.pclv[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
                 parcels.pclw[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                for (int t = 1; t < parcels.nTimes; ++t) {
-                    parcels.xpos[P2(t, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                    parcels.ypos[P2(t, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                    parcels.zpos[P2(t, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                    parcels.pclu[P2(t, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                    parcels.pclv[P2(t, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                    parcels.pclw[P2(t, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                }
             }
 
-            // communicate our reset parcel arrays to the other ranks.
-            // Each rank needs to know where the parcels currently are
-            // so that they properly request the same domain subset. 
-            for (int r = 1; r < size; ++r) {
-                 MPI_Send(parcels.xpos, nParcels*nTotTimes, MPI_FLOAT, r, 0, MPI_COMM_WORLD);
-                 MPI_Send(parcels.ypos, nParcels*nTotTimes, MPI_FLOAT, r, 1, MPI_COMM_WORLD);
-                 MPI_Send(parcels.zpos, nParcels*nTotTimes, MPI_FLOAT, r, 2, MPI_COMM_WORLD);
-             }
-
-            // memory management
+            // memory management for root rank
             delete[] requested_grid.xf;
             delete[] requested_grid.yf;
             delete[] requested_grid.zf;
@@ -638,14 +624,6 @@ int main(int argc, char **argv ) {
         // house keeping for the non-master
         // MPI ranks
         else {
-            // receive the updated parcel arrays
-            // so that we can do proper subseting. This happens
-            // after integration is complete from CUDA.
-            MPI_Status status;
-            MPI_Recv(parcels.xpos, parcels.nParcels*nTotTimes, MPI_FLOAT, 0, 0, MPI_COMM_WORLD, &status);
-            MPI_Recv(parcels.ypos, parcels.nParcels*nTotTimes, MPI_FLOAT, 0, 1, MPI_COMM_WORLD, &status);
-            MPI_Recv(parcels.zpos, parcels.nParcels*nTotTimes, MPI_FLOAT, 0, 2, MPI_COMM_WORLD, &status);
-
             // memory management
             delete[] requested_grid.xf;
             delete[] requested_grid.yf;
@@ -659,6 +637,13 @@ int main(int argc, char **argv ) {
             delete[] vbuf;
             delete[] wbuf;
         }
+        // receive the updated parcel arrays
+        // so that we can do proper subseting. This happens
+        // after integration is complete from CUDA.
+        MPI_Status status;
+        MPI_Bcast(parcels.xpos, parcels.nParcels*nTotTimes, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        MPI_Bcast(parcels.ypos, parcels.nParcels*nTotTimes, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        MPI_Bcast(parcels.zpos, parcels.nParcels*nTotTimes, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
     }
 
