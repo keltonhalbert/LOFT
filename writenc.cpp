@@ -30,6 +30,10 @@ void init_nc(string filename, parcel_pos *parcels) {
     NcVar vVar = output.addVar("pcl_v", ncFloat, gridDimVector);
     NcVar wVar = output.addVar("pcl_w", ncFloat, gridDimVector);
 
+    NcVar xvortVar = output.addVar("pcl_xvort", ncFloat, gridDimVector);
+    NcVar yvortVar = output.addVar("pcl_yvort", ncFloat, gridDimVector);
+    NcVar zvortVar = output.addVar("pcl_zvort", ncFloat, gridDimVector);
+
     // Define the units attributes for coordinate vars. This
     // attatches a test attribute to each of the coordinate 
     // cariables containing the units
@@ -40,6 +44,10 @@ void init_nc(string filename, parcel_pos *parcels) {
     uVar.putAtt("units", "meters / second");
     vVar.putAtt("units", "meters / second");
     wVar.putAtt("units", "meters / second");
+
+    xvortVar.putAtt("units", "s^-1");
+    yvortVar.putAtt("units", "s^-1");
+    zvortVar.putAtt("units", "s^-1");
 }
  
 void write_parcels(string filename, parcel_pos *parcels, int writeIters ) { 
@@ -52,6 +60,10 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
     NcVar uVar = output.getVar("pcl_u");
     NcVar vVar = output.getVar("pcl_v");
     NcVar wVar = output.getVar("pcl_w");
+
+    NcVar xvortVar = output.getVar("pcl_xvort");
+    NcVar yvortVar = output.getVar("pcl_yvort");
+    NcVar zvortVar = output.getVar("pcl_zvort");
 
     vector<size_t> startp,countp;
     startp.push_back(0);
@@ -68,6 +80,10 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
     uVar.putVar(startp,countp,parcels->pclu);
     vVar.putVar(startp,countp,parcels->pclv);
     wVar.putVar(startp,countp,parcels->pclw);
+
+    xvortVar.putVar(startp,countp,parcels->pclxvort);
+    yvortVar.putVar(startp,countp,parcels->pclyvort);
+    zvortVar.putVar(startp,countp,parcels->pclzvort);
     cout << "*** SUCCESS writing file " << filename << "!" << endl;
     return;
 }
