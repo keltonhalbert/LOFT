@@ -41,7 +41,7 @@ __device__ void calc_yvort(datagrid grid, float *uarr, float *warr, float *yvort
     int t = idx_4D[3];
 
     float dz = grid.zh[k+1] - grid.zh[k];
-    float dx = grid.xh[j+1] - grid.xh[j];
+    float dx = grid.xh[i+1] - grid.xh[i];
     float dw = warr[arrayIndex(i+1, j, k, t, MX, MY, MZ)] - warr[arrayIndex(i, j, k, t, MX, MY, MZ)];
     float du = uarr[arrayIndex(i, j, k+1, t, MX, MY, MZ)] - uarr[arrayIndex(i, j, k, t, MX, MY, MZ)];
     yvort[arrayIndex(i, j, k, t, MX, MY, MZ)] = ( du / dz ) - ( dw / dx);
@@ -60,6 +60,21 @@ __device__ void calc_zvort(datagrid grid, float *uarr, float *varr, float *zvort
     float du = uarr[arrayIndex(i, j+1, k, t, MX, MY, MZ)] - uarr[arrayIndex(i, j, k, t, MX, MY, MZ)];
     zvort[arrayIndex(i, j, k, t, MX, MY, MZ)] = ( dv / dx ) - ( du / dy);
     //printf("%f, %i, %i, %i, %i\n", zvort[arrayIndex(i, j, k, t, MX, MY, MZ)], i, j, k, t);
+}
+
+/* a kernel that applies the lower boundary conditions for
+   xvort and yvort*/
+__global__ void applyBCs(float *xvort, float *yvort, int MX, int MY, int MZ, int tStart, int tEnd, int totTime) { 
+    int i = blockIdx.x*blockDim.x + threadIdx.x;
+    int j = blockIdx.y*blockDim.y + threadIdx.y;
+    int k = blockIdx.z*blockDim.z + threadIdx.z;
+
+    if ((i < MX) && (j < MY) && (k == 0)) { 
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            xvort[arrayIndex(i, j, 0, tidx, MX, MY, MZ)] = xvort[arrayIndex(i, j, 1, tidx, MX, MY, MZ)];
+            yvort[arrayIndex(i, j, 0, tidx, MX, MY, MZ)] = yvort[arrayIndex(i, j, 1, tidx, MX, MY, MZ)];
+        }
+    }
 }
 
 /* For the vorticity calculations, you have to do a 4 point average
@@ -109,8 +124,8 @@ __global__ void calcvort(datagrid grid, float *u_time_chunk, float *v_time_chunk
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
-            calc_xvort(grid, w_time_chunk, v_time_chunk, xvort, idx_4D, MX, MY, MZ);
-            calc_yvort(grid, u_time_chunk, w_time_chunk, yvort, idx_4D, MX, MY, MZ);
+            //calc_xvort(grid, w_time_chunk, v_time_chunk, xvort, idx_4D, MX, MY, MZ);
+            //calc_yvort(grid, u_time_chunk, w_time_chunk, yvort, idx_4D, MX, MY, MZ);
             // calculate the Z component of vorticity
             //printf("%i, %i, %i, %i, %i, %i, %i\n", i, j, k, tidx, MX, MY, MZ);
             calc_zvort(grid, u_time_chunk, v_time_chunk, zvort, idx_4D, MX, MY, MZ);
@@ -253,6 +268,8 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     dim3 numBlocks((MX/threadsPerBlock.x)+1, (MY/threadsPerBlock.y)+1, (MZ/threadsPerBlock.z)+1); 
     cout << "Calculating vorticity" << endl;
     calcvort<<<numBlocks, threadsPerBlock>>>(device_grid, device_u_time_chunk, device_v_time_chunk, device_w_time_chunk, device_xvort_time_chunk, device_yvort_time_chunk, device_zvort_time_chunk, MX, MY, MZ, tStart, tEnd, totTime);
+    gpuErrchk( cudaDeviceSynchronize() );
+    applyBCs<<<numBlocks, threadsPerBlock>>>(device_xvort_time_chunk, device_yvort_time_chunk, MX, MY, MZ, tStart, tEnd, totTime);
     gpuErrchk( cudaDeviceSynchronize() );
     doAvg<<<numBlocks, threadsPerBlock>>>(device_xvort_time_chunk, device_yvort_time_chunk, device_zvort_time_chunk, MX, MY, MZ, tStart, tEnd, totTime);
     gpuErrchk( cudaDeviceSynchronize() );
