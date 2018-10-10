@@ -171,14 +171,24 @@ __host__ __device__ void _calc_weights(datagrid grid, float *weights, \
 
 	}
 
-	// data on scalar grid
-    /*
-	else {
+    // data is on scalar grid
+    else {
+        if (x_pt < grid.xh[idx_4D[0]]) {
+            idx_4D[0] = idx_4D[0] - 1;
+        }
+        if (y_pt < grid.yh[idx_4D[1]]) {
+            idx_4D[1] = idx_4D[1] - 1;
+        }
+        if (z_pt < grid.zh[idx_4D[2]]) {
+            idx_4D[2] = idx_4D[2] - 1;
+        }
+        if (idx_4D[2] < 0) idx_4D[2] = 0; 
+        i = idx_4D[0]; j = idx_4D[1]; k = idx_4D[2];
+    
 		rx = (x_pt - grid.xh[i]) / (grid.xh[i+1] - grid.xh[i]); 
 		ry = (y_pt - grid.yh[j]) / (grid.yh[j+1] - grid.yh[j]); 
 		rz = (z_pt - grid.zh[k]) / (grid.zh[k+1] - grid.zh[k]); 
-	}
-    */
+    }
 
 	// calculate the weights
     w1 = (1.0 - rx) * (1.0 - ry) * (1.0 - rz);
