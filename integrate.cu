@@ -284,6 +284,8 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     cudaFree(device_u_time_chunk);
     cudaFree(device_v_time_chunk);
     cudaFree(device_w_time_chunk);
+    cudaFree(device_xvort_time_chunk);
+    cudaFree(device_yvort_time_chunk);
     cudaFree(device_zvort_time_chunk);
 
     gpuErrchk( cudaDeviceSynchronize() );
