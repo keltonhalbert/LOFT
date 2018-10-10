@@ -136,7 +136,9 @@ __global__ void calcvort(datagrid grid, float *u_time_chunk, float *v_time_chunk
 }
 
 __global__ void test(datagrid grid, parcel_pos parcels, float *u_time_chunk, float *v_time_chunk, float *w_time_chunk, \
+                    float *xvort_time_chunk, float *yvort_time_chunk, float *zvort_time_chunk, \
                     int MX, int MY, int MZ, int tStart, int tEnd, int totTime) {
+
 	int parcel_id = blockIdx.x;
     // safety check to make sure our thread index doesn't
     // go out of our array bounds
@@ -146,6 +148,7 @@ __global__ void test(datagrid grid, parcel_pos parcels, float *u_time_chunk, flo
         bool is_wgrd = false;
 
         float pcl_u, pcl_v, pcl_w;
+        float pcl_xvort, pcl_yvort, pcl_zvort;
         float point[3];
 
         // loop over the number of time steps we are
@@ -171,6 +174,15 @@ __global__ void test(datagrid grid, parcel_pos parcels, float *u_time_chunk, flo
             is_wgrd = true;
             pcl_w = interp3D(grid, w_time_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx, MX, MY, MZ);
 
+            // get the vorticity components
+            is_ugrd = false;
+            is_vgrd = false;
+            is_wgrd = false;
+            pcl_xvort = interp3D(grid, xvort_time_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx, MX, MY, MZ);
+            pcl_yvort = interp3D(grid, yvort_time_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx, MX, MY, MZ);
+            pcl_zvort = interp3D(grid, zvort_time_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx, MX, MY, MZ);
+
+
 
             // integrate X position forward by the U wind
             point[0] += pcl_u * (1.0f/6.0f);
@@ -193,6 +205,10 @@ __global__ void test(datagrid grid, parcel_pos parcels, float *u_time_chunk, flo
             parcels.pclu[P2(tidx, parcel_id, totTime)] = pcl_u;
             parcels.pclv[P2(tidx, parcel_id, totTime)] = pcl_v;
             parcels.pclw[P2(tidx, parcel_id, totTime)] = pcl_w;
+
+            parcels.pclxvort[P2(tidx, parcel_id, totTime)] = pcl_xvort;
+            parcels.pclyvort[P2(tidx, parcel_id, totTime)] = pcl_yvort;
+            parcels.pclzvort[P2(tidx, parcel_id, totTime)] = pcl_zvort;
         }
     }
 }
@@ -245,6 +261,9 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     gpuErrchk( cudaMalloc(&(device_parcels.pclu), parcels.nParcels * totTime * sizeof(float)) );
     gpuErrchk( cudaMalloc(&(device_parcels.pclv), parcels.nParcels * totTime * sizeof(float)) );
     gpuErrchk( cudaMalloc(&(device_parcels.pclw), parcels.nParcels * totTime * sizeof(float)) );
+    gpuErrchk( cudaMalloc(&(device_parcels.pclxvort), parcels.nParcels * totTime * sizeof(float)) );
+    gpuErrchk( cudaMalloc(&(device_parcels.pclyvort), parcels.nParcels * totTime * sizeof(float)) );
+    gpuErrchk( cudaMalloc(&(device_parcels.pclzvort), parcels.nParcels * totTime * sizeof(float)) );
 
     // copy the arrays to device memory
     gpuErrchk( cudaMemcpy(device_u_time_chunk, u_time_chunk, MX*MY*MZ*nT*sizeof(float), cudaMemcpyHostToDevice) );
@@ -267,14 +286,18 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     dim3 threadsPerBlock(8, 8, 8);
     dim3 numBlocks((MX/threadsPerBlock.x)+1, (MY/threadsPerBlock.y)+1, (MZ/threadsPerBlock.z)+1); 
     cout << "Calculating vorticity" << endl;
-    calcvort<<<numBlocks, threadsPerBlock>>>(device_grid, device_u_time_chunk, device_v_time_chunk, device_w_time_chunk, device_xvort_time_chunk, device_yvort_time_chunk, device_zvort_time_chunk, MX, MY, MZ, tStart, tEnd, totTime);
+    calcvort<<<numBlocks, threadsPerBlock>>>(device_grid, device_u_time_chunk, device_v_time_chunk, device_w_time_chunk, \
+                                            device_xvort_time_chunk, device_yvort_time_chunk, device_zvort_time_chunk, \
+                                            MX, MY, MZ, tStart, tEnd, totTime);
     gpuErrchk( cudaDeviceSynchronize() );
     applyBCs<<<numBlocks, threadsPerBlock>>>(device_xvort_time_chunk, device_yvort_time_chunk, MX, MY, MZ, tStart, tEnd, totTime);
     gpuErrchk( cudaDeviceSynchronize() );
     doAvg<<<numBlocks, threadsPerBlock>>>(device_xvort_time_chunk, device_yvort_time_chunk, device_zvort_time_chunk, MX, MY, MZ, tStart, tEnd, totTime);
     gpuErrchk( cudaDeviceSynchronize() );
     cout << "End vorticity calc" << endl;
-    test<<<parcels.nParcels,1>>>(device_grid, device_parcels, device_u_time_chunk, device_v_time_chunk, device_w_time_chunk, MX, MY, MZ, tStart, tEnd, totTime);
+    test<<<parcels.nParcels,1>>>(device_grid, device_parcels, device_u_time_chunk, device_v_time_chunk, device_w_time_chunk, \
+                                device_xvort_time_chunk, device_yvort_time_chunk, device_zvort_time_chunk, \
+                                MX, MY, MZ, tStart, tEnd, totTime);
     gpuErrchk( cudaDeviceSynchronize() );
 
     gpuErrchk( cudaMemcpy(parcels.xpos, device_parcels.xpos, parcels.nParcels * totTime * sizeof(float), cudaMemcpyDeviceToHost) );
@@ -283,6 +306,9 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     gpuErrchk( cudaMemcpy(parcels.pclu, device_parcels.pclu, parcels.nParcels * totTime * sizeof(float), cudaMemcpyDeviceToHost) );
     gpuErrchk( cudaMemcpy(parcels.pclv, device_parcels.pclv, parcels.nParcels * totTime * sizeof(float), cudaMemcpyDeviceToHost) );
     gpuErrchk( cudaMemcpy(parcels.pclw, device_parcels.pclw, parcels.nParcels * totTime * sizeof(float), cudaMemcpyDeviceToHost) );
+    gpuErrchk( cudaMemcpy(parcels.pclxvort, device_parcels.pclxvort, parcels.nParcels * totTime * sizeof(float), cudaMemcpyDeviceToHost) );
+    gpuErrchk( cudaMemcpy(parcels.pclyvort, device_parcels.pclyvort, parcels.nParcels * totTime * sizeof(float), cudaMemcpyDeviceToHost) );
+    gpuErrchk( cudaMemcpy(parcels.pclzvort, device_parcels.pclzvort, parcels.nParcels * totTime * sizeof(float), cudaMemcpyDeviceToHost) );
 
     gpuErrchk( cudaDeviceSynchronize() );
 
@@ -298,6 +324,9 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     cudaFree(device_parcels.pclu);
     cudaFree(device_parcels.pclv);
     cudaFree(device_parcels.pclw);
+    cudaFree(device_parcels.pclxvort);
+    cudaFree(device_parcels.pclyvort);
+    cudaFree(device_parcels.pclzvort);
     cudaFree(device_u_time_chunk);
     cudaFree(device_v_time_chunk);
     cudaFree(device_w_time_chunk);
