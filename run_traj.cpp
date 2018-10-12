@@ -45,14 +45,14 @@ int find_nearest_index(double *arr, double val, int N) {
  * specifies the integration start time and duration.
  */
 void parse_cmdline(int argc, char **argv, \
-	char *histpath, char *base, double *time, int *nTimes, \
+	char *histpath, char *base, double *time, int *nTimes, int *direction, \
 	float *X0, float *Y0, float *Z0, int *NX, int *NY, int *NZ, \
     float *DX, float *DY, float *DZ )
 {
 	int got_histpath,got_base,got_time,got_ntimes,got_X0,got_NX,got_Y0,got_NY,got_Z0,got_NZ,got_DX,got_DY,got_DZ;
     int optcount=0;
 	enum { OPT_HISTPATH = 1000, OPT_BASE, OPT_TIME, OPT_NTIMES, OPT_X0, OPT_Y0, OPT_Z0, OPT_NX, OPT_NY, OPT_NZ, OPT_DX,
-		OPT_DY, OPT_DZ, OPT_DEBUG, OPT_XYF, OPT_YES2D, OPT_NC3, OPT_COMPRESS, OPT_NTHREADS };
+		OPT_DY, OPT_DZ, OPT_DEBUG, OPT_DIRECTION };
 	// see https://stackoverflow.com/questions/23758570/c-getopt-long-only-without-alias
 	static struct option long_options[] =
 	{
@@ -69,6 +69,7 @@ void parse_cmdline(int argc, char **argv, \
 		{"dx",       required_argument, 0, OPT_DX},
 		{"dy",       required_argument, 0, OPT_DY},
 		{"dz",       required_argument, 0, OPT_DZ},
+		{"direction",optional_argument, 0, OPT_DIRECTION},
 		{"debug",    optional_argument, 0, OPT_DEBUG},
 		{0, 0, 0, 0}//sentinel, needed!
 	};
@@ -82,7 +83,8 @@ void parse_cmdline(int argc, char **argv, \
 	if (argc == 1)
 	{
 		fprintf(stderr,
-		"Usage: %s --histpath=[histpath] --base=[base] --x0=[X0] --y0=[Y0] --z0=[Z0] --nx=[NX] --ny=[NY] --nz=[NZ] --dx=[DX] --dy=[DY] --dz=[DZ] --time=[time] --ntimes[nTimes]\n",argv[0]);
+		"Usage: %s --histpath=[histpath] --base=[base] --x0=[X0] --y0=[Y0] --z0=[Z0] --nx=[NX] --ny=[NY] --nz=[NZ] --dx=[DX] --dy=[DY] --dz=[DZ] --direction=[-1|1] --time=[time] --ntimes[nTimes]\n\
+        --direction=-1 specifies backward trajectory, forward is default\n",argv[0]);
 		exit(0);
 	}
 
@@ -172,6 +174,11 @@ void parse_cmdline(int argc, char **argv, \
 			case OPT_DEBUG:
 				debug=1;
 				optcount++;
+				break;
+			case OPT_DIRECTION:
+				*direction = atoi(optarg);
+				optcount++;
+                printf("integration direction = %i\n", *direction);
 				break;
 			case '?':
 				fprintf(stderr,"Exiting: unknown command line option.\n");
@@ -446,6 +453,8 @@ int main(int argc, char **argv ) {
     // what is our integration start point in the simulation?
     double time;
     int nTimeSteps;
+    // parcel integration direction; default is forward
+    int direct = 1;
     // variables for specifying our
     // data path and our output data 
     // path
@@ -456,7 +465,7 @@ int main(int argc, char **argv ) {
     // appropriate variables. Stole this and modified it from LOFS
     // because I'm too lazy to write my own and using a library I
     // have to link to sounds really cumbersome. 
-    parse_cmdline(argc, argv, histpath, base, &time, &nTimeSteps, &pX0, &pY0, &pZ0, &pNX, &pNY, &pNZ, &pDX, &pDY, &pDZ );
+    parse_cmdline(argc, argv, histpath, base, &time, &nTimeSteps, &direct, &pX0, &pY0, &pZ0, &pNX, &pNY, &pNZ, &pDX, &pDY, &pDZ );
 
     // convert the char arrays to strings
     // because this is C++ and we can use
@@ -571,9 +580,9 @@ int main(int argc, char **argv ) {
         if (nearest_tidx < 0) {
             cout << "Invalid time index: " << nearest_tidx << " for time " << time << ". Abort." << endl;
         }
-        printf("TIMESTEP %d/%d %d %f\n", rank, size, rank + tChunk*size, alltimes[nearest_tidx + rank + tChunk*size]);
+        printf("TIMESTEP %d/%d %d %f\n", rank, size, rank + tChunk*size, alltimes[nearest_tidx + direct*( rank + tChunk*size)]);
         // load u, v, and w into memory
-        loadVectorsFromDisk(&requested_grid, ubuf, vbuf, wbuf, alltimes[nearest_tidx + rank + tChunk*size]);
+        loadVectorsFromDisk(&requested_grid, ubuf, vbuf, wbuf, alltimes[nearest_tidx + direct*(rank + tChunk*size)]);
         
         // for MPI runs that load multiple time steps into memory,
         // communicate the data you've read into our 4D array
@@ -585,7 +594,7 @@ int main(int argc, char **argv ) {
         if (rank == 0) {
             // send to the GPU!!
             int nParcels = parcels.nParcels;
-            cudaIntegrateParcels(requested_grid, parcels, u_time_chunk, v_time_chunk, w_time_chunk, MX, MY, MZ, size, nTotTimes); 
+            cudaIntegrateParcels(requested_grid, parcels, u_time_chunk, v_time_chunk, w_time_chunk, MX, MY, MZ, size, nTotTimes, direct); 
             // write out our information to disk
             write_parcels(outfilename, &parcels, tChunk);
 

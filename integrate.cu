@@ -137,7 +137,7 @@ __global__ void calcvort(datagrid grid, float *u_time_chunk, float *v_time_chunk
 
 __global__ void test(datagrid grid, parcel_pos parcels, float *u_time_chunk, float *v_time_chunk, float *w_time_chunk, \
                     float *xvort_time_chunk, float *yvort_time_chunk, float *zvort_time_chunk, \
-                    int MX, int MY, int MZ, int tStart, int tEnd, int totTime) {
+                    int MX, int MY, int MZ, int tStart, int tEnd, int totTime, int direct) {
 
 	int parcel_id = blockIdx.x;
     // safety check to make sure our thread index doesn't
@@ -185,11 +185,11 @@ __global__ void test(datagrid grid, parcel_pos parcels, float *u_time_chunk, flo
 
 
             // integrate X position forward by the U wind
-            point[0] += pcl_u * (1.0f/6.0f);
+            point[0] += pcl_u * (1.0f/6.0f) * direct;
             // integrate Y position forward by the V wind
-            point[1] += pcl_v * (1.0f/6.0f);
+            point[1] += pcl_v * (1.0f/6.0f) * direct;
             // integrate Z position forward by the W wind
-            point[2] += pcl_w * (1.0f/6.0f);
+            point[2] += pcl_w * (1.0f/6.0f) * direct;
             if ((pcl_u == -999.0) || (pcl_v == -999.0) || (pcl_w == -999.0)) {
                 printf("Warning: missing values detected at x: %f y:%f z:%f with ground bounds X0: %f Y0: %f Z0: %f X1: %f Y1: %f Z1: %f\n", \
                     point[0], point[1], point[2], grid.xh[0], grid.yh[0], grid.zh[0], grid.xh[grid.NX-1], grid.yh[grid.NY-1], grid.zh[grid.NZ-1]);
@@ -216,7 +216,7 @@ __global__ void test(datagrid grid, parcel_pos parcels, float *u_time_chunk, flo
 /*This function handles allocating memory on the GPU, transferring the CPU
 arrays to GPU global memory, calling the integrate GPU kernel, and then
 updating the position vectors with the new stuff*/
-void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk, float *v_time_chunk, float *w_time_chunk, int MX, int MY, int MZ, int nT, int totTime) {
+void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk, float *v_time_chunk, float *w_time_chunk, int MX, int MY, int MZ, int nT, int totTime, int direct) {
     // pointers to device memory
     float *device_u_time_chunk, *device_v_time_chunk, *device_w_time_chunk;
     float *device_xvort_time_chunk, *device_yvort_time_chunk, *device_zvort_time_chunk;
@@ -297,7 +297,7 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     cout << "End vorticity calc" << endl;
     test<<<parcels.nParcels,1>>>(device_grid, device_parcels, device_u_time_chunk, device_v_time_chunk, device_w_time_chunk, \
                                 device_xvort_time_chunk, device_yvort_time_chunk, device_zvort_time_chunk, \
-                                MX, MY, MZ, tStart, tEnd, totTime);
+                                MX, MY, MZ, tStart, tEnd, totTime, direct);
     gpuErrchk( cudaDeviceSynchronize() );
 
     gpuErrchk( cudaMemcpy(parcels.xpos, device_parcels.xpos, parcels.nParcels * totTime * sizeof(float), cudaMemcpyDeviceToHost) );
