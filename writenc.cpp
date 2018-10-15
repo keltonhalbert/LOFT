@@ -22,17 +22,23 @@ void init_nc(string filename, parcel_pos *parcels) {
     vector<NcDim> gridDimVector;
     gridDimVector.push_back(pclDim);
     gridDimVector.push_back(timeDim);
-    NcVar xVar = output.addVar("parcel_x_pos", ncFloat, gridDimVector);
-    NcVar yVar = output.addVar("parcel_y_pos", ncFloat, gridDimVector);
-    NcVar zVar = output.addVar("parcel_z_pos", ncFloat, gridDimVector);
+    NcVar xVar = output.addVar("xpos", ncFloat, gridDimVector);
+    NcVar yVar = output.addVar("ypos", ncFloat, gridDimVector);
+    NcVar zVar = output.addVar("zpos", ncFloat, gridDimVector);
 
-    NcVar uVar = output.addVar("pcl_u", ncFloat, gridDimVector);
-    NcVar vVar = output.addVar("pcl_v", ncFloat, gridDimVector);
-    NcVar wVar = output.addVar("pcl_w", ncFloat, gridDimVector);
+    NcVar uVar = output.addVar("u", ncFloat, gridDimVector);
+    NcVar vVar = output.addVar("v", ncFloat, gridDimVector);
+    NcVar wVar = output.addVar("w", ncFloat, gridDimVector);
 
-    NcVar xvortVar = output.addVar("pcl_xvort", ncFloat, gridDimVector);
-    NcVar yvortVar = output.addVar("pcl_yvort", ncFloat, gridDimVector);
-    NcVar zvortVar = output.addVar("pcl_zvort", ncFloat, gridDimVector);
+    NcVar xvortVar = output.addVar("xvort", ncFloat, gridDimVector);
+    NcVar yvortVar = output.addVar("yvort", ncFloat, gridDimVector);
+    NcVar zvortVar = output.addVar("zvort", ncFloat, gridDimVector);
+    NcVar xvorttiltVar = output.addVar("xvorttilt", ncFloat, gridDimVector);
+    NcVar yvorttiltVar = output.addVar("yvorttilt", ncFloat, gridDimVector);
+    NcVar zvorttiltVar = output.addVar("zvorttilt", ncFloat, gridDimVector);
+    NcVar xvortstretchVar = output.addVar("xvortstretch", ncFloat, gridDimVector);
+    NcVar yvortstretchVar = output.addVar("yvortstretch", ncFloat, gridDimVector);
+    NcVar zvortstretchVar = output.addVar("zvortstretch", ncFloat, gridDimVector);
 
     // Define the units attributes for coordinate vars. This
     // attatches a test attribute to each of the coordinate 
@@ -48,22 +54,34 @@ void init_nc(string filename, parcel_pos *parcels) {
     xvortVar.putAtt("units", "s^-1");
     yvortVar.putAtt("units", "s^-1");
     zvortVar.putAtt("units", "s^-1");
+    xvorttiltVar.putAtt("units", "s^-2");
+    yvorttiltVar.putAtt("units", "s^-2");
+    zvorttiltVar.putAtt("units", "s^-2");
+    xvortstretchVar.putAtt("units", "s^-2");
+    yvortstretchVar.putAtt("units", "s^-2");
+    zvortstretchVar.putAtt("units", "s^-2");
 }
  
 void write_parcels(string filename, parcel_pos *parcels, int writeIters ) { 
     NcFile output(filename, NcFile::write);
 
-    NcVar xVar = output.getVar("parcel_x_pos");
-    NcVar yVar = output.getVar("parcel_y_pos");
-    NcVar zVar = output.getVar("parcel_z_pos");
+    NcVar xVar = output.getVar("xpos");
+    NcVar yVar = output.getVar("ypos");
+    NcVar zVar = output.getVar("zpos");
 
-    NcVar uVar = output.getVar("pcl_u");
-    NcVar vVar = output.getVar("pcl_v");
-    NcVar wVar = output.getVar("pcl_w");
+    NcVar uVar = output.getVar("u");
+    NcVar vVar = output.getVar("v");
+    NcVar wVar = output.getVar("w");
 
-    NcVar xvortVar = output.getVar("pcl_xvort");
-    NcVar yvortVar = output.getVar("pcl_yvort");
-    NcVar zvortVar = output.getVar("pcl_zvort");
+    NcVar xvortVar = output.getVar("xvort");
+    NcVar yvortVar = output.getVar("yvort");
+    NcVar zvortVar = output.getVar("zvort");
+    NcVar xvorttiltVar = output.getVar("xvorttilt");
+    NcVar yvorttiltVar = output.getVar("yvorttilt");
+    NcVar zvorttiltVar = output.getVar("zvorttilt");
+    NcVar xvortstretchVar = output.getVar("xvortstretch");
+    NcVar yvortstretchVar = output.getVar("yvortstretch");
+    NcVar zvortstretchVar = output.getVar("zvortstretch");
 
     vector<size_t> startp,countp;
     startp.push_back(0);
@@ -84,6 +102,12 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
     xvortVar.putVar(startp,countp,parcels->pclxvort);
     yvortVar.putVar(startp,countp,parcels->pclyvort);
     zvortVar.putVar(startp,countp,parcels->pclzvort);
+    xvorttiltVar.putVar(startp,countp,parcels->pclxvorttilt);
+    yvorttiltVar.putVar(startp,countp,parcels->pclyvorttilt);
+    zvorttiltVar.putVar(startp,countp,parcels->pclzvorttilt);
+    xvortstretchVar.putVar(startp,countp,parcels->pclxvortstretch);
+    yvortstretchVar.putVar(startp,countp,parcels->pclyvortstretch);
+    zvortstretchVar.putVar(startp,countp,parcels->pclzvortstretch);
     cout << "*** SUCCESS writing file " << filename << "!" << endl;
     return;
 }

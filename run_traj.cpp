@@ -358,6 +358,12 @@ void seed_parcels(parcel_pos *parcels, float X0, float Y0, float Z0, int NX, int
     parcels->pclxvort = new float[nParcels * nTotTimes];
     parcels->pclyvort = new float[nParcels * nTotTimes];
     parcels->pclzvort = new float[nParcels * nTotTimes];
+    parcels->pclxvorttilt = new float[nParcels * nTotTimes];
+    parcels->pclyvorttilt = new float[nParcels * nTotTimes];
+    parcels->pclzvorttilt = new float[nParcels * nTotTimes];
+    parcels->pclxvortstretch = new float[nParcels * nTotTimes];
+    parcels->pclyvortstretch = new float[nParcels * nTotTimes];
+    parcels->pclzvortstretch = new float[nParcels * nTotTimes];
     parcels->nParcels = nParcels;
     parcels->nTimes = nTotTimes;
     cout << X0 << " " << Y0 << " " << Z0 << endl;
@@ -613,6 +619,12 @@ int main(int argc, char **argv ) {
                 parcels.pclxvort[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
                 parcels.pclyvort[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
                 parcels.pclzvort[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
+                parcels.pclxvorttilt[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
+                parcels.pclyvorttilt[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
+                parcels.pclzvorttilt[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
+                parcels.pclxvortstretch[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
+                parcels.pclyvortstretch[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
+                parcels.pclzvortstretch[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
             }
 
             // memory management for root rank
