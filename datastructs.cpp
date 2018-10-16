@@ -57,6 +57,9 @@ struct parcel_pos {
     float *pclyvortstretch;
     float *pclzvortstretch;
 
+    float *pclppert;
+    float *pclthrhoprime;
+
     int nParcels;
     int nTimes;
 };

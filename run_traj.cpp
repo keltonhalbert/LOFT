@@ -355,6 +355,8 @@ void seed_parcels(parcel_pos *parcels, float X0, float Y0, float Z0, int NX, int
     parcels->pclu = new float[nParcels * nTotTimes];
     parcels->pclv = new float[nParcels * nTotTimes];
     parcels->pclw = new float[nParcels * nTotTimes];
+    parcels->pclppert = new float[nParcels * nTotTimes];
+    parcels->pclthrhoprime = new float[nParcels * nTotTimes];
     parcels->pclxvort = new float[nParcels * nTotTimes];
     parcels->pclyvort = new float[nParcels * nTotTimes];
     parcels->pclzvort = new float[nParcels * nTotTimes];
@@ -616,6 +618,8 @@ int main(int argc, char **argv ) {
                 parcels.pclu[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
                 parcels.pclv[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
                 parcels.pclw[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
+                parcels.pclppert[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
+                parcels.pclthrhoprime[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
                 parcels.pclxvort[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
                 parcels.pclyvort[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
                 parcels.pclzvort[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;

@@ -40,6 +40,9 @@ void init_nc(string filename, parcel_pos *parcels) {
     NcVar yvortstretchVar = output.addVar("yvortstretch", ncFloat, gridDimVector);
     NcVar zvortstretchVar = output.addVar("zvortstretch", ncFloat, gridDimVector);
 
+    NcVar ppertVar = output.addVar("ppert", ncFloat, gridDimVector);
+    NcVar thrhoprime = output.addVar("thrhoprime", ncFloat, gridDimVector);
+
     // Define the units attributes for coordinate vars. This
     // attatches a test attribute to each of the coordinate 
     // cariables containing the units
@@ -60,6 +63,9 @@ void init_nc(string filename, parcel_pos *parcels) {
     xvortstretchVar.putAtt("units", "s^-2");
     yvortstretchVar.putAtt("units", "s^-2");
     zvortstretchVar.putAtt("units", "s^-2");
+
+    ppertVar.putAtt("units", "Pa");
+    thrhoprime.putAtt("units", "K");
 }
  
 void write_parcels(string filename, parcel_pos *parcels, int writeIters ) { 
@@ -72,6 +78,9 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
     NcVar uVar = output.getVar("u");
     NcVar vVar = output.getVar("v");
     NcVar wVar = output.getVar("w");
+
+    NcVar ppertVar = output.getVar("ppert");
+    NcVar thrhoprimeVar = output.getVar("thrhoprime");
 
     NcVar xvortVar = output.getVar("xvort");
     NcVar yvortVar = output.getVar("yvort");
@@ -98,6 +107,9 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
     uVar.putVar(startp,countp,parcels->pclu);
     vVar.putVar(startp,countp,parcels->pclv);
     wVar.putVar(startp,countp,parcels->pclw);
+
+    ppertVar.putVar(startp,countp,parcels->pclppert);
+    thrhoprimeVar.putVar(startp,countp,parcels->pclthrhoprime);
 
     xvortVar.putVar(startp,countp,parcels->pclxvort);
     yvortVar.putVar(startp,countp,parcels->pclyvort);
