@@ -40,8 +40,8 @@ void init_nc(string filename, parcel_pos *parcels) {
     NcVar yvortstretchVar = output.addVar("yvortstretch", ncFloat, gridDimVector);
     NcVar zvortstretchVar = output.addVar("zvortstretch", ncFloat, gridDimVector);
 
-    NcVar ppertVar = output.addVar("ppert", ncFloat, gridDimVector);
-    NcVar thrhoprime = output.addVar("thrhoprime", ncFloat, gridDimVector);
+    NcVar ppertVar = output.addVar("prespert", ncFloat, gridDimVector);
+    NcVar thrhoprime = output.addVar("thrhopert", ncFloat, gridDimVector);
 
     // Define the units attributes for coordinate vars. This
     // attatches a test attribute to each of the coordinate 
@@ -79,8 +79,8 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
     NcVar vVar = output.getVar("v");
     NcVar wVar = output.getVar("w");
 
-    NcVar ppertVar = output.getVar("ppert");
-    NcVar thrhoprimeVar = output.getVar("thrhoprime");
+    NcVar ppertVar = output.getVar("prespert");
+    NcVar thrhoprimeVar = output.getVar("thrhopert");
 
     NcVar xvortVar = output.getVar("xvort");
     NcVar yvortVar = output.getVar("yvort");

@@ -334,8 +334,8 @@ void loadVectorsFromDisk(datagrid *requested_grid, float *ubuffer, float *vbuffe
     lofs_read_3dvar(requested_grid, ubuffer, (char *)"u", t0);
     lofs_read_3dvar(requested_grid, vbuffer, (char *)"v", t0);
     lofs_read_3dvar(requested_grid, wbuffer, (char *)"w", t0);
-    lofs_read_3dvar(requested_grid, pbuffer, (char *)"ppert", t0);
-    lofs_read_3dvar(requested_grid, thbuffer, (char *)"thrhoprime", t0);
+    lofs_read_3dvar(requested_grid, pbuffer, (char *)"prespert", t0);
+    lofs_read_3dvar(requested_grid, thbuffer, (char *)"thrhopert", t0);
 }
 
 
