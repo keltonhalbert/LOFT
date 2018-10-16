@@ -327,13 +327,15 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *
 /* Read in the U, V, and W vector components from the disk, provided previously allocated memory buffers
  * and the time requested in the dataset. 
  */
-void loadVectorsFromDisk(datagrid *requested_grid, float *ubuffer, float *vbuffer, float *wbuffer, double t0) {
+void loadVectorsFromDisk(datagrid *requested_grid, float *ubuffer, float *vbuffer, float *wbuffer, float *pbuffer, float *thbuffer, double t0) {
     // request 3D field!
     // u,v, and w are on their
     // respective staggered grids
     lofs_read_3dvar(requested_grid, ubuffer, (char *)"u", t0);
     lofs_read_3dvar(requested_grid, vbuffer, (char *)"v", t0);
     lofs_read_3dvar(requested_grid, wbuffer, (char *)"w", t0);
+    lofs_read_3dvar(requested_grid, pbuffer, (char *)"ppert", t0);
+    lofs_read_3dvar(requested_grid, thbuffer, (char *)"thrhoprime", t0);
 }
 
 
@@ -564,21 +566,25 @@ int main(int argc, char **argv ) {
 
         // allocate space for U, V, and W arrays
         long bufsize = (long) (requested_grid.NX+1) * (long) (requested_grid.NY+1) * (long) (requested_grid.NZ+1) * (long) sizeof(float);
-        float *ubuf, *vbuf, *wbuf;
+        float *ubuf, *vbuf, *wbuf, *pbuf, *thbuf;
         ubuf = new float[(size_t)bufsize];
         vbuf = new float[(size_t)bufsize];
         wbuf = new float[(size_t)bufsize];
+        pbuf = new float[(size_t)bufsize];
+        thbuf = new float[(size_t)bufsize];
 
 
         // construct a 4D contiguous array to store stuff in.
         // bufsize is the size of the 3D component and size is
         // the number of MPI ranks (which is also the number of times)
         // read in
-        float *u_time_chunk, *v_time_chunk, *w_time_chunk; 
+        float *u_time_chunk, *v_time_chunk, *w_time_chunk, *p_time_chunk, *th_time_chunk; 
         if (rank == 0) {
             u_time_chunk = (float *) malloc ((size_t)bufsize*size);
             v_time_chunk = (float *) malloc ((size_t)bufsize*size);
             w_time_chunk = (float *) malloc ((size_t)bufsize*size);
+            p_time_chunk = (float *) malloc ((size_t)bufsize*size);
+            th_time_chunk = (float *) malloc ((size_t)bufsize*size);
 
         }
 
@@ -590,19 +596,21 @@ int main(int argc, char **argv ) {
         }
         printf("TIMESTEP %d/%d %d %f\n", rank, size, rank + tChunk*size, alltimes[nearest_tidx + direct*( rank + tChunk*size)]);
         // load u, v, and w into memory
-        loadVectorsFromDisk(&requested_grid, ubuf, vbuf, wbuf, alltimes[nearest_tidx + direct*(rank + tChunk*size)]);
+        loadVectorsFromDisk(&requested_grid, ubuf, vbuf, wbuf, pbuf, thbuf, alltimes[nearest_tidx + direct*(rank + tChunk*size)]);
         
         // for MPI runs that load multiple time steps into memory,
         // communicate the data you've read into our 4D array
         int senderr_u = MPI_Gather(ubuf, N, MPI_FLOAT, u_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
         int senderr_v = MPI_Gather(vbuf, N, MPI_FLOAT, v_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
         int senderr_w = MPI_Gather(wbuf, N, MPI_FLOAT, w_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_p = MPI_Gather(pbuf, N, MPI_FLOAT, p_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_th = MPI_Gather(thbuf, N, MPI_FLOAT, th_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
 
         if (rank == 0) {
             // send to the GPU!!
             int nParcels = parcels.nParcels;
-            cudaIntegrateParcels(requested_grid, parcels, u_time_chunk, v_time_chunk, w_time_chunk, MX, MY, MZ, size, nTotTimes, direct); 
+            cudaIntegrateParcels(requested_grid, parcels, u_time_chunk, v_time_chunk, w_time_chunk, p_time_chunk, th_time_chunk, MX, MY, MZ, size, nTotTimes, direct); 
             // write out our information to disk
             write_parcels(outfilename, &parcels, tChunk);
 
@@ -643,10 +651,14 @@ int main(int argc, char **argv ) {
             delete[] ubuf;
             delete[] vbuf;
             delete[] wbuf;
+            delete[] pbuf;
+            delete[] thbuf;
 
             delete[] u_time_chunk;
             delete[] v_time_chunk;
             delete[] w_time_chunk;
+            delete[] p_time_chunk;
+            delete[] th_time_chunk;
         }
 
         // house keeping for the non-master
@@ -664,6 +676,8 @@ int main(int argc, char **argv ) {
             delete[] ubuf;
             delete[] vbuf;
             delete[] wbuf;
+            delete[] pbuf;
+            delete[] thbuf;
         }
         // receive the updated parcel arrays
         // so that we can do proper subseting. This happens
