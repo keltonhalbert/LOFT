@@ -39,6 +39,8 @@ void init_nc(string filename, parcel_pos *parcels) {
     NcVar xvortstretchVar = output.addVar("xvortstretch", ncFloat, gridDimVector);
     NcVar yvortstretchVar = output.addVar("yvortstretch", ncFloat, gridDimVector);
     NcVar zvortstretchVar = output.addVar("zvortstretch", ncFloat, gridDimVector);
+    NcVar xvortbaroVar = output.addVar("xvortbaro", ncFloat, gridDimVector);
+    NcVar yvortbaroVar = output.addVar("yvortbaro", ncFloat, gridDimVector);
 
     NcVar ppertVar = output.addVar("prespert", ncFloat, gridDimVector);
     NcVar thrhoprime = output.addVar("thrhopert", ncFloat, gridDimVector);
@@ -63,6 +65,8 @@ void init_nc(string filename, parcel_pos *parcels) {
     xvortstretchVar.putAtt("units", "s^-2");
     yvortstretchVar.putAtt("units", "s^-2");
     zvortstretchVar.putAtt("units", "s^-2");
+    xvortbaroVar.putAtt("units", "s^-2");
+    yvortbaroVar.putAtt("units", "s^-2");
 
     ppertVar.putAtt("units", "Pa");
     thrhoprime.putAtt("units", "K");
@@ -91,6 +95,8 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
     NcVar xvortstretchVar = output.getVar("xvortstretch");
     NcVar yvortstretchVar = output.getVar("yvortstretch");
     NcVar zvortstretchVar = output.getVar("zvortstretch");
+    NcVar xvortbaroVar = output.getVar("xvortbaro");
+    NcVar yvortbaroVar = output.getVar("yvortbaro");
 
     vector<size_t> startp,countp;
     startp.push_back(0);
@@ -120,6 +126,8 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
     xvortstretchVar.putVar(startp,countp,parcels->pclxvortstretch);
     yvortstretchVar.putVar(startp,countp,parcels->pclyvortstretch);
     zvortstretchVar.putVar(startp,countp,parcels->pclzvortstretch);
+    xvortbaroVar.putVar(startp,countp,parcels->pclxvortbaro);
+    yvortbaroVar.putVar(startp,countp,parcels->pclyvortbaro);
     cout << "*** SUCCESS writing file " << filename << "!" << endl;
     return;
 }
