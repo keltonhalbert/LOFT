@@ -135,7 +135,7 @@ __device__ void calc_zvortstretch(datagrid grid, float *zvortstretch, float *zvo
 
     // du/dx and dv/dy end up on the scalar grid, and zvort is already averaged to the
     // scalar grid, so we're done here.
-    zvortstretch[arrayIndex(i, j, k, t, MX, MY, MZ)] = zv*( (du/dx) + (dv/dy) );
+    zvortstretch[arrayIndex(i, j, k, t, MX, MY, MZ)] = -1.*zv*( (du/dx) + (dv/dy) );
 
 }
 
@@ -154,7 +154,7 @@ __device__ void calc_yvortstretch(datagrid grid, float *yvortstretch, float *yvo
 
     // du/dx and dv/dy end up on the scalar grid, and zvort is already averaged to the
     // scalar grid, so we're done here.
-    yvortstretch[arrayIndex(i, j, k, t, MX, MY, MZ)] = yv*( (du/dx) + (dw/dz) );
+    yvortstretch[arrayIndex(i, j, k, t, MX, MY, MZ)] = -1.*yv*( (du/dx) + (dw/dz) );
 
 }
 
@@ -179,7 +179,38 @@ __device__ void calc_xvortstretch(datagrid grid, float *xvortstretch, float *xvo
 
     // du/dx and dv/dy end up on the scalar grid, and zvort is already averaged to the
     // scalar grid, so we're done here.
-    xvortstretch[arrayIndex(i, j, k, t, MX, MY, MZ)] =  xv*( (dv/dy) + (dw/dz) );
+    xvortstretch[arrayIndex(i, j, k, t, MX, MY, MZ)] =  -1.*xv*( (dv/dy) + (dw/dz) );
+
+}
+
+
+__device__ void calc_xvortbaro(datagrid grid, float *xbaro, float *thrhopert, int *idx_4D, int MX, int MY, int MZ) {
+
+	int i = idx_4D[0];
+    int j = idx_4D[1];
+    int k = idx_4D[2];
+    int t = idx_4D[3];
+
+    float reps = 461.5/287.04;
+    float coeff = 9.81 / (grid.th0[k] * (1.0 + reps*grid.qv0[k]/(1.0+grid.qv0[k])));
+    float dy = grid.yh[j+1] - grid.yh[j-1];
+
+    xbaro[arrayIndex(i, j, k, t, MX, MY, MZ)] = coeff * (thrhopert[arrayIndex(i, j+1, k, t, MX, MY, MZ)] - thrhopert[arrayIndex(i, j-1, k, t, MX, MY, MZ)]) / dy;
+
+}
+
+__device__ void calc_yvortbaro(datagrid grid, float *ybaro, float *thrhopert, int *idx_4D, int MX, int MY, int MZ) {
+
+	int i = idx_4D[0];
+    int j = idx_4D[1];
+    int k = idx_4D[2];
+    int t = idx_4D[3];
+
+    float reps = 461.5/287.04;
+    float coeff = 9.81 / (grid.th0[k] * (1.0 + reps*grid.qv0[k]/(1.0+grid.qv0[k])));
+    float dx = grid.xh[i+1] - grid.xh[i-1];
+
+    ybaro[arrayIndex(i, j, k, t, MX, MY, MZ)] = -1.*coeff * (thrhopert[arrayIndex(i+1, j, k, t, MX, MY, MZ)] - thrhopert[arrayIndex(i-1, j, k, t, MX, MY, MZ)]) / dx;
 
 }
 
@@ -289,7 +320,8 @@ and the boundary conditions have been applied to xvort and yvort. Then this shou
 __global__ void calcvorttend(datagrid grid, float *u_time_chunk, float *v_time_chunk, float *w_time_chunk, \
 							float *xvort, float *yvort, float *zvort, \
 							float *xvortstretch, float *yvortstretch, float *zvortstretch, \
-							float *xvorttilt, float *yvorttilt, float *zvorttilt,
+							float *xvorttilt, float *yvorttilt, float *zvorttilt, \
+                            float *xvortbaro, float *yvortbaro, float *thrhopert, \
 							int MX, int MY, int MZ, int tStart, int tEnd, int totTime) {
     // get our 3D index based on our blocks/threads
     int i = blockIdx.x*blockDim.x + threadIdx.x;
@@ -299,6 +331,18 @@ __global__ void calcvorttend(datagrid grid, float *u_time_chunk, float *v_time_c
     //printf("%i, %i, %i\n", i, j, k);
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
+    
+    if ((i < MX-1) && (j < MY-1) && (k < MZ-1)) {
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            idx_4D[3] = tidx;
+
+			calc_xvortstretch(grid, xvortstretch, xvort, v_time_chunk, w_time_chunk, idx_4D, MX, MY, MZ );
+			calc_yvortstretch(grid, yvortstretch, yvort, u_time_chunk, w_time_chunk, idx_4D, MX, MY, MZ );
+			calc_zvortstretch(grid, zvortstretch, zvort, u_time_chunk, v_time_chunk, idx_4D, MX, MY, MZ );
+        }
+    }
+
+    // these are centered differences and have different boundary requirements
     if ((i < MX-2) && (j < MY-2) && (k < MZ-2) && \
     	(i >= 1) && (j >= 1) && (k >=1)) { 
         if ((i+1 > MX) || (j+1 > MY) || (k+1 > MZ)) printf("i+1 or j+1 out of bounds\n");
@@ -306,13 +350,11 @@ __global__ void calcvorttend(datagrid grid, float *u_time_chunk, float *v_time_c
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
 
-			calc_xvortstretch(grid, xvortstretch, xvort, v_time_chunk, w_time_chunk, idx_4D, MX, MY, MZ );
-			calc_yvortstretch(grid, yvortstretch, yvort, u_time_chunk, w_time_chunk, idx_4D, MX, MY, MZ );
-			calc_zvortstretch(grid, zvortstretch, zvort, u_time_chunk, v_time_chunk, idx_4D, MX, MY, MZ );
-
 			calc_zvorttilt(grid, zvorttilt, xvort, yvort, w_time_chunk, idx_4D, MX, MY, MZ);
 			calc_xvorttilt(grid, xvorttilt, yvort, zvort, u_time_chunk, idx_4D, MX, MY, MZ);
 			calc_yvorttilt(grid, yvorttilt, xvort, zvort, v_time_chunk, idx_4D, MX, MY, MZ);
+            calc_xvortbaro(grid, xvortbaro, thrhopert, idx_4D, MX, MY, MZ);
+            calc_yvortbaro(grid, yvortbaro, thrhopert, idx_4D, MX, MY, MZ);
         }
     }
 }
@@ -429,6 +471,7 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     float *device_xvort_time_chunk, *device_yvort_time_chunk, *device_zvort_time_chunk;
     float *device_xvortstretch_chunk, *device_yvortstretch_chunk, *device_zvortstretch_chunk;
     float *device_xvorttilt_chunk, *device_yvorttilt_chunk, *device_zvorttilt_chunk;
+    float *device_xvortbaro_chunk, *device_yvortbaro_chunk;
 
     parcel_pos device_parcels;
     datagrid device_grid;
@@ -443,13 +486,16 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     device_grid.Y0 = grid.Y0; device_grid.Y1 = grid.Y1;
     device_grid.Z0 = grid.Z0; device_grid.Z1 = grid.Z1;
     device_grid.NX = grid.NX; device_grid.NY = grid.NY;
-    device_grid.NZ = grid.NZ; 
+    device_grid.NZ = grid.NZ; device_grid.nz = grid.nz;
     device_parcels.nParcels = parcels.nParcels;
 
     // allocate device memory for our grid arrays
     gpuErrchk( cudaMalloc(&(device_grid.xh), device_grid.NX*sizeof(float)) );
     gpuErrchk( cudaMalloc(&(device_grid.yh), device_grid.NY*sizeof(float)) );
     gpuErrchk( cudaMalloc(&(device_grid.zh), device_grid.NZ*sizeof(float)) );
+
+    gpuErrchk( cudaMalloc(&(device_grid.th0), device_grid.nz*sizeof(float)) );
+    gpuErrchk( cudaMalloc(&(device_grid.qv0), device_grid.nz*sizeof(float)) );
 
     gpuErrchk( cudaMalloc(&(device_grid.xf), device_grid.NX*sizeof(float)) );
     gpuErrchk( cudaMalloc(&(device_grid.yf), device_grid.NY*sizeof(float)) );
@@ -472,6 +518,8 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     gpuErrchk( cudaMalloc(&device_xvorttilt_chunk, MX*MY*MZ*nT*sizeof(float)) );
     gpuErrchk( cudaMalloc(&device_yvorttilt_chunk, MX*MY*MZ*nT*sizeof(float)) );
     gpuErrchk( cudaMalloc(&device_zvorttilt_chunk, MX*MY*MZ*nT*sizeof(float)) );
+    gpuErrchk( cudaMalloc(&device_xvortbaro_chunk, MX*MY*MZ*nT*sizeof(float)) );
+    gpuErrchk( cudaMalloc(&device_yvortbaro_chunk, MX*MY*MZ*nT*sizeof(float)) );
 
     // allocate device memory for our parcel positions
     gpuErrchk( cudaMalloc(&(device_parcels.xpos), parcels.nParcels * totTime * sizeof(float)) );
@@ -506,6 +554,9 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     gpuErrchk( cudaMemcpy(device_grid.xh, grid.xh, device_grid.NX*sizeof(float), cudaMemcpyHostToDevice) );
     gpuErrchk( cudaMemcpy(device_grid.yh, grid.yh, device_grid.NY*sizeof(float), cudaMemcpyHostToDevice) );
     gpuErrchk( cudaMemcpy(device_grid.zh, grid.zh, device_grid.NZ*sizeof(float), cudaMemcpyHostToDevice) );
+    
+    gpuErrchk( cudaMemcpy(device_grid.th0, grid.th0, device_grid.nz*sizeof(float), cudaMemcpyHostToDevice) );
+    gpuErrchk( cudaMemcpy(device_grid.qv0, grid.qv0, device_grid.nz*sizeof(float), cudaMemcpyHostToDevice) );
 
     gpuErrchk( cudaMemcpy(device_grid.xf, grid.xf, device_grid.NX*sizeof(float), cudaMemcpyHostToDevice) );
     gpuErrchk( cudaMemcpy(device_grid.yf, grid.yf, device_grid.NY*sizeof(float), cudaMemcpyHostToDevice) );
@@ -531,7 +582,8 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     				device_xvort_time_chunk, device_yvort_time_chunk, device_zvort_time_chunk, \
     				device_xvortstretch_chunk, device_yvortstretch_chunk, device_zvortstretch_chunk, \
     				device_xvorttilt_chunk, device_yvorttilt_chunk, device_zvorttilt_chunk, \
-    				MX, MY, MZ,tStart, tEnd, totTime);
+                    device_xvortbaro_chunk, device_yvortbaro_chunk, device_th_time_chunk, \
+    				MX, MY, MZ, tStart, tEnd, totTime);
     gpuErrchk( cudaDeviceSynchronize() );
 
     doVortTendAvg<<<numBlocks, threadsPerBlock>>>(device_xvorttilt_chunk, device_yvorttilt_chunk, device_zvorttilt_chunk, MX, MY, MZ, tStart, tEnd, totTime);
@@ -573,6 +625,8 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     cudaFree(device_grid.xf);
     cudaFree(device_grid.yf);
     cudaFree(device_grid.zf);
+    cudaFree(device_grid.th0);
+    cudaFree(device_grid.qv0);
     cudaFree(device_parcels.xpos);
     cudaFree(device_parcels.ypos);
     cudaFree(device_parcels.zpos);
@@ -604,6 +658,8 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     cudaFree(device_xvortstretch_chunk);
     cudaFree(device_yvortstretch_chunk);
 	cudaFree(device_zvortstretch_chunk);
+	cudaFree(device_xvortbaro_chunk);
+	cudaFree(device_yvortbaro_chunk);
 
 
 

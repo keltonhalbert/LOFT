@@ -110,6 +110,7 @@ void lofs_get_grid( datagrid *grid ) {
     grid->NX = NX;
     grid->NY = NY;
     grid->NZ = NZ;
+    grid->nz = nz;
 
     // open the first found HDF5 files and use it to
     // construct our grid in memory. Since it's a self-describing
@@ -139,6 +140,10 @@ void lofs_get_grid( datagrid *grid ) {
     }
     get1dfloat( f_id, (char *)"mesh/zh", zh, 0, nz );
     get1dfloat( f_id, (char *)"mesh/zf", zf, 0, nz );
+    float *qv0 = new float[nz];
+    float *th0 = new float[nz];
+    get1dfloat(f_id, (char *)"basestate/qv0", qv0, 0, nz);
+    get1dfloat(f_id, (char *)"basestate/th0", th0, 0, nz);
 
 
     // take the full grid and put it into
@@ -180,6 +185,8 @@ void lofs_get_grid( datagrid *grid ) {
     grid->yf = yfout;
     grid->zh = zhout;
     grid->zf = zfout;
+    grid->th0 = th0;
+    grid->qv0 = qv0;
 
     delete[] xffull;
     delete[] yffull;
@@ -197,6 +204,7 @@ void lofs_read_3dvar(datagrid *grid, float *buffer, char *varname, double t0) {
     read_hdf_mult_md(buffer,topdir,timedir,nodedir,ntimedirs,dn,dirtimes,alltimes,ntottimes,t0,varname, \
             grid->X0,grid->Y0,grid->X1,grid->Y1,grid->Z0,grid->Z1,nx,ny,nz,nodex,nodey);
 }
+
 #endif
 
 

@@ -273,6 +273,8 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *
     delete[] temp_grid.xf;
     delete[] temp_grid.yf;
     delete[] temp_grid.zf;
+    //delete[] temp_grid.th0;
+    //delete[] temp_grid.qv0;
     // if literally all of our parcels aren't
     // in the domain then something has gone
     // horribly wrong
@@ -547,6 +549,10 @@ int main(int argc, char **argv ) {
         // that is dynamically based on where our parcels
         // are in the simulation
         loadMetadataAndGrid(base_dir, &requested_grid, &parcels); 
+        // read in some base state variables we will use
+        if ((rank == 0) && (tChunk == 0)) {
+            cout << requested_grid.qv0[0] << " " << requested_grid.th0[0] << endl;
+        }
         if (requested_grid.isValid == 0) {
             cout << "Something went horribly wrong when requesting a domain subset. Abort." << endl;
             exit(-1);
@@ -647,6 +653,9 @@ int main(int argc, char **argv ) {
             delete[] requested_grid.xh;
             delete[] requested_grid.yh;
             delete[] requested_grid.zh;
+            
+            delete[] requested_grid.th0;
+            delete[] requested_grid.qv0;
 
             delete[] ubuf;
             delete[] vbuf;
@@ -672,6 +681,9 @@ int main(int argc, char **argv ) {
             delete[] requested_grid.xh;
             delete[] requested_grid.yh;
             delete[] requested_grid.zh;
+            
+            delete[] requested_grid.th0;
+            delete[] requested_grid.qv0;
 
             delete[] ubuf;
             delete[] vbuf;

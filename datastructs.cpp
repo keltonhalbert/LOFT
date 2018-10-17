@@ -8,6 +8,11 @@ using namespace std;
 // including the staggered arrays, number of 
 // points in eachd dimension, and the indices
 // of the subset from the larger grid
+//
+// I'm also going to store base state grid
+// variables in here since they are also 
+// time independent, much like the other
+// grid variables
 struct datagrid {
 
     // 1D grid arrays
@@ -18,6 +23,9 @@ struct datagrid {
     float *zf;
     float *zh;
 
+    float *qv0;
+    float *th0;
+
     int isValid;
 
     // dimensions for
@@ -25,6 +33,10 @@ struct datagrid {
     long NX;
     long NY;
     long NZ;
+
+    // this is the full nz
+    // used for the base state arrays
+    long nz;
 
     // the subset points of the grid
     // that this grid is a part of
