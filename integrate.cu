@@ -77,8 +77,10 @@ __device__ void calcdef(datagrid grid, float *uarr, float *varr, float *warr, \
        t23[arrayIndex(i, j, k, t, MX, MY, MZ)] = 0.0;
 
    }
+}
 
-
+// take the output from calcdef and compute the full stress tensor tau
+__device__ void gettau(datagrid grid, float *rho, float *kmh, float *kmv, float *t11, float *t12, float *t13, float *t22, float *t23, float *t33) {
 }
 
 
