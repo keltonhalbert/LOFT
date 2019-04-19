@@ -20,6 +20,68 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
    }
 }
 
+
+// calculate the deformation terms for the turbulence diagnostics. They get stored in the 
+// arrays later designated for tau stress tensors and variables are named according to
+// tensor notation
+__device__ void calcdef(datagrid grid, float *uarr, float *varr, float *warr, \
+                        float *t11, float *t12, float *t13, float *t22, float *t23, float *t33, \
+                        int idx_4D, int MX, int MY, int MZ) {
+
+    int i = idx_4D[0];
+    int j = idx_4D[1];
+    int k = idx_4D[2];
+    int t = idx_4D[3];
+
+    float dx = grid.xf[i+1] - grid.xf[i];
+
+    // tau 11. Derivative is du/dx therefore use the staggered mesh and forward difference it to get it on the scalar mesh
+    t11[arrayIndex(i, j, k, t, MX, MY, MZ)] = ( uarr[arrayIndex(i+1, j, k, t, MX, MY, MZ)] - uarr[arrayIndex(i, j, k, t, MX, MY, MZ)] ) / dx;
+
+
+    // tau 12. Derivatives are no longer on the staggered meshes since it's du/dy and dv/dx. Therefore, an averaging step
+    // will be required later at some point.
+    float dy = grid.yh[j+1] - grid.yh[j];
+    dx = grid.xh[i+1] - grid.xh[i];
+    t12[arrayIndex(i, j, k, t, MX, MY, MZ)] = ( uarr[arrayIndex(i, j+1, k, t, MX, MY, MZ)] - uarr[arrayIndex(i, j, k, t, MX, MY, MZ)] ) / dy \
+                                            + ( varr[arrayIndex(i+1, j, k, t, MX, MY, MZ)] - varr[arrayIndex(i, j, k, t, MX, MY, MZ)] ) / dx;
+
+   // tau 22. Derivative is dv/dy therefore use the staggered mesh and forward difference it to get it on the scalar mesh
+   dy = grid.yf[j+1] - grid.yf[j];
+   t22[arrayIndex(i, j, k, t, MX, MY, MZ)] = ( varr[arrayIndex(i, j+1, k, t, MX, MY, MZ)] - varr[arrayIndex(i, j, k, t, MX, MY, MZ)] ) / dy;
+
+
+   // tau 33. Derivative is du/dz and therefore use the staggered mesh and forward difference it to get it on the scalar mesh
+   float dz = grid.zf[k+1] - grid.zf[k];
+   t33[arrayIndex(i, j, k, t, MX, MY, MZ)] = ( warr[arrayIndex(i, j, k+1, t, MX, MY, MZ)] - warr[arrayIndex(i, k, k, t, MX, MY, MZ)] ) / dz;
+
+   // data above the lower boundary
+   if ( k >= 1.) {
+
+       // tau 13. Derivative is no longer on staggered mesh and will require an average to correct the data to the scalar mesh
+       dx = grid.xh[i+1] - grid.xh[i];
+       dz = grid.zh[k+1] - grid.zh[k];
+       t13[arrayIndex(i, j, k, t, MX, MY, MZ)] = ( warr[arrayIndex(i+1, j, k, t, MX, MY, MZ)] - warr[arrayIndex(i, j, k, t, MX, MY, MZ)] ) / dx \
+                                               + ( uarr[arrayIndex(i, j, k+1, t, MX, MY, MZ)] - uarr[arrayIndex(i, j, k, t, MX, MY, MZ)] ) / dz;
+
+       // tau 23. Derivative is no longer on staggered mesh and will require an average to correct the data to the scalar mesh
+       dy = grid.yh[j+1] - grid.yh[j];
+       t23[arrayIndex(i, j, k, t, MX, MY, MZ)] = ( warr[arrayIndex(i, j+1, k, t, MX, MY, MZ)] - warr[arrayIndex(i, j, k, t, MX, MY, MZ)] ) / dy \
+                                               + ( varr[arrayIndex(i, j, k+1, t, MX, MY, MZ)] - varr[arrayIndex(i, j, k, t, MX, MY, MZ)] ) / dz;
+
+   }
+
+   // lower boundary condition
+   else {
+       t13[arrayIndex(i, j, k, t, MX, MY, MZ)] = 0.0;
+       t23[arrayIndex(i, j, k, t, MX, MY, MZ)] = 0.0;
+
+   }
+
+
+}
+
+
 __device__ void calc_xvort(datagrid grid, float *warr, float *varr, float *xvort, int *idx_4D, int MX, int MY, int MZ) {
     int i = idx_4D[0];
     int j = idx_4D[1];
