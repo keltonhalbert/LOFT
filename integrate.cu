@@ -21,11 +21,16 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 }
 
 
+// calculate this weird rf term that George Bryan uses for vertical derivative of rho
+__device__ void calcrf(datagrid grid, float *rho, float *c1, float *c2, float *rf, \
+                        int idx_4D, int MX, int MY, int MZ) {
+}
+
 // calculate the deformation terms for the turbulence diagnostics. They get stored in the 
 // arrays later designated for tau stress tensors and variables are named according to
 // tensor notation
-__device__ void calcdef(datagrid grid, float *uarr, float *varr, float *warr, \
-                        float *t11, float *t12, float *t13, float *t22, float *t23, float *t33, \
+__device__ void calcdef(datagrid grid, float *uarr, float *varr, float *warr, float *rho, float *rf,\
+                        float *s11, float *s12, float *s13, float *s22, float *s23, float *s33, \
                         int idx_4D, int MX, int MY, int MZ) {
 
     int i = idx_4D[0];
@@ -36,24 +41,26 @@ __device__ void calcdef(datagrid grid, float *uarr, float *varr, float *warr, \
     float dx = grid.xf[i+1] - grid.xf[i];
 
     // tau 11. Derivative is du/dx therefore use the staggered mesh and forward difference it to get it on the scalar mesh
-    t11[arrayIndex(i, j, k, t, MX, MY, MZ)] = ( uarr[arrayIndex(i+1, j, k, t, MX, MY, MZ)] - uarr[arrayIndex(i, j, k, t, MX, MY, MZ)] ) / dx;
+    s11[arrayIndex(i, j, k, t, MX, MY, MZ)] = rho[arrayIndex(i, j, k, t, MX, MY, MZ)]*( uarr[arrayIndex(i+1, j, k, t, MX, MY, MZ)] - uarr[arrayIndex(i, j, k, t, MX, MY, MZ)] ) / dx;
 
 
     // tau 12. Derivatives are no longer on the staggered meshes since it's du/dy and dv/dx. Therefore, an averaging step
     // will be required later at some point.
     float dy = grid.yh[j+1] - grid.yh[j];
     dx = grid.xh[i+1] - grid.xh[i];
-    t12[arrayIndex(i, j, k, t, MX, MY, MZ)] = ( uarr[arrayIndex(i, j+1, k, t, MX, MY, MZ)] - uarr[arrayIndex(i, j, k, t, MX, MY, MZ)] ) / dy \
-                                            + ( varr[arrayIndex(i+1, j, k, t, MX, MY, MZ)] - varr[arrayIndex(i, j, k, t, MX, MY, MZ)] ) / dx;
+    s12[arrayIndex(i, j, k, t, MX, MY, MZ)] = 0.5 * ( ( uarr[arrayIndex(i, j+1, k, t, MX, MY, MZ)] - uarr[arrayIndex(i, j, k, t, MX, MY, MZ)] ) / dy \
+                                            + ( varr[arrayIndex(i+1, j, k, t, MX, MY, MZ)] - varr[arrayIndex(i, j, k, t, MX, MY, MZ)] ) / dx ) \
+                                            * 0.25*( (rho[arrayIndex(i, j, k, t, MX, MY, MZ)] + rho[arrayIndex(i+1, j+1, k, t, MX, MY, MZ)]) + \
+                                                     (rho[arrayIndex(i, j+1, k, t, MX, MY, MZ)] + rho[arrayIndex(i+1, j, k, t, MX, MY, MZ)]) );
 
    // tau 22. Derivative is dv/dy therefore use the staggered mesh and forward difference it to get it on the scalar mesh
    dy = grid.yf[j+1] - grid.yf[j];
-   t22[arrayIndex(i, j, k, t, MX, MY, MZ)] = ( varr[arrayIndex(i, j+1, k, t, MX, MY, MZ)] - varr[arrayIndex(i, j, k, t, MX, MY, MZ)] ) / dy;
+   s22[arrayIndex(i, j, k, t, MX, MY, MZ)] = rho[arrayIndex(i, j, k, t, MX, MY, MZ)] * ( varr[arrayIndex(i, j+1, k, t, MX, MY, MZ)] - varr[arrayIndex(i, j, k, t, MX, MY, MZ)] ) / dy;
 
 
    // tau 33. Derivative is du/dz and therefore use the staggered mesh and forward difference it to get it on the scalar mesh
    float dz = grid.zf[k+1] - grid.zf[k];
-   t33[arrayIndex(i, j, k, t, MX, MY, MZ)] = ( warr[arrayIndex(i, j, k+1, t, MX, MY, MZ)] - warr[arrayIndex(i, k, k, t, MX, MY, MZ)] ) / dz;
+   s33[arrayIndex(i, j, k, t, MX, MY, MZ)] = rho[arrayIndex(i, j, k, t, MX, MY, MZ)] * ( warr[arrayIndex(i, j, k+1, t, MX, MY, MZ)] - warr[arrayIndex(i, k, k, t, MX, MY, MZ)] ) / dz;
 
    // data above the lower boundary
    if ( k >= 1.) {
@@ -61,21 +68,22 @@ __device__ void calcdef(datagrid grid, float *uarr, float *varr, float *warr, \
        // tau 13. Derivative is no longer on staggered mesh and will require an average to correct the data to the scalar mesh
        dx = grid.xh[i+1] - grid.xh[i];
        dz = grid.zh[k+1] - grid.zh[k];
-       t13[arrayIndex(i, j, k, t, MX, MY, MZ)] = ( warr[arrayIndex(i+1, j, k, t, MX, MY, MZ)] - warr[arrayIndex(i, j, k, t, MX, MY, MZ)] ) / dx \
-                                               + ( uarr[arrayIndex(i, j, k+1, t, MX, MY, MZ)] - uarr[arrayIndex(i, j, k, t, MX, MY, MZ)] ) / dz;
+       s13[arrayIndex(i, j, k, t, MX, MY, MZ)] = 0.5*( ( warr[arrayIndex(i+1, j, k, t, MX, MY, MZ)] - warr[arrayIndex(i, j, k, t, MX, MY, MZ)] ) / dx \
+                                               + ( uarr[arrayIndex(i, j, k+1, t, MX, MY, MZ)] - uarr[arrayIndex(i, j, k, t, MX, MY, MZ)] ) / dz ) \
+                                                 *0.5*( rf[arrayIndex(i, j, k, t, MX, MY, MZ)]+ rf[arrayIndex(i, j+1, k, t, MX, MY, MZ)]);
 
        // tau 23. Derivative is no longer on staggered mesh and will require an average to correct the data to the scalar mesh
        dy = grid.yh[j+1] - grid.yh[j];
-       t23[arrayIndex(i, j, k, t, MX, MY, MZ)] = ( warr[arrayIndex(i, j+1, k, t, MX, MY, MZ)] - warr[arrayIndex(i, j, k, t, MX, MY, MZ)] ) / dy \
-                                               + ( varr[arrayIndex(i, j, k+1, t, MX, MY, MZ)] - varr[arrayIndex(i, j, k, t, MX, MY, MZ)] ) / dz;
+       s23[arrayIndex(i, j, k, t, MX, MY, MZ)] = 0.5*( ( warr[arrayIndex(i, j+1, k, t, MX, MY, MZ)] - warr[arrayIndex(i, j, k, t, MX, MY, MZ)] ) / dy \
+                                               + ( varr[arrayIndex(i, j, k+1, t, MX, MY, MZ)] - varr[arrayIndex(i, j, k, t, MX, MY, MZ)] ) / dz) \
+                                               *0.5*( rf[arrayIndex(i, j, k, t, MX, MY, MZ)]+rf[arrayIndex(i, j+1, k, t, MX, MY, MZ)] );
 
    }
 
    // lower boundary condition
    else {
-       t13[arrayIndex(i, j, k, t, MX, MY, MZ)] = 0.0;
-       t23[arrayIndex(i, j, k, t, MX, MY, MZ)] = 0.0;
-
+       s13[arrayIndex(i, j, k, t, MX, MY, MZ)] = 0.0;
+       s23[arrayIndex(i, j, k, t, MX, MY, MZ)] = 0.0;
    }
 }
 
