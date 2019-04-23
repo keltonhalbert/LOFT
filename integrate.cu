@@ -80,7 +80,52 @@ __device__ void calcdef(datagrid grid, float *uarr, float *varr, float *warr, \
 }
 
 // take the output from calcdef and compute the full stress tensor tau
-__device__ void gettau(datagrid grid, float *rho, float *kmh, float *kmv, float *t11, float *t12, float *t13, float *t22, float *t23, float *t33) {
+// !NOTE: turb coefficients are defined on w points
+__device__ void gettau(datagrid grid, float *rho, float *kmh, float *kmv, \
+                        float *t11, float *t12, float *t13, float *t22, float *t23, float *t33 \
+                        int idx_4D, int MX, int MY, int MZ) {
+
+    // get the i,j,k,t index of where we are doing
+    // our differencing
+    int i = idx_4D[0];
+    int j = idx_4D[1];
+    int k = idx_4D[2];
+    int t = idx_4D[3];
+
+
+    // these are conveniently on points we know... but that convecience will end shortly
+    t11[arrayIndex(i, j, k, t, MX, MY, MZ)] = t11[arrayIndex(i, j, k, t, MX, MY, MZ)] * (kmh[arrayIndex(i, j, k, t, MX, MY, MZ)] + \
+                                              kmh[arrayIndex(i, j, k+1, t, MX, MY, MZ)] ) * rho[arrayIndex(i, j, k, t, MX, MY, MZ)];
+
+    t22[arrayIndex(i, j, k, t, MX, MY, MZ)] = t22[arrayIndex(i, j, k, t, MX, MY, MZ)] * (kmh[arrayIndex(i, j, k, t, MX, MY, MZ)] + \
+                                              kmh[arrayIndex(i, j, k+1, t, MX, MY, MZ)] ) * rho[arrayIndex(i, j, k, t, MX, MY, MZ)];
+
+    t33[arrayIndex(i, j, k, t, MX, MY, MZ)] = t33[arrayIndex(i, j, k, t, MX, MY, MZ)] * (kmv[arrayIndex(i, j, k, t, MX, MY, MZ)] + \
+                                              kmv[arrayIndex(i, j, k+1, t, MX, MY, MZ)] ) * rho[arrayIndex(i, j, k, t, MX, MY, MZ)];
+
+    // and thus ends the convenience. These points are not centered on the scalar mesh, so we have to do
+    // some fun things. 
+    t12[arrayIndex(i+1, j+1, k, t, MX, MY, MZ)] = t12[arrayIndex(i+1, j+1, k, t, MX, MY, MZ)]*0.03125 \
+                  *( ( (kmh[arrayIndex(i,j,k, t, MX, MY, MZ)]+kmh[arrayInex(i+1,j+1,k,t,MX,MY,MZ)])+(kmh[arrayIndex(i,j+1,k,t,MX,MY,MZ)]+kmh[arrayIndex(i+1,j,k,t,MX,MY,MZ)]) ) \
+                  +( (kmh[arrayIndex(i,j,k+1,t,MX,MY,MZ)]+kmh[arrayIndex(i+1,j+1,k+1,t,MX,MY,MZ)])+(kmh[arrayIndex(i,j+1,k+1,t,MX,MY,MZ)]+kmh[arrayIndex(i+1,j,k+1,t,MX,MY,MZ)]) ) ) \
+                  *( (rho[arrayIndex(i,j,k,t,MX,MY,MZ)]+rho[arrayIndex(i+1,j+1,k,t,MX,MY,MZ)])+(rho[arrayIndex(i,j+1,k,t,MX,MY,MZ)]+rho[arrayIndex(i+1,j,k,t,MX,MY,MZ)]) );
+
+    if (k >= 1) {
+        t13[arrayIndex(i+1, j+1, k, t, MX, MY, MZ)] = t13[arrayIndex(i+1, j+1, k, t, MX, MY, MZ)] * 0.25 \
+                                                      *( kmv[arrayIndex(i, j+1, k, t, MX, MY, MZ)]+kmv[arrayIndex(i+1, j+1, k, t, MX, MY, MZ)] ); // theres more with rf here
+
+        t23[arrayIndex(i+1, j+1, k, t, MX, MY, MZ)] = t23[arrayIndex(i+1, j+1, k, t, MX, MY, MZ)] * 0.25 \
+                                                      *( kmv[arrayIndex(i+1, j, k, t, MX, MY, MZ)] + kmv[arrayIndex(i+1, j+1, k, t, MX, MY, MZ)] ); // missing d(rho)/dz
+
+    }
+    else {
+
+        // lower boundary condition
+        t13[arrayIndex(i, j, k, t, MX, MY, MZ)] = 0.0;
+        t23[arrayIndex(i, j, k, t, MX, MY, MZ)] = 0.0;
+
+    }
+    
 }
 
 
