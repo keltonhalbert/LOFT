@@ -150,6 +150,58 @@ __device__ void gettau(datagrid grid, float *rho, float *kmh, float *kmv, \
 }
 
 
+// calculate the turbulence term of the momentum equation for U. Eventually this will be modified to be
+// the turbulence term for a component of vorticity (I think). 
+__device__ void calc_turbu(datagrid grid, float *t11, float *t12, float *t13, float *turbx, float *turby, float *turbz) {
+    int i = idx_4D[0];
+    int j = idx_4D[1];
+    int k = idx_4D[2];
+    int t = idx_4D[3];
+
+    float dx = grid.xh[i+1] - grid.xh[i];
+    float dy = grid.yh[j+1] - grid.yh[j];
+    float dz = grid.zh[k+1] - grid.zh[k];
+    turbx[arrayIndex(i, j, k, t, MX, MY, MZ)] = (t11[arrayIndex(i+1, j, k, t, MX, MY, MZ)] - t11[arrayIndex(i, j, k, t, MX, MY, MZ)])/dx;
+    turby[arrayIndex(i, j, k, t, MX, MY, MZ)] = (t12[arrayIndex(i, j+1, k, t, MX, MY, MZ)] - t12[arrayIndex(i, j, k, t, MX, MY, MZ)])/dy;
+    turbz[arrayIndex(i, j, k, t, MX, MY, MZ)] = (t13[arrayIndex(i, j, k+1, t, MX, MY, MZ)] - t13[arrayIndex(i, j, k, t, MX, MY, MZ)])/dz;
+
+}
+
+
+// calculate the turbulence term of the momentum equation for V. Eventually this will be modified to be
+// the turbulence term for a component of vorticity (I think). 
+__device__ void calc_turbv(datagrid grid, float *t12, float *t22, float *t23, float *turbx, float *turby, float *turbz) {
+    int i = idx_4D[0];
+    int j = idx_4D[1];
+    int k = idx_4D[2];
+    int t = idx_4D[3];
+
+    float dx = grid.xh[i+1] - grid.xh[i];
+    float dy = grid.yh[j+1] - grid.yh[j];
+    float dz = grid.zh[k+1] - grid.zh[k];
+    turbx[arrayIndex(i, j, k, t, MX, MY, MZ)] = (t12[arrayIndex(i+1, j, k, t, MX, MY, MZ)] - t12[arrayIndex(i, j, k, t, MX, MY, MZ)]) / dx;
+    turby[arrayIndex(i, j, k, t, MX, MY, MZ)] = (t22[arrayIndex(i, j+1, k, t, MX, MY, MZ)] - t22[arrayIndex(i, j, k, t, MX, MY, MZ)]) / dy;
+    turbz[arrayIndex(i, j, k, t, MX, MY, MZ)] = (t23[arrayIndex(i, j, k+1, t, MX, MY, MZ)] - t23[arrayIndex(i, j, k, t, MX, MY, MZ)]) / dz;
+
+}
+
+// calculate the turbulence term of the momentum equation for W. Eventually this will be modified to be
+// the turbulence term for a component of vorticity (I think). 
+__device__ void calc_turbw(datagrid grid, float *t13, float *t23, float *t33, float *turbx, float *turby, float *turbz) {
+    int i = idx_4D[0];
+    int j = idx_4D[1];
+    int k = idx_4D[2];
+    int t = idx_4D[3];
+
+    float dx = grid.xh[i+1] - grid.xh[i];
+    float dy = grid.yh[j+1] - grid.yh[j];
+    float dz = grid.zh[k+1] - grid.zh[k];
+    turbx[arrayIndex(i, j, k, t, MX, MY, MZ)] = (t13[arrayIndex(i+1, j, k, t, MX, MY, MZ)] - t13[arrayIndex(i, j, k, t, MX, MY, MZ)]) / dx;
+    turby[arrayIndex(i, j, k, t, MX, MY, MZ)] = (t23[arrayIndex(i, j+1, k, t, MX, MY, MZ)] - t23[arrayIndex(i, j, k, t, MX, MY, MZ)]) / dy;
+    turbz[arrayIndex(i, j, k, t, MX, MY, MZ)] = (t33[arrayIndex(i, j, k+1, t, MX, MY, MZ)] - t33[arrayIndex(i, j, k, t, MX, MY, MZ)]) / dz;
+
+}
+
 __device__ void calc_xvort(datagrid grid, float *warr, float *varr, float *xvort, int *idx_4D, int MX, int MY, int MZ) {
     int i = idx_4D[0];
     int j = idx_4D[1];
