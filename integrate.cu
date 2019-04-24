@@ -149,6 +149,12 @@ __device__ void gettau(datagrid grid, float *rho, float *kmh, float *kmv, \
     
 }
 
+// NOTE: Care has been taken to best preserve the numerical accuracy of how things are done in CM1, 
+// but some areas where George does a backwards difference have been replaced with a forward difference.
+// It is unknown to me at this time how much this will impact the overall result, but it could result in
+// a pesky "off by one error" of sorts where in cartesian space, the values are slightly off. One day
+// I'll probably revisit this and refactor it to make it 100% accurate with CM1, but Fortran's inconsistency
+// with 0 indexed vs 1 indexed arrays confuse me sometimes, and we're not dealing with ghost zones
 
 // calculate the turbulence term of the momentum equation for U. Eventually this will be modified to be
 // the turbulence term for a component of vorticity (I think). 
