@@ -21,9 +21,26 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 }
 
 
-// calculate this weird rf term that George Bryan uses for vertical derivative of rho
+// rf is the rho field on the vertical staggered mesh. George does this for turbulence closure
+// since K terms and derivatives are all done on the W mesh. This is calculated by doing an extrapolation 
+// from the scalar mesh to the W staggered mesh. As described below, c1 and c2 are distances of the staggered mesh from
+// the scalar mesh normalized by the grid spacing dz, and since in an isotropic mesh the stagger is exactly half way
+// between scalar points, is 0.5. This is hard coded, but even in our stretch zone above 10km, it's really close
+// to 0.5. This is probably only violated for wildly stretched meshes, which we don't use because they're dumb.
 __device__ void calcrf(datagrid grid, float *rho, float *c1, float *c2, float *rf, \
                         int idx_4D, int MX, int MY, int MZ) {
+
+    // c1 and c2 are both 0.5 for isotropic staggered meshes. We are hard coding this to be the case here for our data,
+    // but is not necessarily true for all simulations.
+    float c1 = 0.5; float c2 = 0.5;
+    if ( k == 1) {
+        rf[arrayIndex(i, j, 1, t, MX, MY, MZ)] = (1.75*rho[arrayIndex(i, j, 1, t, MX, MY, MZ)]-rho[arrayIndex(i, j, 2, t, MX, MY, MZ)]+0.25*rho[arrayIndex(i, j, 3, t, MX, MY, MZ)]);
+    }
+    else {
+
+        rf[arrayIndex(i, j, k, t, MX, MY, MZ)] = ( c1*rho[arrayIndex(i, j, k, t, MX, MY, MZ)] + c2*rho[arrayIndex(i, j, k+1, t, MX, MY, MZ)])
+    }
+    // there's technically a top boundary condition in CM1, but we're ignoring because we hope to be far away from the upper boundary.
 }
 
 // calculate the deformation terms for the turbulence diagnostics. They get stored in the 
@@ -70,7 +87,7 @@ __device__ void calcdef(datagrid grid, float *uarr, float *varr, float *warr, fl
        dz = grid.zh[k+1] - grid.zh[k];
        s13[arrayIndex(i, j, k, t, MX, MY, MZ)] = 0.5*( ( warr[arrayIndex(i+1, j, k, t, MX, MY, MZ)] - warr[arrayIndex(i, j, k, t, MX, MY, MZ)] ) / dx \
                                                + ( uarr[arrayIndex(i, j, k+1, t, MX, MY, MZ)] - uarr[arrayIndex(i, j, k, t, MX, MY, MZ)] ) / dz ) \
-                                                 *0.5*( rf[arrayIndex(i, j, k, t, MX, MY, MZ)]+ rf[arrayIndex(i, j+1, k, t, MX, MY, MZ)]);
+                                                 *0.5*( rf[arrayIndex(i, j, k, t, MX, MY, MZ)] + rf[arrayIndex(i+1, j, k, t, MX, MY, MZ)]);
 
        // tau 23. Derivative is no longer on staggered mesh and will require an average to correct the data to the scalar mesh
        dy = grid.yh[j+1] - grid.yh[j];
@@ -101,29 +118,25 @@ __device__ void gettau(datagrid grid, float *rho, float *kmh, float *kmv, \
     int t = idx_4D[3];
 
 
+    float tem = kmh[arrayIndex(i, k, k, t, MX, MY, MZ)] + kmh[arrayIndex(i, j, k+1, t, MX, MY, MZ)];
+
+
     // these are conveniently on points we know... but that convecience will end shortly
-    t11[arrayIndex(i, j, k, t, MX, MY, MZ)] = t11[arrayIndex(i, j, k, t, MX, MY, MZ)] * (kmh[arrayIndex(i, j, k, t, MX, MY, MZ)] + \
-                                              kmh[arrayIndex(i, j, k+1, t, MX, MY, MZ)] ) * rho[arrayIndex(i, j, k, t, MX, MY, MZ)];
+    t11[arrayIndex(i, j, k, t, MX, MY, MZ)] = t11[arrayIndex(i, j, k, t, MX, MY, MZ)] * tem;
 
-    t22[arrayIndex(i, j, k, t, MX, MY, MZ)] = t22[arrayIndex(i, j, k, t, MX, MY, MZ)] * (kmh[arrayIndex(i, j, k, t, MX, MY, MZ)] + \
-                                              kmh[arrayIndex(i, j, k+1, t, MX, MY, MZ)] ) * rho[arrayIndex(i, j, k, t, MX, MY, MZ)];
+    t22[arrayIndex(i, j, k, t, MX, MY, MZ)] = t22[arrayIndex(i, j, k, t, MX, MY, MZ)] * tem;
 
-    t33[arrayIndex(i, j, k, t, MX, MY, MZ)] = t33[arrayIndex(i, j, k, t, MX, MY, MZ)] * (kmv[arrayIndex(i, j, k, t, MX, MY, MZ)] + \
-                                              kmv[arrayIndex(i, j, k+1, t, MX, MY, MZ)] ) * rho[arrayIndex(i, j, k, t, MX, MY, MZ)];
+    t33[arrayIndex(i, j, k, t, MX, MY, MZ)] = t33[arrayIndex(i, j, k, t, MX, MY, MZ)] * tem;
 
-    // and thus ends the convenience. These points are not centered on the scalar mesh, so we have to do
-    // some fun things. 
-    t12[arrayIndex(i+1, j+1, k, t, MX, MY, MZ)] = t12[arrayIndex(i+1, j+1, k, t, MX, MY, MZ)]*0.03125 \
-                  *( ( (kmh[arrayIndex(i,j,k, t, MX, MY, MZ)]+kmh[arrayInex(i+1,j+1,k,t,MX,MY,MZ)])+(kmh[arrayIndex(i,j+1,k,t,MX,MY,MZ)]+kmh[arrayIndex(i+1,j,k,t,MX,MY,MZ)]) ) \
-                  +( (kmh[arrayIndex(i,j,k+1,t,MX,MY,MZ)]+kmh[arrayIndex(i+1,j+1,k+1,t,MX,MY,MZ)])+(kmh[arrayIndex(i,j+1,k+1,t,MX,MY,MZ)]+kmh[arrayIndex(i+1,j,k+1,t,MX,MY,MZ)]) ) ) \
-                  *( (rho[arrayIndex(i,j,k,t,MX,MY,MZ)]+rho[arrayIndex(i+1,j+1,k,t,MX,MY,MZ)])+(rho[arrayIndex(i,j+1,k,t,MX,MY,MZ)]+rho[arrayIndex(i+1,j,k,t,MX,MY,MZ)]) );
+    // do some 8 point averaging of our kmh in space
+    t12[arrayIndex(i, j, k, t, MX, MY, MZ)] = t12[arrayIndex(i, j, k, t, MX, MY, MZ)]*.025 \
+                  *( ( (kmh[arrayIndex(i-1,j-1,k  )]+kmh[arrayIndex(i,j,k  )])+(kmh[arrayIndex(i-1,j,k  )]+kmh[arrayIndex(i,j-1,k  )]) )   \
+                    +( (kmh[arrayIndex(i-1,j-1,k+1)]+kmh[arrayIndex(i,j,k+1)])+(kmh[arrayIndex(i-1,j,k+1)]+kmh[arrayIndex(i,j-1,k+1)]) ) );
 
     if (k >= 1) {
-        t13[arrayIndex(i+1, j+1, k, t, MX, MY, MZ)] = t13[arrayIndex(i+1, j+1, k, t, MX, MY, MZ)] * 0.25 \
-                                                      *( kmv[arrayIndex(i, j+1, k, t, MX, MY, MZ)]+kmv[arrayIndex(i+1, j+1, k, t, MX, MY, MZ)] ); // theres more with rf here
+        t13[arrayIndex(i, j, k, t, MX, MY, MZ)] = t13[arrayIndex(i, j, k, t, MX, MY, MZ)] * ( kmv[arrayIndex(i, j, k, t, MX, MY, MZ)]+kmv[arrayIndex(i+1, j, k, t, MX, MY, MZ)] );
 
-        t23[arrayIndex(i+1, j+1, k, t, MX, MY, MZ)] = t23[arrayIndex(i+1, j+1, k, t, MX, MY, MZ)] * 0.25 \
-                                                      *( kmv[arrayIndex(i+1, j, k, t, MX, MY, MZ)] + kmv[arrayIndex(i+1, j+1, k, t, MX, MY, MZ)] ); // missing d(rho)/dz
+        t23[arrayIndex(i, j, k, t, MX, MY, MZ)] = t23[arrayIndex(i, j, k, t, MX, MY, MZ)] * ( kmv[arrayIndex(i, j, k, t, MX, MY, MZ)] + kmv[arrayIndex(i, j+1, k, t, MX, MY, MZ)] ); 
 
     }
     else {
