@@ -329,15 +329,24 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *
 /* Read in the U, V, and W vector components from the disk, provided previously allocated memory buffers
  * and the time requested in the dataset. 
  */
-void loadVectorsFromDisk(datagrid *requested_grid, float *ubuffer, float *vbuffer, float *wbuffer, float *pbuffer, float *thbuffer, double t0) {
+void loadVectorsFromDisk(datagrid *requested_grid, float *ubuffer, float *vbuffer, float *wbuffer, \
+                        float *pbuffer, float *thbuffer, float *rhobuffer, float *kmhbuffer, float *kmvbuffer, double t0) {
     // request 3D field!
     // u,v, and w are on their
     // respective staggered grids
     lofs_read_3dvar(requested_grid, ubuffer, (char *)"u", t0);
     lofs_read_3dvar(requested_grid, vbuffer, (char *)"v", t0);
     lofs_read_3dvar(requested_grid, wbuffer, (char *)"w", t0);
+
+    // request additional fields for calculations
     lofs_read_3dvar(requested_grid, pbuffer, (char *)"prespert", t0);
     lofs_read_3dvar(requested_grid, thbuffer, (char *)"thrhopert", t0);
+    lofs_read_3dvar(requested_grid, rhobuffer, (char *)"rho", t0);
+    // kmh is the horizontal eddy diffusivity for momentum
+    lofs_read_3dvar(requested_grid, kmhbuffer, (char *)"kmh", t0);
+    // kmv is the vertical eddy diffusivity for momentum
+    lofs_read_3dvar(requested_grid, kmvbuffer, (char *)"kmv", t0);
+
 }
 
 
@@ -580,6 +589,9 @@ int main(int argc, char **argv ) {
         wbuf = new float[(size_t)bufsize];
         pbuf = new float[(size_t)bufsize];
         thbuf = new float[(size_t)bufsize];
+        rhobuf = new float[(size_t)bufsize];
+        kmhbuf = new float[(size_t)bufsize];
+        kmvbuf = new float[(size_t)bufsize];
 
 
         // construct a 4D contiguous array to store stuff in.
@@ -587,12 +599,16 @@ int main(int argc, char **argv ) {
         // the number of MPI ranks (which is also the number of times)
         // read in
         float *u_time_chunk, *v_time_chunk, *w_time_chunk, *p_time_chunk, *th_time_chunk; 
+        float *rho_time_chunk, *kmh_time_chunk, *kmv_time_chunk;
         if (rank == 0) {
             u_time_chunk = (float *) malloc ((size_t)bufsize*size);
             v_time_chunk = (float *) malloc ((size_t)bufsize*size);
             w_time_chunk = (float *) malloc ((size_t)bufsize*size);
             p_time_chunk = (float *) malloc ((size_t)bufsize*size);
             th_time_chunk = (float *) malloc ((size_t)bufsize*size);
+            rho_time_chunk = (float *) malloc ((size_t)bufsize*size);
+            kmh_time_chunk = (float *) malloc ((size_t)bufsize*size);
+            kmv_time_chunk = (float *) malloc ((size_t)bufsize*size);
 
         }
 
@@ -604,7 +620,7 @@ int main(int argc, char **argv ) {
         }
         printf("TIMESTEP %d/%d %d %f\n", rank, size, rank + tChunk*size, alltimes[nearest_tidx + direct*( rank + tChunk*size)]);
         // load u, v, and w into memory
-        loadVectorsFromDisk(&requested_grid, ubuf, vbuf, wbuf, pbuf, thbuf, alltimes[nearest_tidx + direct*(rank + tChunk*size)]);
+        loadVectorsFromDisk(&requested_grid, ubuf, vbuf, wbuf, pbuf, thbuf, rhobuf, kmhbuf, kmvbuf, alltimes[nearest_tidx + direct*(rank + tChunk*size)]);
         
         // for MPI runs that load multiple time steps into memory,
         // communicate the data you've read into our 4D array
@@ -613,6 +629,9 @@ int main(int argc, char **argv ) {
         int senderr_w = MPI_Gather(wbuf, N, MPI_FLOAT, w_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
         int senderr_p = MPI_Gather(pbuf, N, MPI_FLOAT, p_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
         int senderr_th = MPI_Gather(thbuf, N, MPI_FLOAT, th_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_rho = MPI_Gather(rhobuf, N, MPI_FLOAT, rho_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_kmh = MPI_Gather(kmhbuf, N, MPI_FLOAT, kmh_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_kmv = MPI_Gather(kmvbuf, N, MPI_FLOAT, kmv_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
 
         if (rank == 0) {
@@ -666,12 +685,18 @@ int main(int argc, char **argv ) {
             delete[] wbuf;
             delete[] pbuf;
             delete[] thbuf;
+            delete[] rhobuf;
+            delete[] kmhbuf;
+            delete[] kmvbuf;
 
             delete[] u_time_chunk;
             delete[] v_time_chunk;
             delete[] w_time_chunk;
             delete[] p_time_chunk;
             delete[] th_time_chunk;
+            delete[] rho_time_chunk;
+            delete[] kmh_time_chunk;
+            delete[] kmv_time_chunk;
         }
 
         // house keeping for the non-master
@@ -694,6 +719,9 @@ int main(int argc, char **argv ) {
             delete[] wbuf;
             delete[] pbuf;
             delete[] thbuf;
+            delete[] rhobuf;
+            delete[] kmhbuf;
+            delete[] kmvbuf;
         }
         // receive the updated parcel arrays
         // so that we can do proper subseting. This happens
