@@ -446,9 +446,9 @@ __global__ void doCalcrf(datagrid grid, float *rho_time_chunk, float *rhof, int 
     }
 }
 
-__global__ void doCalcdef(datagrid grid float *uarr, float *varr, float *warr, float *rho, float *rf, \
+__global__ void doCalcdef(datagrid grid, float *uarr, float *varr, float *warr, float *rho, float *rf, \
                         float *s11, float *s12, float *s13, float *s22, float *s23, float *s33, \
-                        int *idx_4D, int MX, int MY, int MZ) {
+                        int MX, int MY, int MZ, int tStart, int tEnd, int totTime) {
 
     int i = blockIdx.x*blockDim.x + threadIdx.x;
     int j = blockIdx.y*blockDim.y + threadIdx.y;
@@ -461,10 +461,12 @@ __global__ void doCalcdef(datagrid grid float *uarr, float *varr, float *warr, f
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
+            calcdef(grid, uarr, varr, warr, rho, rf, s11, s12, s13, s22, s23, s33, idx_4D, MX, MY, MZ);
         }
     }
 }
 
+/*
 __global__ void doGettau() {
     int i = blockIdx.x*blockDim.x + threadIdx.x;
     int j = blockIdx.y*blockDim.y + threadIdx.y;
@@ -528,7 +530,7 @@ __global__ void doTurbw() {
         }
     }
 }
-
+*/
 
 /* NOTE FOR VORTICITY KERNELS!!!!!!
 Our subset doesn't have ghost zones per-say, but we assume
@@ -794,6 +796,8 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     float *device_xvortstretch_chunk, *device_yvortstretch_chunk, *device_zvortstretch_chunk;
     float *device_xvorttilt_chunk, *device_yvorttilt_chunk, *device_zvorttilt_chunk;
     float *device_xvortbaro_chunk, *device_yvortbaro_chunk, *device_rhof_time_chunk;
+    float *device_t11_time_chunk, *device_t12_time_chunk, *device_t13_time_chunk;
+    float *device_t22_time_chunk, *device_t23_time_chunk, *device_t33_time_chunk;
 
     parcel_pos device_parcels;
     datagrid device_grid;
@@ -845,6 +849,13 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     gpuErrchk( cudaMalloc(&device_xvortbaro_chunk, MX*MY*MZ*nT*sizeof(float)) );
     gpuErrchk( cudaMalloc(&device_yvortbaro_chunk, MX*MY*MZ*nT*sizeof(float)) );
     gpuErrchk( cudaMalloc(&device_rhof_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
+    // turbulent stress arrays
+    gpuErrchk( cudaMalloc(&device_t11_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
+    gpuErrchk( cudaMalloc(&device_t12_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
+    gpuErrchk( cudaMalloc(&device_t13_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
+    gpuErrchk( cudaMalloc(&device_t22_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
+    gpuErrchk( cudaMalloc(&device_t23_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
+    gpuErrchk( cudaMalloc(&device_t33_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
 
     // allocate device memory for our parcel positions
     gpuErrchk( cudaMalloc(&(device_parcels.xpos), parcels.nParcels * totTime * sizeof(float)) );
@@ -898,6 +909,12 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     cout << "Calculating rhof" << endl;
 
     doCalcrf<<<numBlocks, threadsPerBlock>>>(device_grid, device_rho_time_chunk, device_rhof_time_chunk, MX, MY, MZ, tStart, tEnd, totTime);
+    gpuErrchk( cudaDeviceSynchronize() );
+
+    cout << "Calculating Deformation for Turbulence" << endl;
+    doCalcdef<<<numBlocks, threadsPerBlock>>>(device_grid, device_u_time_chunk, device_v_time_chunk, device_w_time_chunk, device_rho_time_chunk, device_rhof_time_chunk, \
+                        device_t11_time_chunk, device_t12_time_chunk, device_t13_time_chunk, device_t22_time_chunk, device_t23_time_chunk, device_t33_time_chunk, \
+                        MX, MY, MZ, tStart, tEnd, totTime);
     gpuErrchk( cudaDeviceSynchronize() );
 
     cout << "Calculating vorticity" << endl;
@@ -1002,6 +1019,12 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
 	cudaFree(device_xvortbaro_chunk);
 	cudaFree(device_yvortbaro_chunk);
 	cudaFree(device_rhof_time_chunk);
+	cudaFree(device_t11_time_chunk);
+	cudaFree(device_t12_time_chunk);
+	cudaFree(device_t13_time_chunk);
+	cudaFree(device_t22_time_chunk);
+	cudaFree(device_t23_time_chunk);
+	cudaFree(device_t33_time_chunk);
 
 
 
