@@ -632,7 +632,7 @@ int main(int argc, char **argv ) {
             // send to the GPU!!
             int nParcels = parcels.nParcels;
             cudaIntegrateParcels(requested_grid, parcels, u_time_chunk, v_time_chunk, w_time_chunk, p_time_chunk, th_time_chunk, \
-                                rho_time_chunk, MX, MY, MZ, size, nTotTimes, direct); 
+                                rho_time_chunk, khh_time_chunk, MX, MY, MZ, size, nTotTimes, direct); 
             // write out our information to disk
             write_parcels(outfilename, &parcels, tChunk);
 

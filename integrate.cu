@@ -466,23 +466,27 @@ __global__ void doCalcdef(datagrid grid, float *uarr, float *varr, float *warr, 
     }
 }
 
-/*
-__global__ void doGettau() {
+__global__ void doGettau(datagrid grid, float *rho, float *khh, \
+                        float *t11, float *t12, float *t13, float *t22, float *t23, float *t33, \
+                        int MX, int MY, int MZ, int tStart, int tEnd, int totTime) {
     int i = blockIdx.x*blockDim.x + threadIdx.x;
     int j = blockIdx.y*blockDim.y + threadIdx.y;
     int k = blockIdx.z*blockDim.z + threadIdx.z;
     int idx_4D[4];
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < MX-1) && (j < MY-1) && (k < MZ-1)) { 
+    if ((i < MX-2) && (j < MY-2) && (k < MZ-2) && \
+    	(i >= 1) && (j >= 1) && (k >=1)) { 
         if ((i+1 > MX) || (j+1 > MY) || (k+1 > MZ)) printf("i+1 or j+1 out of bounds\n");
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
+            gettau(grid, rho, khh, t11, t12, t13, t22, t23, t33, idx_4D, MX, MY, MZ);
         }
     }
 }
 
+/*
 __global__ void goTurbu() {
     int i = blockIdx.x*blockDim.x + threadIdx.x;
     int j = blockIdx.y*blockDim.y + threadIdx.y;
@@ -787,11 +791,12 @@ __global__ void test(datagrid grid, parcel_pos parcels, float *u_time_chunk, flo
 arrays to GPU global memory, calling the integrate GPU kernel, and then
 updating the position vectors with the new stuff*/
 void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk, float *v_time_chunk, float *w_time_chunk, \
-                         float *p_time_chunk, float *th_time_chunk, float *rho_time_chunk, \
+                         float *p_time_chunk, float *th_time_chunk, float *rho_time_chunk, float *khh_time_chunk, \
                          int MX, int MY, int MZ, int nT, int totTime, int direct) {
     // pointers to device memory
     float *device_u_time_chunk, *device_v_time_chunk, *device_w_time_chunk;
     float *device_p_time_chunk, *device_th_time_chunk, *device_rho_time_chunk;
+    float *device_khh_time_chunk;
     float *device_xvort_time_chunk, *device_yvort_time_chunk, *device_zvort_time_chunk;
     float *device_xvortstretch_chunk, *device_yvortstretch_chunk, *device_zvortstretch_chunk;
     float *device_xvorttilt_chunk, *device_yvorttilt_chunk, *device_zvorttilt_chunk;
@@ -834,6 +839,7 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     gpuErrchk( cudaMalloc(&device_p_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
     gpuErrchk( cudaMalloc(&device_th_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
     gpuErrchk( cudaMalloc(&device_rho_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
+    gpuErrchk( cudaMalloc(&device_khh_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
 
     //vorticity device arrays we have to calculate
     gpuErrchk( cudaMalloc(&device_xvort_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
@@ -885,6 +891,7 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     gpuErrchk( cudaMemcpy(device_p_time_chunk, p_time_chunk, MX*MY*MZ*nT*sizeof(float), cudaMemcpyHostToDevice) );
     gpuErrchk( cudaMemcpy(device_th_time_chunk, th_time_chunk, MX*MY*MZ*nT*sizeof(float), cudaMemcpyHostToDevice) );
     gpuErrchk( cudaMemcpy(device_rho_time_chunk, rho_time_chunk, MX*MY*MZ*nT*sizeof(float), cudaMemcpyHostToDevice) );
+    gpuErrchk( cudaMemcpy(device_khh_time_chunk, khh_time_chunk, MX*MY*MZ*nT*sizeof(float), cudaMemcpyHostToDevice) );
 
     gpuErrchk( cudaMemcpy(device_parcels.xpos, parcels.xpos, parcels.nParcels * totTime * sizeof(float), cudaMemcpyHostToDevice) );
     gpuErrchk( cudaMemcpy(device_parcels.ypos, parcels.ypos, parcels.nParcels * totTime * sizeof(float), cudaMemcpyHostToDevice) );
@@ -1007,6 +1014,7 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     cudaFree(device_p_time_chunk);
     cudaFree(device_th_time_chunk);
     cudaFree(device_rho_time_chunk);
+    cudaFree(device_khh_time_chunk);
     cudaFree(device_xvort_time_chunk);
     cudaFree(device_yvort_time_chunk);
     cudaFree(device_zvort_time_chunk);
