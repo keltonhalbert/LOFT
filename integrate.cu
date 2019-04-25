@@ -67,26 +67,29 @@ __device__ void calcdef(datagrid grid, float *uarr, float *varr, float *warr, fl
     float dx = grid.xf[i+1] - grid.xf[i];
 
     // tau 11. Derivative is du/dx therefore use the staggered mesh and forward difference it to get it on the scalar mesh
-    s11[arrayIndex(i, j, k, t, MX, MY, MZ)] = rho[arrayIndex(i, j, k, t, MX, MY, MZ)]*( uarr[arrayIndex(i+1, j, k, t, MX, MY, MZ)] - uarr[arrayIndex(i, j, k, t, MX, MY, MZ)] ) / dx;
+    float rho1 = grid.rho0[k] + rho[arrayIndex(i, j, k, t, MX, MY, MZ)];
+    s11[arrayIndex(i, j, k, t, MX, MY, MZ)] = rho1*( uarr[arrayIndex(i+1, j, k, t, MX, MY, MZ)] - uarr[arrayIndex(i, j, k, t, MX, MY, MZ)] ) / dx;
 
 
     // tau 12. Derivatives are no longer on the staggered meshes since it's du/dy and dv/dx. Therefore, an averaging step
     // will be required later at some point.
     float dy = grid.yh[j+1] - grid.yh[j];
     dx = grid.xh[i+1] - grid.xh[i];
+    float rho2 = grid.rho0[k] + rho[arrayIndex(i+1, j+1, k, t, MX, MY, MZ)];
+    float rho3 = grid.rho0[k] + rho[arrayIndex(i, j+1, k, t, MX, MY, MZ)];
+    float rho4 = grid.rho0[k] + rho[arrayIndex(i+1, j, k, t, MX, MY, MZ)];
     s12[arrayIndex(i, j, k, t, MX, MY, MZ)] = 0.5 * ( ( uarr[arrayIndex(i, j+1, k, t, MX, MY, MZ)] - uarr[arrayIndex(i, j, k, t, MX, MY, MZ)] ) / dy \
                                             + ( varr[arrayIndex(i+1, j, k, t, MX, MY, MZ)] - varr[arrayIndex(i, j, k, t, MX, MY, MZ)] ) / dx ) \
-                                            * 0.25*( (rho[arrayIndex(i, j, k, t, MX, MY, MZ)] + rho[arrayIndex(i+1, j+1, k, t, MX, MY, MZ)]) + \
-                                                     (rho[arrayIndex(i, j+1, k, t, MX, MY, MZ)] + rho[arrayIndex(i+1, j, k, t, MX, MY, MZ)]) );
+                                            * 0.25*( (rho1 + rho2) + (rho3 + rho4) );
 
    // tau 22. Derivative is dv/dy therefore use the staggered mesh and forward difference it to get it on the scalar mesh
    dy = grid.yf[j+1] - grid.yf[j];
-   s22[arrayIndex(i, j, k, t, MX, MY, MZ)] = rho[arrayIndex(i, j, k, t, MX, MY, MZ)] * ( varr[arrayIndex(i, j+1, k, t, MX, MY, MZ)] - varr[arrayIndex(i, j, k, t, MX, MY, MZ)] ) / dy;
+   s22[arrayIndex(i, j, k, t, MX, MY, MZ)] = rho1 * ( varr[arrayIndex(i, j+1, k, t, MX, MY, MZ)] - varr[arrayIndex(i, j, k, t, MX, MY, MZ)] ) / dy;
 
 
    // tau 33. Derivative is du/dz and therefore use the staggered mesh and forward difference it to get it on the scalar mesh
    float dz = grid.zf[k+1] - grid.zf[k];
-   s33[arrayIndex(i, j, k, t, MX, MY, MZ)] = rho[arrayIndex(i, j, k, t, MX, MY, MZ)] * ( warr[arrayIndex(i, j, k+1, t, MX, MY, MZ)] - warr[arrayIndex(i, k, k, t, MX, MY, MZ)] ) / dz;
+   s33[arrayIndex(i, j, k, t, MX, MY, MZ)] = rho1 * ( warr[arrayIndex(i, j, k+1, t, MX, MY, MZ)] - warr[arrayIndex(i, k, k, t, MX, MY, MZ)] ) / dz;
 
    // data above the lower boundary
    if ( k >= 1.) {
@@ -439,7 +442,89 @@ __global__ void doCalcrf(datagrid grid, float *rho_time_chunk, float *rhof, int 
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calcrf(grid, rho_time_chunk, rhof, idx_4D, MX, MY, MZ);
-            printf("rhof = %f\n", rhof[arrayIndex(i, j, k, idx_4D[3], MX, MY, MZ)]);
+        }
+    }
+}
+
+__global__ void doCalcdef(datagrid grid float *uarr, float *varr, float *warr, float *rho, float *rf, \
+                        float *s11, float *s12, float *s13, float *s22, float *s23, float *s33, \
+                        int *idx_4D, int MX, int MY, int MZ) {
+
+    int i = blockIdx.x*blockDim.x + threadIdx.x;
+    int j = blockIdx.y*blockDim.y + threadIdx.y;
+    int k = blockIdx.z*blockDim.z + threadIdx.z;
+    int idx_4D[4];
+
+    idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
+    if ((i < MX-1) && (j < MY-1) && (k < MZ-1)) { 
+        if ((i+1 > MX) || (j+1 > MY) || (k+1 > MZ)) printf("i+1 or j+1 out of bounds\n");
+        // loop over the number of time steps we have in memory
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            idx_4D[3] = tidx;
+        }
+    }
+}
+
+__global__ void doGettau() {
+    int i = blockIdx.x*blockDim.x + threadIdx.x;
+    int j = blockIdx.y*blockDim.y + threadIdx.y;
+    int k = blockIdx.z*blockDim.z + threadIdx.z;
+    int idx_4D[4];
+
+    idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
+    if ((i < MX-1) && (j < MY-1) && (k < MZ-1)) { 
+        if ((i+1 > MX) || (j+1 > MY) || (k+1 > MZ)) printf("i+1 or j+1 out of bounds\n");
+        // loop over the number of time steps we have in memory
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            idx_4D[3] = tidx;
+        }
+    }
+}
+
+__global__ void goTurbu() {
+    int i = blockIdx.x*blockDim.x + threadIdx.x;
+    int j = blockIdx.y*blockDim.y + threadIdx.y;
+    int k = blockIdx.z*blockDim.z + threadIdx.z;
+    int idx_4D[4];
+
+    idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
+    if ((i < MX-1) && (j < MY-1) && (k < MZ-1)) { 
+        if ((i+1 > MX) || (j+1 > MY) || (k+1 > MZ)) printf("i+1 or j+1 out of bounds\n");
+        // loop over the number of time steps we have in memory
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            idx_4D[3] = tidx;
+        }
+    }
+}
+
+__global__ void doTurbv() { 
+    int i = blockIdx.x*blockDim.x + threadIdx.x;
+    int j = blockIdx.y*blockDim.y + threadIdx.y;
+    int k = blockIdx.z*blockDim.z + threadIdx.z;
+    int idx_4D[4];
+
+    idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
+    if ((i < MX-1) && (j < MY-1) && (k < MZ-1)) { 
+        if ((i+1 > MX) || (j+1 > MY) || (k+1 > MZ)) printf("i+1 or j+1 out of bounds\n");
+        // loop over the number of time steps we have in memory
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            idx_4D[3] = tidx;
+        }
+    }
+}
+
+__global__ void doTurbw() { 
+    int i = blockIdx.x*blockDim.x + threadIdx.x;
+    int j = blockIdx.y*blockDim.y + threadIdx.y;
+    int k = blockIdx.z*blockDim.z + threadIdx.z;
+    int idx_4D[4];
+
+    idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
+    if ((i < MX-1) && (j < MY-1) && (k < MZ-1)) { 
+        if ((i+1 > MX) || (j+1 > MY) || (k+1 > MZ)) printf("i+1 or j+1 out of bounds\n");
+        // loop over the number of time steps we have in memory
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            idx_4D[3] = tidx;
         }
     }
 }
