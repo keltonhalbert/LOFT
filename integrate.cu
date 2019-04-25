@@ -27,18 +27,22 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 // the scalar mesh normalized by the grid spacing dz, and since in an isotropic mesh the stagger is exactly half way
 // between scalar points, is 0.5. This is hard coded, but even in our stretch zone above 10km, it's really close
 // to 0.5. This is probably only violated for wildly stretched meshes, which we don't use because they're dumb.
-__device__ void calcrf(datagrid grid, float *rho, float *c1, float *c2, float *rf, \
-                        int idx_4D, int MX, int MY, int MZ) {
+// Mostly just noting this for future reference, because this will need correcting for stretched meshes.
+__device__ void calcrf(datagrid grid, float *rho, float *rf, int *idx_4D, int MX, int MY, int MZ) {
 
+    int i = idx_4D[0];
+    int j = idx_4D[1];
+    int k = idx_4D[2];
+    int t = idx_4D[3];
     // c1 and c2 are both 0.5 for isotropic staggered meshes. We are hard coding this to be the case here for our data,
     // but is not necessarily true for all simulations.
     float c1 = 0.5; float c2 = 0.5;
-    if ( k == 1) {
-        rf[arrayIndex(i, j, 1, t, MX, MY, MZ)] = (1.75*rho[arrayIndex(i, j, 1, t, MX, MY, MZ)]-rho[arrayIndex(i, j, 2, t, MX, MY, MZ)]+0.25*rho[arrayIndex(i, j, 3, t, MX, MY, MZ)]);
+    if ( k == 0) {
+        rf[arrayIndex(i, j, 0, t, MX, MY, MZ)] = (1.75*rho[arrayIndex(i, j, 1, t, MX, MY, MZ)]-rho[arrayIndex(i, j, 2, t, MX, MY, MZ)]+0.25*rho[arrayIndex(i, j, 3, t, MX, MY, MZ)]);
     }
     else {
 
-        rf[arrayIndex(i, j, k, t, MX, MY, MZ)] = ( c1*rho[arrayIndex(i, j, k, t, MX, MY, MZ)] + c2*rho[arrayIndex(i, j, k+1, t, MX, MY, MZ)])
+        rf[arrayIndex(i, j, k, t, MX, MY, MZ)] = ( c1*rho[arrayIndex(i, j, k, t, MX, MY, MZ)] + c2*rho[arrayIndex(i, j, k+1, t, MX, MY, MZ)]);
     }
     // there's technically a top boundary condition in CM1, but we're ignoring because we hope to be far away from the upper boundary.
 }
@@ -48,7 +52,7 @@ __device__ void calcrf(datagrid grid, float *rho, float *c1, float *c2, float *r
 // tensor notation
 __device__ void calcdef(datagrid grid, float *uarr, float *varr, float *warr, float *rho, float *rf,\
                         float *s11, float *s12, float *s13, float *s22, float *s23, float *s33, \
-                        int idx_4D, int MX, int MY, int MZ) {
+                        int *idx_4D, int MX, int MY, int MZ) {
 
     int i = idx_4D[0];
     int j = idx_4D[1];
@@ -107,8 +111,8 @@ __device__ void calcdef(datagrid grid, float *uarr, float *varr, float *warr, fl
 // take the output from calcdef and compute the full stress tensor tau
 // !NOTE: turb coefficients are defined on w points
 __device__ void gettau(datagrid grid, float *rho, float *kmh, float *kmv, \
-                        float *t11, float *t12, float *t13, float *t22, float *t23, float *t33 \
-                        int idx_4D, int MX, int MY, int MZ) {
+                        float *t11, float *t12, float *t13, float *t22, float *t23, float *t33, \
+                        int *idx_4D, int MX, int MY, int MZ) {
 
     // get the i,j,k,t index of where we are doing
     // our differencing
@@ -130,8 +134,8 @@ __device__ void gettau(datagrid grid, float *rho, float *kmh, float *kmv, \
 
     // do some 8 point averaging of our kmh in space
     t12[arrayIndex(i, j, k, t, MX, MY, MZ)] = t12[arrayIndex(i, j, k, t, MX, MY, MZ)]*.025 \
-                  *( ( (kmh[arrayIndex(i-1,j-1,k  )]+kmh[arrayIndex(i,j,k  )])+(kmh[arrayIndex(i-1,j,k  )]+kmh[arrayIndex(i,j-1,k  )]) )   \
-                    +( (kmh[arrayIndex(i-1,j-1,k+1)]+kmh[arrayIndex(i,j,k+1)])+(kmh[arrayIndex(i-1,j,k+1)]+kmh[arrayIndex(i,j-1,k+1)]) ) );
+    *( ( (kmh[arrayIndex(i-1, j-1, k, t, MX, MY, MZ )]+kmh[arrayIndex(i, j, k, t, MX, MY, MZ )])+(kmh[arrayIndex(i-1, j, k, t, MX, MY, MZ )]+kmh[arrayIndex(i, j-1, k, t, MX, MY, MZ  )]) )   \
+    +( (kmh[arrayIndex(i-1, j-1, k+1, t, MX, MY, MZ )]+kmh[arrayIndex(i, j, k+1, t, MX, MY, MZ )])+(kmh[arrayIndex(i-1, j, k+1, t, MX, MY, MZ )]+kmh[arrayIndex(i,j-1,k+1, t, MX, MY, MZ)]) ) );
 
     if (k >= 1) {
         t13[arrayIndex(i, j, k, t, MX, MY, MZ)] = t13[arrayIndex(i, j, k, t, MX, MY, MZ)] * ( kmv[arrayIndex(i, j, k, t, MX, MY, MZ)]+kmv[arrayIndex(i+1, j, k, t, MX, MY, MZ)] );
@@ -158,7 +162,8 @@ __device__ void gettau(datagrid grid, float *rho, float *kmh, float *kmv, \
 
 // calculate the turbulence term of the momentum equation for U. Eventually this will be modified to be
 // the turbulence term for a component of vorticity (I think). 
-__device__ void calc_turbu(datagrid grid, float *t11, float *t12, float *t13, float *turbx, float *turby, float *turbz) {
+__device__ void calc_turbu(datagrid grid, float *t11, float *t12, float *t13, float *turbx, float *turby, float *turbz, \
+                        int *idx_4D, int MX, int MY, int MZ) {
     int i = idx_4D[0];
     int j = idx_4D[1];
     int k = idx_4D[2];
@@ -176,7 +181,8 @@ __device__ void calc_turbu(datagrid grid, float *t11, float *t12, float *t13, fl
 
 // calculate the turbulence term of the momentum equation for V. Eventually this will be modified to be
 // the turbulence term for a component of vorticity (I think). 
-__device__ void calc_turbv(datagrid grid, float *t12, float *t22, float *t23, float *turbx, float *turby, float *turbz) {
+__device__ void calc_turbv(datagrid grid, float *t12, float *t22, float *t23, float *turbx, float *turby, float *turbz,
+                        int *idx_4D, int MX, int MY, int MZ) {
     int i = idx_4D[0];
     int j = idx_4D[1];
     int k = idx_4D[2];
@@ -193,7 +199,8 @@ __device__ void calc_turbv(datagrid grid, float *t12, float *t22, float *t23, fl
 
 // calculate the turbulence term of the momentum equation for W. Eventually this will be modified to be
 // the turbulence term for a component of vorticity (I think). 
-__device__ void calc_turbw(datagrid grid, float *t13, float *t23, float *t33, float *turbx, float *turby, float *turbz) {
+__device__ void calc_turbw(datagrid grid, float *t13, float *t23, float *t33, float *turbx, float *turby, float *turbz,
+                        int *idx_4D, int MX, int MY, int MZ) {
     int i = idx_4D[0];
     int j = idx_4D[1];
     int k = idx_4D[2];
