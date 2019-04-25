@@ -142,8 +142,10 @@ void lofs_get_grid( datagrid *grid ) {
     get1dfloat( f_id, (char *)"mesh/zf", zf, 0, nz );
     float *qv0 = new float[nz];
     float *th0 = new float[nz];
+    float *rho0 = new float[nz];
     get1dfloat(f_id, (char *)"basestate/qv0", qv0, 0, nz);
     get1dfloat(f_id, (char *)"basestate/th0", th0, 0, nz);
+    get1dfloat(f_id, (char *)"basestate/rh0", rho0, 0, nz);
 
 
     // take the full grid and put it into
@@ -187,6 +189,7 @@ void lofs_get_grid( datagrid *grid ) {
     grid->zf = zfout;
     grid->th0 = th0;
     grid->qv0 = qv0;
+    grid->rho0 = rho0;
 
     delete[] xffull;
     delete[] yffull;

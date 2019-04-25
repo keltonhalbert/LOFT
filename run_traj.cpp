@@ -631,7 +631,8 @@ int main(int argc, char **argv ) {
         if (rank == 0) {
             // send to the GPU!!
             int nParcels = parcels.nParcels;
-            cudaIntegrateParcels(requested_grid, parcels, u_time_chunk, v_time_chunk, w_time_chunk, p_time_chunk, th_time_chunk, MX, MY, MZ, size, nTotTimes, direct); 
+            cudaIntegrateParcels(requested_grid, parcels, u_time_chunk, v_time_chunk, w_time_chunk, p_time_chunk, th_time_chunk, \
+                                rho_time_chunk, MX, MY, MZ, size, nTotTimes, direct); 
             // write out our information to disk
             write_parcels(outfilename, &parcels, tChunk);
 
@@ -673,6 +674,7 @@ int main(int argc, char **argv ) {
             
             delete[] requested_grid.th0;
             delete[] requested_grid.qv0;
+            delete[] requested_grid.rho0;
 
             delete[] ubuf;
             delete[] vbuf;
@@ -705,6 +707,7 @@ int main(int argc, char **argv ) {
             
             delete[] requested_grid.th0;
             delete[] requested_grid.qv0;
+            delete[] requested_grid.rho0;
 
             delete[] ubuf;
             delete[] vbuf;

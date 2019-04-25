@@ -38,11 +38,16 @@ __device__ void calcrf(datagrid grid, float *rho, float *rf, int *idx_4D, int MX
     // but is not necessarily true for all simulations.
     float c1 = 0.5; float c2 = 0.5;
     if ( k == 0) {
-        rf[arrayIndex(i, j, 0, t, MX, MY, MZ)] = (1.75*rho[arrayIndex(i, j, 1, t, MX, MY, MZ)]-rho[arrayIndex(i, j, 2, t, MX, MY, MZ)]+0.25*rho[arrayIndex(i, j, 3, t, MX, MY, MZ)]);
+        float rho1 = grid.rho0[k] + rho[arrayIndex(i, j, 1, t, MX, MY, MZ)]; 
+        float rho2 = grid.rho0[k] + rho[arrayIndex(i, j, 2, t, MX, MY, MZ)];
+        float rho3 = grid.rho0[k] + rho[arrayIndex(i, j, 3, t, MX, MY, MZ)];
+        rf[arrayIndex(i, j, 0, t, MX, MY, MZ)] = (1.75*rho1-rho2+0.25*rho3);
     }
     else {
 
-        rf[arrayIndex(i, j, k, t, MX, MY, MZ)] = ( c1*rho[arrayIndex(i, j, k, t, MX, MY, MZ)] + c2*rho[arrayIndex(i, j, k+1, t, MX, MY, MZ)]);
+        float rho1 = grid.rho0[k] + rho[arrayIndex(i, j, k, t, MX, MY, MZ)]; 
+        float rho2 = grid.rho0[k] + rho[arrayIndex(i, j, k+1, t, MX, MY, MZ)];
+        rf[arrayIndex(i, j, k, t, MX, MY, MZ)] = ( c1*rho1 + c2*rho2);
     }
     // there's technically a top boundary condition in CM1, but we're ignoring because we hope to be far away from the upper boundary.
 }
@@ -110,7 +115,7 @@ __device__ void calcdef(datagrid grid, float *uarr, float *varr, float *warr, fl
 
 // take the output from calcdef and compute the full stress tensor tau
 // !NOTE: turb coefficients are defined on w points
-__device__ void gettau(datagrid grid, float *rho, float *kmh, float *kmv, \
+__device__ void gettau(datagrid grid, float *rho, float *khh, \
                         float *t11, float *t12, float *t13, float *t22, float *t23, float *t33, \
                         int *idx_4D, int MX, int MY, int MZ) {
 
@@ -122,7 +127,8 @@ __device__ void gettau(datagrid grid, float *rho, float *kmh, float *kmv, \
     int t = idx_4D[3];
 
 
-    float tem = kmh[arrayIndex(i, k, k, t, MX, MY, MZ)] + kmh[arrayIndex(i, j, k+1, t, MX, MY, MZ)];
+    // kmh = Pr * khh and Pr is 1./3.
+    float tem = (1./3.)*khh[arrayIndex(i, k, k, t, MX, MY, MZ)] + (1./3.)*khh[arrayIndex(i, j, k+1, t, MX, MY, MZ)];
 
 
     // these are conveniently on points we know... but that convecience will end shortly
@@ -133,14 +139,23 @@ __device__ void gettau(datagrid grid, float *rho, float *kmh, float *kmv, \
     t33[arrayIndex(i, j, k, t, MX, MY, MZ)] = t33[arrayIndex(i, j, k, t, MX, MY, MZ)] * tem;
 
     // do some 8 point averaging of our kmh in space
+    float kmh1 = khh[arrayIndex(i-1, j-1, k, t, MX, MY, MZ )] * 1./3.;
+    float kmh2 = khh[arrayIndex(i, j, k, t, MX, MY, MZ )] * 1./3.;
+    float kmh3 = khh[arrayIndex(i-1, j, k, t, MX, MY, MZ )] * 1./3.;
+    float kmh4 = khh[arrayIndex(i, j-1, k, t, MX, MY, MZ  )] * 1./3.;
+    float kmh5 = khh[arrayIndex(i-1, j-1, k+1, t, MX, MY, MZ )] * 1./3.;
+    float kmh6 = khh[arrayIndex(i, j, k+1, t, MX, MY, MZ )] * 1./3.;
+    float kmh7 = khh[arrayIndex(i-1, j, k+1, t, MX, MY, MZ )] * 1./3.;
+    float kmh8 = khh[arrayIndex(i,j-1,k+1, t, MX, MY, MZ)] * 1./3.;
     t12[arrayIndex(i, j, k, t, MX, MY, MZ)] = t12[arrayIndex(i, j, k, t, MX, MY, MZ)]*.025 \
-    *( ( (kmh[arrayIndex(i-1, j-1, k, t, MX, MY, MZ )]+kmh[arrayIndex(i, j, k, t, MX, MY, MZ )])+(kmh[arrayIndex(i-1, j, k, t, MX, MY, MZ )]+kmh[arrayIndex(i, j-1, k, t, MX, MY, MZ  )]) )   \
-    +( (kmh[arrayIndex(i-1, j-1, k+1, t, MX, MY, MZ )]+kmh[arrayIndex(i, j, k+1, t, MX, MY, MZ )])+(kmh[arrayIndex(i-1, j, k+1, t, MX, MY, MZ )]+kmh[arrayIndex(i,j-1,k+1, t, MX, MY, MZ)]) ) );
+    *( ( (kmh1+kmh2)+(kmh3+kmh4) )+( (kmh5+kmh6)+(kmh7+kmh8) ) );
 
     if (k >= 1) {
-        t13[arrayIndex(i, j, k, t, MX, MY, MZ)] = t13[arrayIndex(i, j, k, t, MX, MY, MZ)] * ( kmv[arrayIndex(i, j, k, t, MX, MY, MZ)]+kmv[arrayIndex(i+1, j, k, t, MX, MY, MZ)] );
-
-        t23[arrayIndex(i, j, k, t, MX, MY, MZ)] = t23[arrayIndex(i, j, k, t, MX, MY, MZ)] * ( kmv[arrayIndex(i, j, k, t, MX, MY, MZ)] + kmv[arrayIndex(i, j+1, k, t, MX, MY, MZ)] ); 
+        float kmv1 = kmh2; 
+        float kmv2 = khh[arrayIndex(i+1, j, k, t, MX, MY, MZ)] * 1./3.;
+        float kmv3 = khh[arrayIndex(i, j+1, k, t, MX, MY, MZ)] * 1./3.;
+        t13[arrayIndex(i, j, k, t, MX, MY, MZ)] = t13[arrayIndex(i, j, k, t, MX, MY, MZ)] * ( kmv1 + kmv2 );
+        t23[arrayIndex(i, j, k, t, MX, MY, MZ)] = t23[arrayIndex(i, j, k, t, MX, MY, MZ)] * ( kmv1 + kmv3 ); 
 
     }
     else {
@@ -410,6 +425,26 @@ __device__ void calc_yvortbaro(datagrid grid, float *ybaro, float *thrhopert, in
 }
 
 
+__global__ void doCalcrf(datagrid grid, float *rho_time_chunk, float *rhof, int MX, int MY, int MZ, int tStart, int tEnd, int totTime) {
+
+    int i = blockIdx.x*blockDim.x + threadIdx.x;
+    int j = blockIdx.y*blockDim.y + threadIdx.y;
+    int k = blockIdx.z*blockDim.z + threadIdx.z;
+    int idx_4D[4];
+
+    idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
+    if ((i < MX-1) && (j < MY-1) && (k < MZ-1)) { 
+        if ((i+1 > MX) || (j+1 > MY) || (k+1 > MZ)) printf("i+1 or j+1 out of bounds\n");
+        // loop over the number of time steps we have in memory
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            idx_4D[3] = tidx;
+            calcrf(grid, rho_time_chunk, rhof, idx_4D, MX, MY, MZ);
+            printf("rhof = %f\n", rhof[arrayIndex(i, j, k, idx_4D[3], MX, MY, MZ)]);
+        }
+    }
+}
+
+
 /* NOTE FOR VORTICITY KERNELS!!!!!!
 Our subset doesn't have ghost zones per-say, but we assume
 that our parcels aren't on the borders of the arrays. This is
@@ -665,14 +700,15 @@ __global__ void test(datagrid grid, parcel_pos parcels, float *u_time_chunk, flo
 arrays to GPU global memory, calling the integrate GPU kernel, and then
 updating the position vectors with the new stuff*/
 void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk, float *v_time_chunk, float *w_time_chunk, \
-                         float *p_time_chunk, float *th_time_chunk, int MX, int MY, int MZ, int nT, int totTime, int direct) {
+                         float *p_time_chunk, float *th_time_chunk, float *rho_time_chunk, \
+                         int MX, int MY, int MZ, int nT, int totTime, int direct) {
     // pointers to device memory
     float *device_u_time_chunk, *device_v_time_chunk, *device_w_time_chunk;
-    float *device_p_time_chunk, *device_th_time_chunk;
+    float *device_p_time_chunk, *device_th_time_chunk, *device_rho_time_chunk;
     float *device_xvort_time_chunk, *device_yvort_time_chunk, *device_zvort_time_chunk;
     float *device_xvortstretch_chunk, *device_yvortstretch_chunk, *device_zvortstretch_chunk;
     float *device_xvorttilt_chunk, *device_yvorttilt_chunk, *device_zvorttilt_chunk;
-    float *device_xvortbaro_chunk, *device_yvortbaro_chunk;
+    float *device_xvortbaro_chunk, *device_yvortbaro_chunk, *device_rhof_time_chunk;
 
     parcel_pos device_parcels;
     datagrid device_grid;
@@ -697,6 +733,7 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
 
     gpuErrchk( cudaMalloc(&(device_grid.th0), device_grid.nz*sizeof(float)) );
     gpuErrchk( cudaMalloc(&(device_grid.qv0), device_grid.nz*sizeof(float)) );
+    gpuErrchk( cudaMalloc(&(device_grid.rho0), device_grid.nz*sizeof(float)) );
 
     gpuErrchk( cudaMalloc(&(device_grid.xf), device_grid.NX*sizeof(float)) );
     gpuErrchk( cudaMalloc(&(device_grid.yf), device_grid.NY*sizeof(float)) );
@@ -707,6 +744,7 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     gpuErrchk( cudaMalloc(&device_w_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
     gpuErrchk( cudaMalloc(&device_p_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
     gpuErrchk( cudaMalloc(&device_th_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
+    gpuErrchk( cudaMalloc(&device_rho_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
 
     //vorticity device arrays we have to calculate
     gpuErrchk( cudaMalloc(&device_xvort_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
@@ -721,6 +759,7 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     gpuErrchk( cudaMalloc(&device_zvorttilt_chunk, MX*MY*MZ*nT*sizeof(float)) );
     gpuErrchk( cudaMalloc(&device_xvortbaro_chunk, MX*MY*MZ*nT*sizeof(float)) );
     gpuErrchk( cudaMalloc(&device_yvortbaro_chunk, MX*MY*MZ*nT*sizeof(float)) );
+    gpuErrchk( cudaMalloc(&device_rhof_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
 
     // allocate device memory for our parcel positions
     gpuErrchk( cudaMalloc(&(device_parcels.xpos), parcels.nParcels * totTime * sizeof(float)) );
@@ -749,6 +788,7 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     gpuErrchk( cudaMemcpy(device_w_time_chunk, w_time_chunk, MX*MY*MZ*nT*sizeof(float), cudaMemcpyHostToDevice) );
     gpuErrchk( cudaMemcpy(device_p_time_chunk, p_time_chunk, MX*MY*MZ*nT*sizeof(float), cudaMemcpyHostToDevice) );
     gpuErrchk( cudaMemcpy(device_th_time_chunk, th_time_chunk, MX*MY*MZ*nT*sizeof(float), cudaMemcpyHostToDevice) );
+    gpuErrchk( cudaMemcpy(device_rho_time_chunk, rho_time_chunk, MX*MY*MZ*nT*sizeof(float), cudaMemcpyHostToDevice) );
 
     gpuErrchk( cudaMemcpy(device_parcels.xpos, parcels.xpos, parcels.nParcels * totTime * sizeof(float), cudaMemcpyHostToDevice) );
     gpuErrchk( cudaMemcpy(device_parcels.ypos, parcels.ypos, parcels.nParcels * totTime * sizeof(float), cudaMemcpyHostToDevice) );
@@ -760,6 +800,7 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     
     gpuErrchk( cudaMemcpy(device_grid.th0, grid.th0, device_grid.nz*sizeof(float), cudaMemcpyHostToDevice) );
     gpuErrchk( cudaMemcpy(device_grid.qv0, grid.qv0, device_grid.nz*sizeof(float), cudaMemcpyHostToDevice) );
+    gpuErrchk( cudaMemcpy(device_grid.rho0, grid.rho0, device_grid.nz*sizeof(float), cudaMemcpyHostToDevice) );
 
     gpuErrchk( cudaMemcpy(device_grid.xf, grid.xf, device_grid.NX*sizeof(float), cudaMemcpyHostToDevice) );
     gpuErrchk( cudaMemcpy(device_grid.yf, grid.yf, device_grid.NY*sizeof(float), cudaMemcpyHostToDevice) );
@@ -768,6 +809,11 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     gpuErrchk( cudaDeviceSynchronize() );
     dim3 threadsPerBlock(8, 8, 8);
     dim3 numBlocks((MX/threadsPerBlock.x)+1, (MY/threadsPerBlock.y)+1, (MZ/threadsPerBlock.z)+1); 
+
+    cout << "Calculating rhof" << endl;
+
+    doCalcrf<<<numBlocks, threadsPerBlock>>>(device_grid, device_rho_time_chunk, device_rhof_time_chunk, MX, MY, MZ, tStart, tEnd, totTime);
+    gpuErrchk( cudaDeviceSynchronize() );
 
     cout << "Calculating vorticity" << endl;
     calcvort<<<numBlocks, threadsPerBlock>>>(device_grid, device_u_time_chunk, device_v_time_chunk, device_w_time_chunk, \
@@ -833,6 +879,7 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     cudaFree(device_grid.zf);
     cudaFree(device_grid.th0);
     cudaFree(device_grid.qv0);
+    cudaFree(device_grid.rho0);
     cudaFree(device_parcels.xpos);
     cudaFree(device_parcels.ypos);
     cudaFree(device_parcels.zpos);
@@ -857,6 +904,7 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     cudaFree(device_w_time_chunk);
     cudaFree(device_p_time_chunk);
     cudaFree(device_th_time_chunk);
+    cudaFree(device_rho_time_chunk);
     cudaFree(device_xvort_time_chunk);
     cudaFree(device_yvort_time_chunk);
     cudaFree(device_zvort_time_chunk);
@@ -868,6 +916,7 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
 	cudaFree(device_zvortstretch_chunk);
 	cudaFree(device_xvortbaro_chunk);
 	cudaFree(device_yvortbaro_chunk);
+	cudaFree(device_rhof_time_chunk);
 
 
 

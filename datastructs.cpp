@@ -25,6 +25,7 @@ struct datagrid {
 
     float *qv0;
     float *th0;
+    float *rho0;
 
     int isValid;
 

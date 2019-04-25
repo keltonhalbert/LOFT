@@ -1,0 +1,1 @@
+./run --histpath=/apollo/orfstore/khalbert/24May2011-every-time-step/3D --base=testrun --x0=-3000 --y0=-3000 --z0=0 --nx=10 --ny=10 --nz=10 --dx=30 --dy=30 --dz=30 --time=4200 --ntimes=100
