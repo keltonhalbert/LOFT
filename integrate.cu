@@ -925,7 +925,7 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     gpuErrchk( cudaDeviceSynchronize() );
 
     cout << "Calculating Tau Stress for turbulence" << endl;
-    doGettau<<<numBlocks, threadsPerBlock>>>(devicegrid, device_rho_time_chunk, device_khh_time_chunk, \
+    doGettau<<<numBlocks, threadsPerBlock>>>(device_grid, device_rho_time_chunk, device_khh_time_chunk, \
                         device_t11_time_chunk, device_t12_time_chunk, device_t13_time_chunk, device_t22_time_chunk, device_t23_time_chunk, device_t33_time_chunk, \
                         MX, MY, MZ, tStart, tEnd, totTime); 
     gpuErrchk( cudaDeviceSynchronize() );
