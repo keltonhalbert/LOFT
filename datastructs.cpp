@@ -71,6 +71,9 @@ struct parcel_pos {
     float *pclzvortstretch;
     float *pclxvortbaro;
     float *pclyvortbaro;
+    float *pclxvortturb;
+    float *pclyvortturb;
+    float *pclzvortturb;
 
     float *pclppert;
     float *pclthrhoprime;

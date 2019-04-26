@@ -705,6 +705,7 @@ __global__ void test(datagrid grid, parcel_pos parcels, float *u_time_chunk, flo
                     float *xvorttilt_chunk, float *yvorttilt_chunk, float *zvorttilt_chunk, \
                     float *xvortstretch_chunk, float *yvortstretch_chunk, float *zvortstretch_chunk, \
                     float *xvortbaro_chunk, float *yvortbaro_chunk, \
+                    float *xvortturb_chunk, float *yvortturb_chunk, float *zvortturb_chunk,
                     int MX, int MY, int MZ, int tStart, int tEnd, int totTime, int direct) {
 
 	int parcel_id = blockIdx.x;
@@ -721,6 +722,7 @@ __global__ void test(datagrid grid, parcel_pos parcels, float *u_time_chunk, flo
         float pcl_xvorttilt, pcl_yvorttilt, pcl_zvorttilt;
         float pcl_xvortstretch, pcl_yvortstretch, pcl_zvortstretch;
         float pcl_xvortbaro, pcl_yvortbaro;
+        float pcl_xvortturb, pcl_yvortturb, pcl_zvortturb;
         float point[3];
 
         // loop over the number of time steps we are
@@ -761,6 +763,9 @@ __global__ void test(datagrid grid, parcel_pos parcels, float *u_time_chunk, flo
             pcl_zvortstretch = interp3D(grid, zvortstretch_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx, MX, MY, MZ);
             pcl_xvortbaro = interp3D(grid, xvortbaro_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx, MX, MY, MZ);
             pcl_yvortbaro = interp3D(grid, yvortbaro_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx, MX, MY, MZ);
+            pcl_xvortturb = interp3D(grid, xvortturb_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx, MX, MY, MZ);
+            pcl_yvortturb = interp3D(grid, yvortturb_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx, MX, MY, MZ);
+            pcl_zvortturb = interp3D(grid, zvortturb_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx, MX, MY, MZ);
 
             pcl_ppert = interp3D(grid, p_time_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx, MX, MY, MZ);
             pcl_thrhoprime = interp3D(grid, th_time_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx, MX, MY, MZ);
@@ -802,6 +807,9 @@ __global__ void test(datagrid grid, parcel_pos parcels, float *u_time_chunk, flo
             parcels.pclzvortstretch[P2(tidx, parcel_id, totTime)] = pcl_zvortstretch;
             parcels.pclxvortbaro[P2(tidx, parcel_id, totTime)] = pcl_xvortbaro;
             parcels.pclyvortbaro[P2(tidx, parcel_id, totTime)] = pcl_yvortbaro;
+            parcels.pclxvortturb[P2(tidx, parcel_id, totTime)] = pcl_xvortturb;
+            parcels.pclyvortturb[P2(tidx, parcel_id, totTime)] = pcl_yvortturb;
+            parcels.pclzvortturb[P2(tidx, parcel_id, totTime)] = pcl_zvortturb;
         }
     }
 }
@@ -914,6 +922,9 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     gpuErrchk( cudaMalloc(&(device_parcels.pclzvortstretch), parcels.nParcels * totTime * sizeof(float)) );
     gpuErrchk( cudaMalloc(&(device_parcels.pclxvortbaro), parcels.nParcels * totTime * sizeof(float)) );
     gpuErrchk( cudaMalloc(&(device_parcels.pclyvortbaro), parcels.nParcels * totTime * sizeof(float)) );
+    gpuErrchk( cudaMalloc(&(device_parcels.pclxvortturb), parcels.nParcels * totTime * sizeof(float)) );
+    gpuErrchk( cudaMalloc(&(device_parcels.pclyvortturb), parcels.nParcels * totTime * sizeof(float)) );
+    gpuErrchk( cudaMalloc(&(device_parcels.pclzvortturb), parcels.nParcels * totTime * sizeof(float)) );
 
     // copy the arrays to device memory
     gpuErrchk( cudaMemcpy(device_u_time_chunk, u_time_chunk, MX*MY*MZ*nT*sizeof(float), cudaMemcpyHostToDevice) );
@@ -1023,6 +1034,7 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
                                 device_xvorttilt_chunk, device_yvorttilt_chunk, device_zvorttilt_chunk, \
                                 device_xvortstretch_chunk, device_yvortstretch_chunk, device_zvortstretch_chunk, \
                                 device_xvortbaro_chunk, device_yvortbaro_chunk, \
+                                device_vturbx_time_chunk, device_vturby_time_chunk, device_vturbz_time_chunk, \
                                 MX, MY, MZ, tStart, tEnd, totTime, direct);
     gpuErrchk( cudaDeviceSynchronize() );
 
@@ -1045,6 +1057,9 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     gpuErrchk( cudaMemcpy(parcels.pclzvortstretch, device_parcels.pclzvortstretch, parcels.nParcels * totTime * sizeof(float), cudaMemcpyDeviceToHost) );
     gpuErrchk( cudaMemcpy(parcels.pclxvortbaro, device_parcels.pclxvortbaro, parcels.nParcels * totTime * sizeof(float), cudaMemcpyDeviceToHost) );
     gpuErrchk( cudaMemcpy(parcels.pclyvortbaro, device_parcels.pclyvortbaro, parcels.nParcels * totTime * sizeof(float), cudaMemcpyDeviceToHost) );
+    gpuErrchk( cudaMemcpy(parcels.pclxvortturb, device_parcels.pclxvortturb, parcels.nParcels * totTime * sizeof(float), cudaMemcpyDeviceToHost) );
+    gpuErrchk( cudaMemcpy(parcels.pclyvortturb, device_parcels.pclyvortturb, parcels.nParcels * totTime * sizeof(float), cudaMemcpyDeviceToHost) );
+    gpuErrchk( cudaMemcpy(parcels.pclzvortturb, device_parcels.pclzvortturb, parcels.nParcels * totTime * sizeof(float), cudaMemcpyDeviceToHost) );
 
     gpuErrchk( cudaDeviceSynchronize() );
 
@@ -1076,6 +1091,9 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     cudaFree(device_parcels.pclzvortstretch);
     cudaFree(device_parcels.pclxvortbaro);
     cudaFree(device_parcels.pclyvortbaro);
+    cudaFree(device_parcels.pclxvortturb);
+    cudaFree(device_parcels.pclyvortturb);
+    cudaFree(device_parcels.pclzvortturb);
     cudaFree(device_u_time_chunk);
     cudaFree(device_v_time_chunk);
     cudaFree(device_w_time_chunk);

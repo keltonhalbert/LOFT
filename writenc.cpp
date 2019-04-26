@@ -41,6 +41,9 @@ void init_nc(string filename, parcel_pos *parcels) {
     NcVar zvortstretchVar = output.addVar("zvortstretch", ncFloat, gridDimVector);
     NcVar xvortbaroVar = output.addVar("xvortbaro", ncFloat, gridDimVector);
     NcVar yvortbaroVar = output.addVar("yvortbaro", ncFloat, gridDimVector);
+    NcVar xvortturbVar = output.addVar("xvortturb", ncFloat, gridDimVector);
+    NcVar yvortturbVar = output.addVar("yvortturb", ncFloat, gridDimVector);
+    NcVar zvortturbVar = output.addVar("zvortturb", ncFloat, gridDimVector);
 
     NcVar ppertVar = output.addVar("prespert", ncFloat, gridDimVector);
     NcVar thrhoprime = output.addVar("thrhopert", ncFloat, gridDimVector);
@@ -48,9 +51,9 @@ void init_nc(string filename, parcel_pos *parcels) {
     // Define the units attributes for coordinate vars. This
     // attatches a test attribute to each of the coordinate 
     // cariables containing the units
-    xVar.putAtt("units", "meters from simulation origin");
-    yVar.putAtt("units", "meters from simulation origin");
-    zVar.putAtt("units", "meters from simulation origin");
+    xVar.putAtt("units", "meters");
+    yVar.putAtt("units", "meters");
+    zVar.putAtt("units", "meters");
 
     uVar.putAtt("units", "meters / second");
     vVar.putAtt("units", "meters / second");
@@ -67,6 +70,9 @@ void init_nc(string filename, parcel_pos *parcels) {
     zvortstretchVar.putAtt("units", "s^-2");
     xvortbaroVar.putAtt("units", "s^-2");
     yvortbaroVar.putAtt("units", "s^-2");
+    xvortturbVar.putAtt("units", "s^-2");
+    yvortturbVar.putAtt("units", "s^-2");
+    zvortturbVar.putAtt("units", "s^-2");
 
     ppertVar.putAtt("units", "Pa");
     thrhoprime.putAtt("units", "K");
@@ -97,6 +103,9 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
     NcVar zvortstretchVar = output.getVar("zvortstretch");
     NcVar xvortbaroVar = output.getVar("xvortbaro");
     NcVar yvortbaroVar = output.getVar("yvortbaro");
+    NcVar xvortturbVar = output.getVar("xvortturb");
+    NcVar yvortturbVar = output.getVar("yvortturb");
+    NcVar zvortturbVar = output.getVar("zvortturb");
 
     vector<size_t> startp,countp;
     startp.push_back(0);
@@ -128,6 +137,9 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
     zvortstretchVar.putVar(startp,countp,parcels->pclzvortstretch);
     xvortbaroVar.putVar(startp,countp,parcels->pclxvortbaro);
     yvortbaroVar.putVar(startp,countp,parcels->pclyvortbaro);
+    xvortturbVar.putVar(startp,countp,parcels->pclxvortturb);
+    yvortturbVar.putVar(startp,countp,parcels->pclyvortturb);
+    zvortturbVar.putVar(startp,countp,parcels->pclzvortturb);
     cout << "*** SUCCESS writing file " << filename << "!" << endl;
     return;
 }

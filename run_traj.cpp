@@ -378,6 +378,9 @@ void seed_parcels(parcel_pos *parcels, float X0, float Y0, float Z0, int NX, int
     parcels->pclzvortstretch = new float[nParcels * nTotTimes];
     parcels->pclxvortbaro = new float[nParcels * nTotTimes];
     parcels->pclyvortbaro = new float[nParcels * nTotTimes];
+    parcels->pclxvortturb = new float[nParcels * nTotTimes];
+    parcels->pclyvortturb = new float[nParcels * nTotTimes];
+    parcels->pclzvortturb = new float[nParcels * nTotTimes];
     parcels->nParcels = nParcels;
     parcels->nTimes = nTotTimes;
     cout << X0 << " " << Y0 << " " << Z0 << endl;
@@ -661,6 +664,9 @@ int main(int argc, char **argv ) {
                 parcels.pclzvortstretch[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
                 parcels.pclxvortbaro[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
                 parcels.pclyvortbaro[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
+                parcels.pclxvortturb[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
+                parcels.pclyvortturb[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
+                parcels.pclzvortturb[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
             }
 
             // memory management for root rank
