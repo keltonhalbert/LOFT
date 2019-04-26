@@ -486,8 +486,8 @@ __global__ void doGettau(datagrid grid, float *rho, float *khh, \
     }
 }
 
-__global__ void doTurbu(datagrid grid, float *t11, float *t12, float *t13, \
-                        float *turbx, float *turby, float *turbz, \
+__global__ void doTurbu(datagrid grid, float *rho, float *t11, float *t12, float *t13, \
+                        float *turbx, float *turby, float *turbz, float *turbu,\
                         int MX, int MY, int MZ, int tStart, int tEnd, int totTime) {
     int i = blockIdx.x*blockDim.x + threadIdx.x;
     int j = blockIdx.y*blockDim.y + threadIdx.y;
@@ -501,12 +501,16 @@ __global__ void doTurbu(datagrid grid, float *t11, float *t12, float *t13, \
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calc_turbu(grid, t11, t12, t13, turbx, turby, turbz, idx_4D, MX, MY, MZ);
+            float rru0 = 1.0/(0.5*(rho[arrayIndex(i+1, j, k, tidx, MX, MY, MZ)]+rho[arrayIndex(i, j, k, tidx, MX, MY, MZ)]));
+            turbu[arrayIndex(i, j, k, tidx, MX, MY, MZ)] = (turbx[arrayIndex(i, j, k, tidx, MX, MY, MZ)] + \
+                                                         turby[arrayIndex(i, j, k, tidx, MX, MY, MZ)] + \
+                                                         turbz[arrayIndex(i, j, k, tidx, MX, MY, MZ)])*rru0;
         }
     }
 }
 
-__global__ void doTurbv(datagrid grid, float *t12, float *t22, float *t23, \
-                        float *turbx, float *turby, float *turbz, \
+__global__ void doTurbv(datagrid grid, float *rho, float *t12, float *t22, float *t23, \
+                        float *turbx, float *turby, float *turbz, float *turbv, \
                         int MX, int MY, int MZ, int tStart, int tEnd, int totTime) {
     int i = blockIdx.x*blockDim.x + threadIdx.x;
     int j = blockIdx.y*blockDim.y + threadIdx.y;
@@ -520,12 +524,16 @@ __global__ void doTurbv(datagrid grid, float *t12, float *t22, float *t23, \
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calc_turbv(grid, t12, t22, t23, turbx, turby, turbz, idx_4D, MX, MY, MZ);
+            float rrv0 = 1.0/(0.5*(rho[arrayIndex(i, j+1, k, tidx, MX, MY, MZ)]+rho[arrayIndex(i, j, k, tidx, MX, MY, MZ)]));
+            turbv[arrayIndex(i, j, k, tidx, MX, MY, MZ)] = (turbx[arrayIndex(i, j, k, tidx, MX, MY, MZ)] + \
+                                                         turby[arrayIndex(i, j, k, tidx, MX, MY, MZ)] + \
+                                                         turbz[arrayIndex(i, j, k, tidx, MX, MY, MZ)])*rrv0;
         }
     }
 }
 
-__global__ void doTurbw(datagrid grid, float *t13, float *t23, float *t33, \
-                        float *turbx, float *turby, float *turbz, \
+__global__ void doTurbw(datagrid grid, float *rho, float *t13, float *t23, float *t33, \
+                        float *turbx, float *turby, float *turbz, float *turbw, \
                         int MX, int MY, int MZ, int tStart, int tEnd, int totTime) {
     int i = blockIdx.x*blockDim.x + threadIdx.x;
     int j = blockIdx.y*blockDim.y + threadIdx.y;
@@ -539,6 +547,10 @@ __global__ void doTurbw(datagrid grid, float *t13, float *t23, float *t33, \
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calc_turbw(grid, t13, t23, t33, turbx, turby, turbz, idx_4D, MX, MY, MZ);
+            float rrf = 1.0/(0.5*(rho[arrayIndex(i, j, k+1, tidx, MX, MY, MZ)]+rho[arrayIndex(i, j, k, tidx, MX, MY, MZ)]));
+            turbw[arrayIndex(i, j, k, tidx, MX, MY, MZ)] = (turbx[arrayIndex(i, j, k, tidx, MX, MY, MZ)] + \
+                                                         turby[arrayIndex(i, j, k, tidx, MX, MY, MZ)] + \
+                                                         turbz[arrayIndex(i, j, k, tidx, MX, MY, MZ)])*rrf;
         }
     }
 }
@@ -811,6 +823,7 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     float *device_t11_time_chunk, *device_t12_time_chunk, *device_t13_time_chunk;
     float *device_t22_time_chunk, *device_t23_time_chunk, *device_t33_time_chunk;
     float *device_turbx_time_chunk, *device_turby_time_chunk, *device_turbz_time_chunk;
+    float *device_turbu_time_chunk, *device_turbv_time_chunk, *device_turbw_time_chunk;
 
     parcel_pos device_parcels;
     datagrid device_grid;
@@ -873,6 +886,9 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     gpuErrchk( cudaMalloc(&device_turbx_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
     gpuErrchk( cudaMalloc(&device_turby_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
     gpuErrchk( cudaMalloc(&device_turbz_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
+    gpuErrchk( cudaMalloc(&device_turbu_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
+    gpuErrchk( cudaMalloc(&device_turbv_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
+    gpuErrchk( cudaMalloc(&device_turbw_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
 
     // allocate device memory for our parcel positions
     gpuErrchk( cudaMalloc(&(device_parcels.xpos), parcels.nParcels * totTime * sizeof(float)) );
@@ -942,20 +958,20 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     gpuErrchk( cudaDeviceSynchronize() );
 
     cout << "Calculating U momentum turbulence term" << endl;
-    doTurbu<<<numBlocks, threadsPerBlock>>>(device_grid, device_t11_time_chunk, device_t12_time_chunk, device_t13_time_chunk, \
-                        device_turbx_time_chunk, device_turby_time_chunk, device_turbz_time_chunk, \
+    doTurbu<<<numBlocks, threadsPerBlock>>>(device_grid, device_rho_time_chunk, device_t11_time_chunk, device_t12_time_chunk, device_t13_time_chunk, \
+                        device_turbx_time_chunk, device_turby_time_chunk, device_turbz_time_chunk, device_turbu_time_chunk, \
                         MX, MY, MZ, tStart, tEnd, totTime);
     gpuErrchk( cudaDeviceSynchronize() );
 
     cout << "Calculating V momentum turbulence term" << endl;
-    doTurbv<<<numBlocks, threadsPerBlock>>>(device_grid, device_t12_time_chunk, device_t22_time_chunk, device_t23_time_chunk, \
-                        device_turbx_time_chunk, device_turby_time_chunk, device_turbz_time_chunk, \
+    doTurbv<<<numBlocks, threadsPerBlock>>>(device_grid, device_rho_time_chunk, device_t12_time_chunk, device_t22_time_chunk, device_t23_time_chunk, \
+                        device_turbx_time_chunk, device_turby_time_chunk, device_turbz_time_chunk, device_turbv_time_chunk,\
                         MX, MY, MZ, tStart, tEnd, totTime);
     gpuErrchk( cudaDeviceSynchronize() );
 
     cout << "Calculating W momentum turbulence term" << endl;
-    doTurbv<<<numBlocks, threadsPerBlock>>>(device_grid, device_t13_time_chunk, device_t23_time_chunk, device_t33_time_chunk, \
-                        device_turbx_time_chunk, device_turby_time_chunk, device_turbz_time_chunk, \
+    doTurbv<<<numBlocks, threadsPerBlock>>>(device_grid, device_rho_time_chunk, device_t13_time_chunk, device_t23_time_chunk, device_t33_time_chunk, \
+                        device_turbx_time_chunk, device_turby_time_chunk, device_turbz_time_chunk, device_turbw_time_chunk, \
                         MX, MY, MZ, tStart, tEnd, totTime);
     gpuErrchk( cudaDeviceSynchronize() );
 
@@ -1071,6 +1087,9 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
 	cudaFree(device_turbx_time_chunk);
 	cudaFree(device_turby_time_chunk);
 	cudaFree(device_turbz_time_chunk);
+	cudaFree(device_turbu_time_chunk);
+	cudaFree(device_turbv_time_chunk);
+	cudaFree(device_turbw_time_chunk);
 
 
 
