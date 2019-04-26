@@ -824,6 +824,7 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     float *device_t22_time_chunk, *device_t23_time_chunk, *device_t33_time_chunk;
     float *device_turbx_time_chunk, *device_turby_time_chunk, *device_turbz_time_chunk;
     float *device_turbu_time_chunk, *device_turbv_time_chunk, *device_turbw_time_chunk;
+    float *device_vturbx_time_chunk, *device_vturby_time_chunk, *device_vturbz_time_chunk;
 
     parcel_pos device_parcels;
     datagrid device_grid;
@@ -889,6 +890,9 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     gpuErrchk( cudaMalloc(&device_turbu_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
     gpuErrchk( cudaMalloc(&device_turbv_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
     gpuErrchk( cudaMalloc(&device_turbw_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
+    gpuErrchk( cudaMalloc(&device_vturbx_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
+    gpuErrchk( cudaMalloc(&device_vturby_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
+    gpuErrchk( cudaMalloc(&device_vturbz_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
 
     // allocate device memory for our parcel positions
     gpuErrchk( cudaMalloc(&(device_parcels.xpos), parcels.nParcels * totTime * sizeof(float)) );
@@ -973,6 +977,19 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     doTurbv<<<numBlocks, threadsPerBlock>>>(device_grid, device_rho_time_chunk, device_t13_time_chunk, device_t23_time_chunk, device_t33_time_chunk, \
                         device_turbx_time_chunk, device_turby_time_chunk, device_turbz_time_chunk, device_turbw_time_chunk, \
                         MX, MY, MZ, tStart, tEnd, totTime);
+    gpuErrchk( cudaDeviceSynchronize() );
+
+
+    // so... we have turbulent momentum tendencies on u, v, and w points. Theoretically, all we have to do is
+    // del cross Turb to get a vorticity rate (which is the target here). So, we *should* just be able to pass through
+    // out turbu, turbv, and turbw arrays to calcvort and then do the average and boom. Done. So here we go. 
+    cout << "Calculating Vorticity Tendency from Turbulence" << endl;
+    calcvort<<<numBlocks, threadsPerBlock>>>(device_grid, device_turbu_time_chunk, device_turbv_time_chunk, device_turbw_time_chunk, \
+                                            device_vturbx_time_chunk, device_vturby_time_chunk, device_vturbz_time_chunk, \
+                                            MX, MY, MZ, tStart, tEnd, totTime);
+    gpuErrchk( cudaDeviceSynchronize() );
+ 
+    doVortAvg<<<numBlocks, threadsPerBlock>>>(device_vturbx_time_chunk, device_vturby_time_chunk, device_vturbz_time_chunk, MX, MY, MZ, tStart, tEnd, totTime);
     gpuErrchk( cudaDeviceSynchronize() );
 
     cout << "Calculating vorticity" << endl;
@@ -1090,6 +1107,9 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
 	cudaFree(device_turbu_time_chunk);
 	cudaFree(device_turbv_time_chunk);
 	cudaFree(device_turbw_time_chunk);
+	cudaFree(device_vturbx_time_chunk);
+	cudaFree(device_vturby_time_chunk);
+	cudaFree(device_vturbz_time_chunk);
 
 
 
