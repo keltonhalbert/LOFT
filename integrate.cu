@@ -700,12 +700,12 @@ __global__ void calcvorttend(datagrid grid, float *u_time_chunk, float *v_time_c
 }
 
 __global__ void test(datagrid grid, parcel_pos parcels, float *u_time_chunk, float *v_time_chunk, float *w_time_chunk, \
-                    float *p_time_chunk, float *th_time_chunk, \ 
-                    float *xvort_time_chunk, float *yvort_time_chunk, float *zvort_time_chunk, \
-                    float *xvorttilt_chunk, float *yvorttilt_chunk, float *zvorttilt_chunk, \
-                    float *xvortstretch_chunk, float *yvortstretch_chunk, float *zvortstretch_chunk, \
-                    float *xvortbaro_chunk, float *yvortbaro_chunk, float *khh_time_chunk, \
-                    float *xvortturb_chunk, float *yvortturb_chunk, float *zvortturb_chunk,
+                    float *p_time_chunk, float *th_time_chunk,\
+                    float *xvort_time_chunk, float *yvort_time_chunk, float *zvort_time_chunk,\
+                    float *xvorttilt_chunk, float *yvorttilt_chunk, float *zvorttilt_chunk,\
+                    float *xvortstretch_chunk, float *yvortstretch_chunk, float *zvortstretch_chunk,\
+                    float *xvortbaro_chunk, float *yvortbaro_chunk, float *khh_time_chunk,\
+                    float *xvortturb_chunk, float *yvortturb_chunk, float *zvortturb_chunk,\
                     int MX, int MY, int MZ, int tStart, int tEnd, int totTime, int direct) {
 
 	int parcel_id = blockIdx.x;
