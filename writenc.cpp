@@ -29,6 +29,7 @@ void init_nc(string filename, parcel_pos *parcels) {
     NcVar uVar = output.addVar("u", ncFloat, gridDimVector);
     NcVar vVar = output.addVar("v", ncFloat, gridDimVector);
     NcVar wVar = output.addVar("w", ncFloat, gridDimVector);
+    NcVar khhVar = output.addVar("khh", ncFloat, gridDimVector);
 
     NcVar xvortVar = output.addVar("xvort", ncFloat, gridDimVector);
     NcVar yvortVar = output.addVar("yvort", ncFloat, gridDimVector);
@@ -58,6 +59,7 @@ void init_nc(string filename, parcel_pos *parcels) {
     uVar.putAtt("units", "meters / second");
     vVar.putAtt("units", "meters / second");
     wVar.putAtt("units", "meters / second");
+    khhVar.putAtt("units", "Unknown");
 
     xvortVar.putAtt("units", "s^-1");
     yvortVar.putAtt("units", "s^-1");
@@ -88,6 +90,7 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
     NcVar uVar = output.getVar("u");
     NcVar vVar = output.getVar("v");
     NcVar wVar = output.getVar("w");
+    NcVar khhVar = output.getVar("khh");
 
     NcVar ppertVar = output.getVar("prespert");
     NcVar thrhoprimeVar = output.getVar("thrhopert");
@@ -122,6 +125,7 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
     uVar.putVar(startp,countp,parcels->pclu);
     vVar.putVar(startp,countp,parcels->pclv);
     wVar.putVar(startp,countp,parcels->pclw);
+    khhVar.putVar(startp,countp,parcels->pclkhh);
 
     ppertVar.putVar(startp,countp,parcels->pclppert);
     thrhoprimeVar.putVar(startp,countp,parcels->pclthrhoprime);

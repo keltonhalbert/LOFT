@@ -59,6 +59,7 @@ struct parcel_pos {
     float *pclu;
     float *pclv;
     float *pclw;
+    float *pclkhh;
 
     float *pclxvort;
     float *pclyvort;
