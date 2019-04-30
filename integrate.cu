@@ -38,16 +38,20 @@ __device__ void calcrf(datagrid grid, float *rho, float *rf, int *idx_4D, int MX
     // but is not necessarily true for all simulations.
     float c1 = 0.5; float c2 = 0.5;
     if ( k == 0) {
-        float rho1 = grid.rho0[k] + rho[arrayIndex(i, j, 1, t, MX, MY, MZ)]; 
-        float rho2 = grid.rho0[k] + rho[arrayIndex(i, j, 2, t, MX, MY, MZ)];
-        float rho3 = grid.rho0[k] + rho[arrayIndex(i, j, 3, t, MX, MY, MZ)];
+        float rho1 = grid.rho0[k] + rho[arrayIndex(i, j, 0, t, MX, MY, MZ)]; 
+        float rho2 = grid.rho0[k] + rho[arrayIndex(i, j, 1, t, MX, MY, MZ)];
+        float rho3 = grid.rho0[k] + rho[arrayIndex(i, j, 2, t, MX, MY, MZ)];
         rf[arrayIndex(i, j, 0, t, MX, MY, MZ)] = (1.75*rho1-rho2+0.25*rho3);
+        if (isnan(rf[arrayIndex(i, j, k, t, MX, MY, MZ)])) printf("%f\t%f\n", rho1, rho2);
+        if (isinf(rf[arrayIndex(i, j, k, t, MX, MY, MZ)])) printf("%f\t%f\n", rho1, rho2);
     }
     else {
 
-        float rho1 = grid.rho0[k] + rho[arrayIndex(i, j, k, t, MX, MY, MZ)]; 
-        float rho2 = grid.rho0[k] + rho[arrayIndex(i, j, k+1, t, MX, MY, MZ)];
+        float rho1 = grid.rho0[k-1] + rho[arrayIndex(i, j, k-1, t, MX, MY, MZ)]; 
+        float rho2 = grid.rho0[k-1] + rho[arrayIndex(i, j, k, t, MX, MY, MZ)];
         rf[arrayIndex(i, j, k, t, MX, MY, MZ)] = ( c1*rho1 + c2*rho2);
+        if (isnan(rf[arrayIndex(i, j, k, t, MX, MY, MZ)])) printf("%f\t%f\n", rho1, rho2);
+        if (isinf(rf[arrayIndex(i, j, k, t, MX, MY, MZ)])) printf("%f\t%f\n", rho1, rho2);
     }
     // there's technically a top boundary condition in CM1, but we're ignoring because we hope to be far away from the upper boundary.
 }
@@ -98,19 +102,19 @@ __device__ void calcdef(datagrid grid, float *uarr, float *varr, float *warr, fl
        dx = grid.xh[i+1] - grid.xh[i];
        dz = grid.zh[k+1] - grid.zh[k];
        s13[arrayIndex(i, j, k, t, MX, MY, MZ)] = 0.5*( ( warr[arrayIndex(i+1, j, k, t, MX, MY, MZ)] - warr[arrayIndex(i, j, k, t, MX, MY, MZ)] ) / dx \
-                                               + ( uarr[arrayIndex(i, j, k+1, t, MX, MY, MZ)] - uarr[arrayIndex(i, j, k, t, MX, MY, MZ)] ) / dz ) \
+                                               + ( uarr[arrayIndex(i, j, k+1, t, MX, MY, MZ)] - uarr[arrayIndex(i, j, k, t, MX, MY, MZ)] ) / dz *0.5 ) \
                                                  *0.5*( rf[arrayIndex(i, j, k, t, MX, MY, MZ)] + rf[arrayIndex(i+1, j, k, t, MX, MY, MZ)]);
 
        // tau 23. Derivative is no longer on staggered mesh and will require an average to correct the data to the scalar mesh
        dy = grid.yh[j+1] - grid.yh[j];
        s23[arrayIndex(i, j, k, t, MX, MY, MZ)] = 0.5*( ( warr[arrayIndex(i, j+1, k, t, MX, MY, MZ)] - warr[arrayIndex(i, j, k, t, MX, MY, MZ)] ) / dy \
-                                               + ( varr[arrayIndex(i, j, k+1, t, MX, MY, MZ)] - varr[arrayIndex(i, j, k, t, MX, MY, MZ)] ) / dz) \
+                                               + ( varr[arrayIndex(i, j, k+1, t, MX, MY, MZ)] - varr[arrayIndex(i, j, k, t, MX, MY, MZ)] ) / dz *0.5) \
                                                *0.5*( rf[arrayIndex(i, j, k, t, MX, MY, MZ)]+rf[arrayIndex(i, j+1, k, t, MX, MY, MZ)] );
 
    }
 
    // lower boundary condition
-   else {
+   if (k == 0) {
        s13[arrayIndex(i, j, k, t, MX, MY, MZ)] = 0.0;
        s23[arrayIndex(i, j, k, t, MX, MY, MZ)] = 0.0;
    }
@@ -131,37 +135,49 @@ __device__ void gettau(datagrid grid, float *rho, float *khh, \
 
 
     // kmh = Pr * khh and Pr is 1./3.
-    float tem = (1./3.)*khh[arrayIndex(i, k, k, t, MX, MY, MZ)] + (1./3.)*khh[arrayIndex(i, j, k+1, t, MX, MY, MZ)];
+    float tem =  0.71*khh[arrayIndex(i, k, k, t, MX, MY, MZ)] + 0.71*khh[arrayIndex(i, j, k+1, t, MX, MY, MZ)];
 
 
     // these are conveniently on points we know... but that convecience will end shortly
     t11[arrayIndex(i, j, k, t, MX, MY, MZ)] = t11[arrayIndex(i, j, k, t, MX, MY, MZ)] * tem;
+    if (isnan(t11[arrayIndex(i, j, k, t, MX, MY, MZ)])) printf("khh: %f\tt11: %f\n", tem, t11[arrayIndex(i, j, k, t, MX, MY, MZ)]);
+    if (isinf(t11[arrayIndex(i, j, k, t, MX, MY, MZ)])) printf("khh: %f\tt11: %f\n", tem, t11[arrayIndex(i, j, k, t, MX, MY, MZ)]);
 
     t22[arrayIndex(i, j, k, t, MX, MY, MZ)] = t22[arrayIndex(i, j, k, t, MX, MY, MZ)] * tem;
+    if (isnan(t22[arrayIndex(i, j, k, t, MX, MY, MZ)])) printf("khh: %f\tt22: %f\n", tem, t22[arrayIndex(i, j, k, t, MX, MY, MZ)]);
+    if (isinf(t22[arrayIndex(i, j, k, t, MX, MY, MZ)])) printf("khh: %f\tt22: %f\n", tem, t22[arrayIndex(i, j, k, t, MX, MY, MZ)]);
 
     t33[arrayIndex(i, j, k, t, MX, MY, MZ)] = t33[arrayIndex(i, j, k, t, MX, MY, MZ)] * tem;
+    if (isnan(t33[arrayIndex(i, j, k, t, MX, MY, MZ)])) printf("khh: %f\tt33: %f\n", tem, t33[arrayIndex(i, j, k, t, MX, MY, MZ)]);
+    if (isinf(t33[arrayIndex(i, j, k, t, MX, MY, MZ)])) printf("khh: %f\tt33: %f\n", tem, t33[arrayIndex(i, j, k, t, MX, MY, MZ)]);
 
     // do some 8 point averaging of our kmh in space
-    float kmh1 = khh[arrayIndex(i-1, j-1, k, t, MX, MY, MZ )] * 1./3.;
-    float kmh2 = khh[arrayIndex(i, j, k, t, MX, MY, MZ )] * 1./3.;
-    float kmh3 = khh[arrayIndex(i-1, j, k, t, MX, MY, MZ )] * 1./3.;
-    float kmh4 = khh[arrayIndex(i, j-1, k, t, MX, MY, MZ  )] * 1./3.;
-    float kmh5 = khh[arrayIndex(i-1, j-1, k+1, t, MX, MY, MZ )] * 1./3.;
-    float kmh6 = khh[arrayIndex(i, j, k+1, t, MX, MY, MZ )] * 1./3.;
-    float kmh7 = khh[arrayIndex(i-1, j, k+1, t, MX, MY, MZ )] * 1./3.;
-    float kmh8 = khh[arrayIndex(i,j-1,k+1, t, MX, MY, MZ)] * 1./3.;
+    float kmh1 = khh[arrayIndex(i-1, j-1, k, t, MX, MY, MZ )] * 0.71;
+    float kmh2 = khh[arrayIndex(i, j, k, t, MX, MY, MZ )] * 0.71;
+    float kmh3 = khh[arrayIndex(i-1, j, k, t, MX, MY, MZ )] * 0.71;
+    float kmh4 = khh[arrayIndex(i, j-1, k, t, MX, MY, MZ  )] * 0.71;
+    float kmh5 = khh[arrayIndex(i-1, j-1, k+1, t, MX, MY, MZ )] * 0.71;
+    float kmh6 = khh[arrayIndex(i, j, k+1, t, MX, MY, MZ )] * 0.71;
+    float kmh7 = khh[arrayIndex(i-1, j, k+1, t, MX, MY, MZ )] * 0.71;
+    float kmh8 = khh[arrayIndex(i,j-1,k+1, t, MX, MY, MZ)] * 0.71;
     t12[arrayIndex(i, j, k, t, MX, MY, MZ)] = t12[arrayIndex(i, j, k, t, MX, MY, MZ)]*.025 \
     *( ( (kmh1+kmh2)+(kmh3+kmh4) )+( (kmh5+kmh6)+(kmh7+kmh8) ) );
+    if (isnan(t12[arrayIndex(i, j, k, t, MX, MY, MZ)])) printf("khh: %f\tt12: %f\n", tem, t12[arrayIndex(i, j, k, t, MX, MY, MZ)]);
+    if (isinf(t12[arrayIndex(i, j, k, t, MX, MY, MZ)])) printf("khh: %f\tt12: %f\n", tem, t12[arrayIndex(i, j, k, t, MX, MY, MZ)]);
 
     if (k >= 1) {
         float kmv1 = kmh2; 
-        float kmv2 = khh[arrayIndex(i+1, j, k, t, MX, MY, MZ)] * 1./3.;
-        float kmv3 = khh[arrayIndex(i, j+1, k, t, MX, MY, MZ)] * 1./3.;
+        float kmv2 = khh[arrayIndex(i-1, j, k, t, MX, MY, MZ)] * 0.71;
+        float kmv3 = khh[arrayIndex(i, j-1, k, t, MX, MY, MZ)] * 0.71;
         t13[arrayIndex(i, j, k, t, MX, MY, MZ)] = t13[arrayIndex(i, j, k, t, MX, MY, MZ)] * ( kmv1 + kmv2 );
         t23[arrayIndex(i, j, k, t, MX, MY, MZ)] = t23[arrayIndex(i, j, k, t, MX, MY, MZ)] * ( kmv1 + kmv3 ); 
+        if (isnan(t13[arrayIndex(i, j, k, t, MX, MY, MZ)])) printf("t13: %f\n", t13[arrayIndex(i, j, k, t, MX, MY, MZ)]);
+        if (isinf(t13[arrayIndex(i, j, k, t, MX, MY, MZ)])) printf("t13: %f\n", t13[arrayIndex(i, j, k, t, MX, MY, MZ)]);
+        if (isnan(t23[arrayIndex(i, j, k, t, MX, MY, MZ)])) printf("t23: %f\n", t23[arrayIndex(i, j, k, t, MX, MY, MZ)]);
+        if (isinf(t23[arrayIndex(i, j, k, t, MX, MY, MZ)])) printf("t23: %f\n", t23[arrayIndex(i, j, k, t, MX, MY, MZ)]);
 
     }
-    else {
+    if (k == 0) {
 
         // lower boundary condition
         t13[arrayIndex(i, j, k, t, MX, MY, MZ)] = 0.0;
@@ -436,8 +452,8 @@ __global__ void doCalcrf(datagrid grid, float *rho_time_chunk, float *rhof, int 
     int idx_4D[4];
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < MX-1) && (j < MY-1) && (k < MZ-1)) { 
-        if ((i+1 > MX) || (j+1 > MY) || (k+1 > MZ)) printf("i+1 or j+1 out of bounds\n");
+    if ((i <= MX-1) && (j <= MY-1) && (k <= MZ-1)) { 
+        //if ((i+1 > MX) || (j+1 > MY) || (k+1 > MZ)) printf("i+1 or j+1 out of bounds\n");
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -457,7 +473,7 @@ __global__ void doCalcdef(datagrid grid, float *uarr, float *varr, float *warr, 
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
     if ((i < MX-1) && (j < MY-1) && (k < MZ-1)) { 
-        if ((i+1 > MX) || (j+1 > MY) || (k+1 > MZ)) printf("i+1 or j+1 out of bounds\n");
+        //if ((i+1 > MX) || (j+1 > MY) || (k+1 > MZ)) printf("i+1 or j+1 out of bounds\n");
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -475,9 +491,8 @@ __global__ void doGettau(datagrid grid, float *rho, float *khh, \
     int idx_4D[4];
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < MX-2) && (j < MY-2) && (k < MZ-2) && \
-    	(i >= 1) && (j >= 1) && (k >=1)) { 
-        if ((i+1 > MX) || (j+1 > MY) || (k+1 > MZ)) printf("i+1 or j+1 out of bounds\n");
+    if ((i < MX-2) && (j < MY-2) && (k < MZ-2) && (i >= 1) && (j >= 1) && (k >=1)) { 
+        //if ((i+1 > MX) || (j+1 > MY) || (k+1 > MZ)) printf("i+1 or j+1 out of bounds\n");
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -971,7 +986,7 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
                         MX, MY, MZ, tStart, tEnd, totTime);
     gpuErrchk( cudaDeviceSynchronize() );
 
-    cout << "Calculating Tau Stress for turbulence" << endl;
+    cout << "Calculating Tau Stress for Turbulence" << endl;
     doGettau<<<numBlocks, threadsPerBlock>>>(device_grid, device_rho_time_chunk, device_khh_time_chunk, \
                         device_t11_time_chunk, device_t12_time_chunk, device_t13_time_chunk, device_t22_time_chunk, device_t23_time_chunk, device_t33_time_chunk, \
                         MX, MY, MZ, tStart, tEnd, totTime); 
