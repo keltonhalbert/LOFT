@@ -39,8 +39,8 @@ __device__ void calcrf(datagrid grid, float *rho, float *rf, int *idx_4D, int MX
     float c1 = 0.5; float c2 = 0.5;
     if ( k == 0) {
         float rho1 = grid.rho0[k] + rho[arrayIndex(i, j, 0, t, MX, MY, MZ)]; 
-        float rho2 = grid.rho0[k] + rho[arrayIndex(i, j, 1, t, MX, MY, MZ)];
-        float rho3 = grid.rho0[k] + rho[arrayIndex(i, j, 2, t, MX, MY, MZ)];
+        float rho2 = grid.rho0[k+1] + rho[arrayIndex(i, j, 1, t, MX, MY, MZ)];
+        float rho3 = grid.rho0[k+2] + rho[arrayIndex(i, j, 2, t, MX, MY, MZ)];
         rf[arrayIndex(i, j, 0, t, MX, MY, MZ)] = (1.75*rho1-rho2+0.25*rho3);
         if (isnan(rf[arrayIndex(i, j, k, t, MX, MY, MZ)])) printf("%f\t%f\n", rho1, rho2);
         if (isinf(rf[arrayIndex(i, j, k, t, MX, MY, MZ)])) printf("%f\t%f\n", rho1, rho2);
@@ -48,7 +48,7 @@ __device__ void calcrf(datagrid grid, float *rho, float *rf, int *idx_4D, int MX
     else {
 
         float rho1 = grid.rho0[k-1] + rho[arrayIndex(i, j, k-1, t, MX, MY, MZ)]; 
-        float rho2 = grid.rho0[k-1] + rho[arrayIndex(i, j, k, t, MX, MY, MZ)];
+        float rho2 = grid.rho0[k] + rho[arrayIndex(i, j, k, t, MX, MY, MZ)];
         rf[arrayIndex(i, j, k, t, MX, MY, MZ)] = ( c1*rho1 + c2*rho2);
         if (isnan(rf[arrayIndex(i, j, k, t, MX, MY, MZ)])) printf("%f\t%f\n", rho1, rho2);
         if (isinf(rf[arrayIndex(i, j, k, t, MX, MY, MZ)])) printf("%f\t%f\n", rho1, rho2);
@@ -516,7 +516,9 @@ __global__ void doTurbu(datagrid grid, float *rho, float *t11, float *t12, float
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calc_turbu(grid, t11, t12, t13, turbx, turby, turbz, idx_4D, MX, MY, MZ);
-            float rru0 = 1.0/(0.5*(rho[arrayIndex(i+1, j, k, tidx, MX, MY, MZ)]+rho[arrayIndex(i, j, k, tidx, MX, MY, MZ)]));
+            float rho1 = grid.rho0[k] + rho[arrayIndex(i+1, j, k, tidx, MX, MY, MZ)];
+            float rho2 = grid.rho0[k] + rho[arrayIndex(i, j, k, tidx, MX, MY, MZ)];
+            float rru0 = 1.0/(0.5*( rho1 + rho2));
             turbu[arrayIndex(i, j, k, tidx, MX, MY, MZ)] = (turbx[arrayIndex(i, j, k, tidx, MX, MY, MZ)] + \
                                                          turby[arrayIndex(i, j, k, tidx, MX, MY, MZ)] + \
                                                          turbz[arrayIndex(i, j, k, tidx, MX, MY, MZ)])*rru0;
@@ -539,7 +541,9 @@ __global__ void doTurbv(datagrid grid, float *rho, float *t12, float *t22, float
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calc_turbv(grid, t12, t22, t23, turbx, turby, turbz, idx_4D, MX, MY, MZ);
-            float rrv0 = 1.0/(0.5*(rho[arrayIndex(i, j+1, k, tidx, MX, MY, MZ)]+rho[arrayIndex(i, j, k, tidx, MX, MY, MZ)]));
+            float rho1 = grid.rho0[k] + rho[arrayIndex(i, j+1, k, tidx, MX, MY, MZ)];
+            float rho2 = grid.rho0[k] + rho[arrayIndex(i, j, k, tidx, MX, MY, MZ)];
+            float rrv0 = 1.0/(0.5*(rho1 + rho2));
             turbv[arrayIndex(i, j, k, tidx, MX, MY, MZ)] = (turbx[arrayIndex(i, j, k, tidx, MX, MY, MZ)] + \
                                                          turby[arrayIndex(i, j, k, tidx, MX, MY, MZ)] + \
                                                          turbz[arrayIndex(i, j, k, tidx, MX, MY, MZ)])*rrv0;
@@ -547,7 +551,7 @@ __global__ void doTurbv(datagrid grid, float *rho, float *t12, float *t22, float
     }
 }
 
-__global__ void doTurbw(datagrid grid, float *rho, float *t13, float *t23, float *t33, \
+__global__ void doTurbw(datagrid grid, float *rhof, float *t13, float *t23, float *t33, \
                         float *turbx, float *turby, float *turbz, float *turbw, \
                         int MX, int MY, int MZ, int tStart, int tEnd, int totTime) {
     int i = blockIdx.x*blockDim.x + threadIdx.x;
@@ -562,7 +566,7 @@ __global__ void doTurbw(datagrid grid, float *rho, float *t13, float *t23, float
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calc_turbw(grid, t13, t23, t33, turbx, turby, turbz, idx_4D, MX, MY, MZ);
-            float rrf = 1.0/(0.5*(rho[arrayIndex(i, j, k+1, tidx, MX, MY, MZ)]+rho[arrayIndex(i, j, k, tidx, MX, MY, MZ)]));
+            float rrf = 1.0/(0.5*(rhof[arrayIndex(i, j, k+1, tidx, MX, MY, MZ)]+rhof[arrayIndex(i, j, k, tidx, MX, MY, MZ)]));
             turbw[arrayIndex(i, j, k, tidx, MX, MY, MZ)] = (turbx[arrayIndex(i, j, k, tidx, MX, MY, MZ)] + \
                                                          turby[arrayIndex(i, j, k, tidx, MX, MY, MZ)] + \
                                                          turbz[arrayIndex(i, j, k, tidx, MX, MY, MZ)])*rrf;
@@ -602,7 +606,9 @@ __global__ void doVortAvg(float *xvort, float *yvort, float *zvort, int MX, int 
     int j = blockIdx.y*blockDim.y + threadIdx.y;
     int k = blockIdx.z*blockDim.z + threadIdx.z;
 
-    if ((i < MX-1) && (j < MY-1) && (k < MZ-1)) { 
+    // because of the forward difference, the vorticity at MX-1 is never computed...
+    // this means that the average only makes sense for points at MX-2 from the boundary
+    if ((i < MX-2) && (j < MY-2) && (k < MZ-2)) { 
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             xvort[arrayIndex(i, j, k, tidx, MX, MY, MZ)] = 0.25*(xvort[arrayIndex(i, j, k, tidx, MX, MY, MZ)] + \
                 xvort[arrayIndex(i, j+1, k, tidx, MX, MY, MZ)] + xvort[arrayIndex(i, j, k+1, tidx, MX, MY, MZ)] + \
@@ -655,17 +661,17 @@ __global__ void calcvort(datagrid grid, float *u_time_chunk, float *v_time_chunk
     //printf("%i, %i, %i\n", i, j, k);
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < MX-1) && (j < MY-1) && (k < MZ-1)) { 
-        if ((i+1 > MX) || (j+1 > MY) || (k+1 > MZ)) printf("i+1 or j+1 out of bounds\n");
+    if ((i < MX-1) && (j < MY-1) && (k < MZ-1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
-            calc_xvort(grid, w_time_chunk, v_time_chunk, xvort, idx_4D, MX, MY, MZ);
-            calc_yvort(grid, u_time_chunk, w_time_chunk, yvort, idx_4D, MX, MY, MZ);
-            // calculate the Z component of vorticity
-            //printf("%i, %i, %i, %i, %i, %i, %i\n", i, j, k, tidx, MX, MY, MZ);
-            calc_zvort(grid, u_time_chunk, v_time_chunk, zvort, idx_4D, MX, MY, MZ);
-
+            if (k != 0) {
+                calc_xvort(grid, w_time_chunk, v_time_chunk, xvort, idx_4D, MX, MY, MZ);
+                calc_yvort(grid, u_time_chunk, w_time_chunk, yvort, idx_4D, MX, MY, MZ);
+            }
+            else if (k == 0) {
+                calc_zvort(grid, u_time_chunk, v_time_chunk, zvort, idx_4D, MX, MY, MZ);
+            }
         }
     }
 }
@@ -1005,7 +1011,7 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     gpuErrchk( cudaDeviceSynchronize() );
 
     cout << "Calculating W momentum turbulence term" << endl;
-    doTurbw<<<numBlocks, threadsPerBlock>>>(device_grid, device_rho_time_chunk, device_t13_time_chunk, device_t23_time_chunk, device_t33_time_chunk, \
+    doTurbw<<<numBlocks, threadsPerBlock>>>(device_grid, device_rhof_time_chunk, device_t13_time_chunk, device_t23_time_chunk, device_t33_time_chunk, \
                         device_turbx_time_chunk, device_turby_time_chunk, device_turbz_time_chunk, device_turbw_time_chunk, \
                         MX, MY, MZ, tStart, tEnd, totTime);
     gpuErrchk( cudaDeviceSynchronize() );
