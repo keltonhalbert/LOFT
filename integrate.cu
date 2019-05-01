@@ -668,8 +668,6 @@ __global__ void calcvort(datagrid grid, float *u_time_chunk, float *v_time_chunk
             if (k != 0) {
                 calc_xvort(grid, w_time_chunk, v_time_chunk, xvort, idx_4D, MX, MY, MZ);
                 calc_yvort(grid, u_time_chunk, w_time_chunk, yvort, idx_4D, MX, MY, MZ);
-            }
-            else if (k == 0) {
                 calc_zvort(grid, u_time_chunk, v_time_chunk, zvort, idx_4D, MX, MY, MZ);
             }
         }
