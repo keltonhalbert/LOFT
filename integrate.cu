@@ -869,6 +869,8 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     device_grid.Z0 = grid.Z0; device_grid.Z1 = grid.Z1;
     device_grid.NX = grid.NX; device_grid.NY = grid.NY;
     device_grid.NZ = grid.NZ; device_grid.nz = grid.nz;
+    device_grid.dx = grid.dx; device_grid.dy = grid.dy;
+    device_grid.dz = grid.dz;
     device_parcels.nParcels = parcels.nParcels;
 
     // allocate device memory for our grid arrays
@@ -883,6 +885,14 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     gpuErrchk( cudaMalloc(&(device_grid.xf), device_grid.NX*sizeof(float)) );
     gpuErrchk( cudaMalloc(&(device_grid.yf), device_grid.NY*sizeof(float)) );
     gpuErrchk( cudaMalloc(&(device_grid.zf), device_grid.NZ*sizeof(float)) );
+
+    gpuErrchk( cudaMalloc(&(device_grid.uh), device_grid.NX*sizeof(float)) );
+    gpuErrchk( cudaMalloc(&(device_grid.vh), device_grid.NY*sizeof(float)) );
+    gpuErrchk( cudaMalloc(&(device_grid.mh), device_grid.NZ*sizeof(float)) );
+
+    gpuErrchk( cudaMalloc(&(device_grid.uf), device_grid.NX*sizeof(float)) );
+    gpuErrchk( cudaMalloc(&(device_grid.vf), device_grid.NY*sizeof(float)) );
+    gpuErrchk( cudaMalloc(&(device_grid.mf), device_grid.NZ*sizeof(float)) );
     // allocate the device memory for U/V/W
     gpuErrchk( cudaMalloc(&device_u_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
     gpuErrchk( cudaMalloc(&device_v_time_chunk, MX*MY*MZ*nT*sizeof(float)) );
@@ -973,6 +983,14 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     gpuErrchk( cudaMemcpy(device_grid.yf, grid.yf, device_grid.NY*sizeof(float), cudaMemcpyHostToDevice) );
     gpuErrchk( cudaMemcpy(device_grid.zf, grid.zf, device_grid.NZ*sizeof(float), cudaMemcpyHostToDevice) );
 
+    gpuErrchk( cudaMemcpy(device_grid.xf, grid.uf, device_grid.NX*sizeof(float), cudaMemcpyHostToDevice) );
+    gpuErrchk( cudaMemcpy(device_grid.yf, grid.vf, device_grid.NY*sizeof(float), cudaMemcpyHostToDevice) );
+    gpuErrchk( cudaMemcpy(device_grid.zf, grid.mf, device_grid.NZ*sizeof(float), cudaMemcpyHostToDevice) );
+
+    gpuErrchk( cudaMemcpy(device_grid.xf, grid.uh, device_grid.NX*sizeof(float), cudaMemcpyHostToDevice) );
+    gpuErrchk( cudaMemcpy(device_grid.yf, grid.vh, device_grid.NY*sizeof(float), cudaMemcpyHostToDevice) );
+    gpuErrchk( cudaMemcpy(device_grid.zf, grid.mh, device_grid.NZ*sizeof(float), cudaMemcpyHostToDevice) );
+
     gpuErrchk( cudaDeviceSynchronize() );
     dim3 threadsPerBlock(8, 8, 8);
     dim3 numBlocks((MX/threadsPerBlock.x)+1, (MY/threadsPerBlock.y)+1, (MZ/threadsPerBlock.z)+1); 
@@ -1050,6 +1068,7 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     cout << "ending tendencies" << endl;
     
     cout << "End vorticity calc" << endl;
+    cout << "Integrating parcels forward in time!" << endl;
     test<<<parcels.nParcels,1>>>(device_grid, device_parcels, device_u_time_chunk, device_v_time_chunk, device_w_time_chunk, \
                                 device_p_time_chunk, device_th_time_chunk, \
                                 device_xvort_time_chunk, device_yvort_time_chunk, device_zvort_time_chunk, \
@@ -1059,6 +1078,7 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
                                 device_vturbx_time_chunk, device_vturby_time_chunk, device_vturbz_time_chunk, \
                                 MX, MY, MZ, tStart, tEnd, totTime, direct);
     gpuErrchk( cudaDeviceSynchronize() );
+    cout << "Finished forward integration!" << endl;
 
     gpuErrchk( cudaMemcpy(parcels.xpos, device_parcels.xpos, parcels.nParcels * totTime * sizeof(float), cudaMemcpyDeviceToHost) );
     gpuErrchk( cudaMemcpy(parcels.ypos, device_parcels.ypos, parcels.nParcels * totTime * sizeof(float), cudaMemcpyDeviceToHost) );
@@ -1092,6 +1112,12 @@ void cudaIntegrateParcels(datagrid grid, parcel_pos parcels, float *u_time_chunk
     cudaFree(device_grid.xf);
     cudaFree(device_grid.yf);
     cudaFree(device_grid.zf);
+    cudaFree(device_grid.uf);
+    cudaFree(device_grid.vf);
+    cudaFree(device_grid.mf);
+    cudaFree(device_grid.uh);
+    cudaFree(device_grid.vh);
+    cudaFree(device_grid.mh);
     cudaFree(device_grid.th0);
     cudaFree(device_grid.qv0);
     cudaFree(device_grid.rho0);

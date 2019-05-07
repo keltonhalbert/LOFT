@@ -52,6 +52,10 @@ struct datagrid {
     // used for the base state arrays
     long nz;
 
+    float dx;
+    float dy;
+    float dz;
+
     // the subset points of the grid
     // that this grid is a part of
     long X0; long Y0;

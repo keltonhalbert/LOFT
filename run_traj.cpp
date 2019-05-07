@@ -273,6 +273,12 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *
     delete[] temp_grid.xf;
     delete[] temp_grid.yf;
     delete[] temp_grid.zf;
+    delete[] temp_grid.uh;
+    delete[] temp_grid.uf;
+    delete[] temp_grid.vh;
+    delete[] temp_grid.vf;
+    delete[] temp_grid.mh;
+    delete[] temp_grid.mf;
     //delete[] temp_grid.th0;
     //delete[] temp_grid.qv0;
     // if literally all of our parcels aren't
@@ -340,7 +346,7 @@ void loadVectorsFromDisk(datagrid *requested_grid, float *ubuffer, float *vbuffe
 
     // request additional fields for calculations
     lofs_read_3dvar(requested_grid, pbuffer, (char *)"prespert", t0);
-    lofs_read_3dvar(requested_grid, thbuffer, (char *)"thrhopert", t0);
+    lofs_read_3dvar(requested_grid, thbuffer, (char *)"thpert", t0);
     lofs_read_3dvar(requested_grid, rhobuffer, (char *)"rhopert", t0);
     lofs_read_3dvar(requested_grid, khhbuffer, (char *)"khh", t0);
 
@@ -679,6 +685,14 @@ int main(int argc, char **argv ) {
             delete[] requested_grid.xh;
             delete[] requested_grid.yh;
             delete[] requested_grid.zh;
+
+            delete[] requested_grid.uh;
+            delete[] requested_grid.vh;
+            delete[] requested_grid.mh;
+            
+            delete[] requested_grid.uf;
+            delete[] requested_grid.vf;
+            delete[] requested_grid.mf;
             
             delete[] requested_grid.th0;
             delete[] requested_grid.qv0;
@@ -712,6 +726,14 @@ int main(int argc, char **argv ) {
             delete[] requested_grid.xh;
             delete[] requested_grid.yh;
             delete[] requested_grid.zh;
+
+            delete[] requested_grid.uh;
+            delete[] requested_grid.vh;
+            delete[] requested_grid.mh;
+            
+            delete[] requested_grid.uf;
+            delete[] requested_grid.vf;
+            delete[] requested_grid.mf;
             
             delete[] requested_grid.th0;
             delete[] requested_grid.qv0;

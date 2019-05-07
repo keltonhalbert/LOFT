@@ -60,7 +60,7 @@ void lofs_get_dataset_structure(std::string base_dir) {
 
     // query the number of directories corresponding to 
     // times in the dataset
-    ntimedirs = get_num_time_dirs(topdir, debug);
+    ntimedirs = get_num_time_dirs(topdir, debug, 0);
     cout << "MY TIME DIRS = " << ntimedirs << endl;
 
     // allocate an array containing
@@ -73,10 +73,10 @@ void lofs_get_dataset_structure(std::string base_dir) {
     // get the double representation of time times
     // from the filestructure
     dirtimes = new double[ntimedirs];
-    get_sorted_time_dirs(topdir,timedir,dirtimes,ntimedirs,base,debug);
+    get_sorted_time_dirs(topdir,timedir,dirtimes,ntimedirs,debug, 0);
 
     // query the number of directories corresponding to compute nodes
-    nnodedirs =  get_num_node_dirs(topdir,timedir[0],debug);
+    nnodedirs =  get_num_node_dirs(topdir,timedir[0],debug, 0);
     // allocate and get the array of strings for the nodedirs
     nodedir = new char*[nnodedirs];
     // ORF 8 == 7 zero padded node number directory name plus 1 end of string char
@@ -84,13 +84,13 @@ void lofs_get_dataset_structure(std::string base_dir) {
         nodedir[i] = new char[8];
     }
     // sort the node directories
-    get_sorted_node_dirs(topdir,timedir[0],nodedir,&dn,nnodedirs,debug);
+    get_sorted_node_dirs(topdir,timedir[0],nodedir,&dn,nnodedirs,debug, 0);
 
     // get all of the available times
     // from the dataset
     alltimes = get_all_available_times(topdir,timedir,ntimedirs,nodedir,nnodedirs,
                                         &ntottimes,firstfilename,&firsttimedirindex, 
-                                        &saved_X0,&saved_Y0,&saved_X1,&saved_Y1,debug);
+                                        &saved_X0,&saved_Y0,&saved_X1,&saved_Y1,debug, 0);
 }
 
 
@@ -100,11 +100,13 @@ void lofs_get_grid( datagrid *grid ) {
 	
 	hid_t f_id;
 	int NX,NY,NZ;
+    int nk, nj, ni;
     // how many points are in our 
     // subset?
 	NX = grid->X1 - grid->X0 + 1;
 	NY = grid->Y1 - grid->Y0 + 1;
 	NZ = grid->Z1 - grid->Z0 + 1;
+    nk = NZ; nj = NY; ni = NX;
 
     // set the grid attributes
     grid->NX = NX;
@@ -126,18 +128,25 @@ void lofs_get_grid( datagrid *grid ) {
     // respective dimension
     float *xffull = new float[nx+1];
     float *yffull = new float[ny+1];
-    float *zh = new float[nz];
-    float *zf = new float[nz]; // not sure why this isn't nz+1... lifted from hdf2.c
+    float *zh = new float[nz+2];
+    float *zf = new float[nz+2]; 
+
+    float dx, dy, dz;
+    float rdx, rdy, rdz;
+    get0dfloat (f_id,(char *)"mesh/dx",&dx); rdx=1.0/dx;
+    get0dfloat (f_id,(char *)"mesh/dy",&dy); rdy=1.0/dy;
+    // temporary fix until this is saved by the model
+    dz=dx;rdz=rdx;
+
+    grid->dx = dx;
+    grid->dy = dy;
+    grid->dz = dz;
 
     // fill the arrays with the goods
     get1dfloat( f_id, (char *)"mesh/xhfull", xhfull, 0, nx );
     get1dfloat( f_id, (char *)"mesh/yhfull", yhfull, 0, ny );
-    /* THIS NEEDS TO BE TESTED IN CM1 FIRST... we haven't been saving these */
-    if (saved_staggered_mesh_params)
-    {
-        get1dfloat( f_id, (char *)"mesh/xffull", xffull, 0, nx+1 );
-        get1dfloat( f_id, (char *)"mesh/yffull", yffull, 0, ny+1 );
-    }
+    get1dfloat( f_id, (char *)"mesh/xffull", xffull, 0, nx+1 );
+    get1dfloat( f_id, (char *)"mesh/yffull", yffull, 0, ny+1 );
     get1dfloat( f_id, (char *)"mesh/zh", zh, 0, nz );
     get1dfloat( f_id, (char *)"mesh/zf", zf, 0, nz );
     float *qv0 = new float[nz];
@@ -158,22 +167,43 @@ void lofs_get_grid( datagrid *grid ) {
     float *yfout = new float[NY]; // +1 when we do this right
     float *zfout = new float[NZ]; // +1 when we do this right
 
+    // We recreate George's mesh/derivative calculation paradigm even though
+    // // we are usually isotropic. We need to have our code here match what
+    // // CM1 does internally for stretched and isotropic meshes.
+    // //
+    // // Becuase C cannot do have negative array indices (i.e., uh[-1]) like
+    // // F90 can, we have to offset everything to keep the same CM1-like code
+    // // We malloc enough space for the "ghost zones" and then make sure we
+    // // offset by the correct amount on each side. The macros take care of
+    // // the offsetting.
+
+    float *uh = new float[NX+2];
+    float *uf = new float[NX+2];
+    float *vh = new float[NY+2];
+    float *vf = new float[NY+2];
+    float *mh = new float[NZ+2];
+    float *mf = new float[NZ+2];
+
+
     // fill the z arrays with the subset portion
     // of the vertical dimension
 	for (int iz = grid->Z0; iz <= grid->Z1; iz++) {
         zhout[iz-grid->Z0] = zh[iz];
 	    zfout[iz-grid->Z0] = zf[iz];
-    }     //NEED TO READ REAL ZF
+    }
 
     // fill the x and y arrays with the subset
     // portion of the horizontal dimensions
+    for (int ix = grid->X0 - 1; ix <= grid->X1 + 1; ix++) UH(ix-grid->X0) = dx/(xffull[ix+1]-xffull[ix]);
+    for (int ix = grid->X0 - 1; ix <= grid->X1 + 1; ix++) UF(ix-grid->X0) = dx/(xhfull[ix]-xhfull[ix-1]);
+    for (int iy = grid->Y0 - 1; iy <= grid->Y1 + 1; iy++) VH(iy-grid->Y0) = dy/(yffull[iy+1]-yffull[iy]);
+    for (int iy = grid->Y0 - 1; iy <= grid->Y1 + 1; iy++) VF(iy-grid->Y0) = dy/(yhfull[iy]-yhfull[iy-1]);
+    zf[0] = -zf[2]; //param.F
+    for (int iz = grid->Z0 - 1; iz <= grid->Z1 + 1; iz++) MH(iz-grid->Z0) = dz/(zf[iz+1]-zf[iz]);
+    for (int iz = grid->Z0 - 1; iz <= grid->Z1 + 1; iz++) MF(iz-grid->Z0) = dz/(zh[iz]-zf[iz-1]);
     
-    // are these staggered grids?
-	if (saved_staggered_mesh_params)
-	{
-		for (int iy = grid->Y0; iy <= grid->Y1; iy++) yfout[iy-grid->Y0] = yffull[iy];
-		for (int ix = grid->X0; ix <= grid->X1; ix++) xfout[ix-grid->X0] = xffull[ix];
-	}
+    for (int iy = grid->Y0; iy <= grid->Y1; iy++) yfout[iy-grid->Y0] = yffull[iy];
+    for (int ix = grid->X0; ix <= grid->X1; ix++) xfout[ix-grid->X0] = xffull[ix];
 	for (int iy = grid->Y0; iy <= grid->Y1; iy++) yhout[iy-grid->Y0] = yhfull[iy];
 	for (int ix = grid->X0; ix <= grid->X1; ix++) xhout[ix-grid->X0] = xhfull[ix];
 
@@ -187,6 +217,14 @@ void lofs_get_grid( datagrid *grid ) {
     grid->yf = yfout;
     grid->zh = zhout;
     grid->zf = zfout;
+
+    grid->uh = uh;
+    grid->uf = uf;
+    grid->vh = vh;
+    grid->vf = vf;
+    grid->mh = mh;
+    grid->mf = mf;
+
     grid->th0 = th0;
     grid->qv0 = qv0;
     grid->rho0 = rho0;
