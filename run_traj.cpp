@@ -3,16 +3,11 @@
 #include <string>
 #include "mpi.h"
 #include "datastructs.cpp"
+#include "macros.cpp"
 #include "readlofs.cpp"
 #include "integrate.h"
 #include "writenc.cpp"
 
-// I made this myself by stealing from LOFS
-#define P2(t,p,mt) (((p)*(mt))+(t))
-// stole this define from LOFS
-#define P3(x,y,z,mx,my) (((z)*(mx)*(my))+((y)*(mx))+(x))
-// I made this myself by stealing from LOFS
-#define P4(x,y,z,t,mx,my,mz) ((t*mx*my*mz)+((z)*(mx)*(my))+((y)*(mx))+(x))
 using namespace std;
 
 /* Utility function to find the nearest index to a

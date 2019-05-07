@@ -1,13 +1,8 @@
 #include <vector>
+#include "macros.cpp"
 #ifndef DATASTRUCTS
 #define DATASTRUCTS
 using namespace std;
-#define UH(ix) uh[ix+1]
-#define UF(ix) uf[ix+1]
-#define VH(iy) vh[iy+1]
-#define VF(iy) vf[iy+1]
-#define MH(iz) mh[iz+1]
-#define MF(iz) mf[iz+1]
 
 // this struct helps manage all the different
 // attributes a grid or grib subset may have,

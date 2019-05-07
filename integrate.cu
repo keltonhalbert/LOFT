@@ -1,12 +1,12 @@
 #include <iostream>
 #include <stdio.h>
 #include "datastructs.cpp"
+#include "macros.cpp"
 #include "interp.cu"
 #ifndef INTEGRATE_CU
 #define INTEGRATE_CU
 
 using namespace std;
-#define P2(t,p,mt) (((p)*(mt))+(t))
 // this is an error checking helper function for processes
 // that run on the GPU. Without calling this, the GPU can
 // fail to execute but the program won't crash or report it.
@@ -19,6 +19,7 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
       if (abort) exit(code);
    }
 }
+
 
 
 // rf is the rho field on the vertical staggered mesh. George does this for turbulence closure
