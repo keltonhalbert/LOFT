@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+
 #include "mpi.h"
 #include "datastructs.cpp"
 #include "macros.cpp"
@@ -209,9 +210,10 @@ void parse_cmdline(int argc, char **argv, \
  * are currently and request a subset that is relevent to those parcels.   
  */
 void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *parcels) {
-    // get the HDF metadata - return the first filename
+    // get the HDF metadata from LOFS - return the first filename
     get_hdf_metadata(firstfilename,&nx,&ny,&nz,&nodex,&nodey);
 
+    // create a temporary full grid that we will then subset
     datagrid temp_grid;
 
     // load the saved grid dimmensions into 
@@ -274,8 +276,9 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *
     delete[] temp_grid.vf;
     delete[] temp_grid.mh;
     delete[] temp_grid.mf;
-    //delete[] temp_grid.th0;
-    //delete[] temp_grid.qv0;
+    delete[] temp_grid.th0;
+    delete[] temp_grid.qv0;
+    delete[] temp_grid.rho0;
     // if literally all of our parcels aren't
     // in the domain then something has gone
     // horribly wrong
@@ -288,7 +291,8 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *
     // we want to add a buffer to our dimensions so that
     // the parcels don't accidentally move outside of our
     // requested data. If the buffer goes outside the 
-    // saved dimensions, set it to the saved dimensions
+    // saved dimensions, set it to the saved dimensions.
+    // We also do this for our staggered grid calculations
     min_i = saved_X0 + min_i - 5;
     max_i = saved_X0 + max_i + 5;
     min_j = saved_Y0 + min_j - 5;
@@ -327,10 +331,11 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *
 
 }
 
-/* Read in the U, V, and W vector components from the disk, provided previously allocated memory buffers
+/* Read in the U, V, and W vector components plus the buoyancy and turbulence fields 
+ * from the disk, provided previously allocated memory buffers
  * and the time requested in the dataset. 
  */
-void loadVectorsFromDisk(datagrid *requested_grid, float *ubuffer, float *vbuffer, float *wbuffer, \
+void loadDataFromDisk(datagrid *requested_grid, float *ubuffer, float *vbuffer, float *wbuffer, \
                         float *pbuffer, float *thbuffer, float *rhobuffer, float *khhbuffer, double t0) {
     // request 3D field!
     // u,v, and w are on their
@@ -345,121 +350,6 @@ void loadVectorsFromDisk(datagrid *requested_grid, float *ubuffer, float *vbuffe
     lofs_read_3dvar(requested_grid, rhobuffer, (char *)"rhopert", t0);
     lofs_read_3dvar(requested_grid, khhbuffer, (char *)"khh", t0);
 
-}
-
-
-/* Seed some parcels into the domain
- * in physical gridpoint space, and then
- * fill the remainder of the parcel traces
- * with missing values. 
- */
-void seed_parcels(parcel_pos *parcels, float X0, float Y0, float Z0, int NX, int NY, int NZ, \
-                    float DX, float DY, float DZ, int nTotTimes) {
-    int nParcels = NX*NY*NZ;
-
-    // allocate memory for the parcels
-    // we are integrating for the entirety 
-    // of the simulation.
-    parcels->xpos = new float[nParcels * nTotTimes];
-    parcels->ypos = new float[nParcels * nTotTimes];
-    parcels->zpos = new float[nParcels * nTotTimes];
-    parcels->pclu = new float[nParcels * nTotTimes];
-    parcels->pclv = new float[nParcels * nTotTimes];
-    parcels->pclw = new float[nParcels * nTotTimes];
-    parcels->pclkhh = new float[nParcels * nTotTimes];
-    parcels->pclppert = new float[nParcels * nTotTimes];
-    parcels->pclthrhoprime = new float[nParcels * nTotTimes];
-    parcels->pclxvort = new float[nParcels * nTotTimes];
-    parcels->pclyvort = new float[nParcels * nTotTimes];
-    parcels->pclzvort = new float[nParcels * nTotTimes];
-    parcels->pclxvorttilt = new float[nParcels * nTotTimes];
-    parcels->pclyvorttilt = new float[nParcels * nTotTimes];
-    parcels->pclzvorttilt = new float[nParcels * nTotTimes];
-    parcels->pclxvortstretch = new float[nParcels * nTotTimes];
-    parcels->pclyvortstretch = new float[nParcels * nTotTimes];
-    parcels->pclzvortstretch = new float[nParcels * nTotTimes];
-    parcels->pclxvortbaro = new float[nParcels * nTotTimes];
-    parcels->pclyvortbaro = new float[nParcels * nTotTimes];
-    parcels->pclxvortturb = new float[nParcels * nTotTimes];
-    parcels->pclyvortturb = new float[nParcels * nTotTimes];
-    parcels->pclzvortturb = new float[nParcels * nTotTimes];
-    parcels->nParcels = nParcels;
-    parcels->nTimes = nTotTimes;
-    cout << X0 << " " << Y0 << " " << Z0 << endl;
-
-    int pid = 0;
-    for (int k = 0; k < NZ; ++k) {
-        for (int j = 0; j < NY; ++j) {
-            for (int i = 0; i < NX; ++i) {
-                parcels->xpos[P2(0, pid, parcels->nTimes)] = X0 + i*DX;
-                parcels->ypos[P2(0, pid, parcels->nTimes)] = Y0 + j*DY;
-                parcels->zpos[P2(0, pid, parcels->nTimes)] = Z0 + k*DZ;
-                pid += 1;
-            }
-        }
-    }
-
-    // fill the remaining portions of the array
-    // with the missing value flag for the future
-    // times that we haven't integrated to yet.
-    for (int p = 0; p < nParcels; ++p) {
-        for (int t = 1; t < parcels->nTimes; ++t) {
-            parcels->xpos[P2(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
-            parcels->ypos[P2(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
-            parcels->zpos[P2(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
-        }
-    }
-    cout << "END PARCEL SEED" << endl;
-
-}
-
-/* This parcel seed function is used
- * when trying to match parcel locations
- * to ones used in CM1. This is really
- * only used for testing purposes. */
-void seed_parcels_cm1(parcel_pos *parcels, int nTotTimes) {
-
-    int nParcels = 36000;
-
-    // allocate memory for the parcels
-    // we are integrating for the entirety 
-    // of the simulation.
-    parcels->xpos = new float[nParcels * nTotTimes];
-    parcels->ypos = new float[nParcels * nTotTimes];
-    parcels->zpos = new float[nParcels * nTotTimes];
-    parcels->pclu = new float[nParcels * nTotTimes];
-    parcels->pclv = new float[nParcels * nTotTimes];
-    parcels->pclw = new float[nParcels * nTotTimes];
-
-    parcels->nParcels = nParcels;
-    parcels->nTimes = nTotTimes;
-
-    int pid = 0;
-    for (int k = 0; k < 10; ++k) {
-        for (int j = 0; j < 60; ++j) {
-            for (int i = 0; i < 60; ++i) {
-                parcels->xpos[P2(0, pid, parcels->nTimes)] = -6375 + 250.0*i;
-                parcels->ypos[P2(0, pid, parcels->nTimes)] = 5125 + 250.0*j;
-                parcels->zpos[P2(0, pid, parcels->nTimes)] = 100 + 250.0*k;
-                pid += 1;
-            }
-        }
-    }
-
-    // fill the remaining portions of the array
-    // with the missing value flag for the future
-    // times that we haven't integrated to yet.
-    for (int p = 0; p < nParcels; ++p) {
-        for (int t = 1; t < parcels->nTimes; ++t) {
-            parcels->xpos[P2(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
-            parcels->ypos[P2(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
-            parcels->zpos[P2(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
-            parcels->pclu[P2(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
-            parcels->pclv[P2(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
-            parcels->pclw[P2(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
-        }
-    }
-    cout << "END PARCEL SEED" << endl;
 }
 
 
@@ -537,7 +427,6 @@ int main(int argc, char **argv ) {
     lofs_get_dataset_structure(base_dir);
     // our parcel struct containing 
     // the position arrays
-    parcel_pos parcels;
     datagrid requested_grid;
 
     // This is the main loop that does the data reading and eventually
@@ -617,10 +506,11 @@ int main(int argc, char **argv ) {
         int nearest_tidx = find_nearest_index(alltimes, time, ntottimes);
         if (nearest_tidx < 0) {
             cout << "Invalid time index: " << nearest_tidx << " for time " << time << ". Abort." << endl;
+            return;
         }
         printf("TIMESTEP %d/%d %d %f\n", rank, size, rank + tChunk*size, alltimes[nearest_tidx + direct*( rank + tChunk*size)]);
         // load u, v, and w into memory
-        loadVectorsFromDisk(&requested_grid, ubuf, vbuf, wbuf, pbuf, thbuf, rhobuf, khhbuf, alltimes[nearest_tidx + direct*(rank + tChunk*size)]);
+        loadDataFromDisk(&requested_grid, ubuf, vbuf, wbuf, pbuf, thbuf, rhobuf, khhbuf, alltimes[nearest_tidx + direct*(rank + tChunk*size)]);
         
         // for MPI runs that load multiple time steps into memory,
         // communicate the data you've read into our 4D array

@@ -1,4 +1,4 @@
-#include "datastructs.cpp"
+#include "datastructs.cu"
 #include <iostream>
 #include <stdio.h>
 #include <string>
@@ -103,16 +103,10 @@ void lofs_get_grid( datagrid *grid ) {
     int nk, nj, ni;
     // how many points are in our 
     // subset?
-	NX = grid->X1 - grid->X0 + 1;
-	NY = grid->Y1 - grid->Y0 + 1;
-	NZ = grid->Z1 - grid->Z0 + 1;
+	NX = grid->NX;
+	NY = grid->NY;
+	NZ = grid->NZ;
     nk = NZ; nj = NY; ni = NX;
-
-    // set the grid attributes
-    grid->NX = NX;
-    grid->NY = NY;
-    grid->NZ = NZ;
-    grid->nz = nz;
 
     // open the first found HDF5 files and use it to
     // construct our grid in memory. Since it's a self-describing

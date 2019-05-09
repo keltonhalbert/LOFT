@@ -1,18 +1,11 @@
 #include <iostream>
 #include <stdio.h>
 #include "math.h"
+#include "macros.cpp"
 using namespace std;
 
 #ifndef INTERP
 #define INTERP
-// stole this define from LOFS
-#define P3(x,y,z,mx,my) (((z)*(mx)*(my))+((y)*(mx))+(x))
-// I made this myself by stealing from LOFS
-#define P4(x,y,z,t,mx,my,mz) (((t)*(mx)*(my)*(mz))+((z)*(mx)*(my))+((y)*(mx))+(x))
-__host__ __device__ int arrayIndex(int x, int y, int z, int t,  int mx, int my, int mz) {
-	return (((t)*(mx)*(my)*(mz))+((z)*(mx)*(my))+((y)*(mx))+(x));
-}
-
 
 // find the nearest grid index i, j, and k for a point contained inside of a cube.
 // i, j, and k are set to -1 if the point requested is out of the domain bounds
