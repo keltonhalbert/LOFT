@@ -3,7 +3,7 @@
 #include <string>
 
 #include "mpi.h"
-#include "datastructs.cpp"
+#include "datastructs.h"
 #include "macros.cpp"
 #include "readlofs.cpp"
 #include "integrate.h"
@@ -352,6 +352,40 @@ void loadDataFromDisk(datagrid *requested_grid, float *ubuffer, float *vbuffer, 
 
 }
 
+/* Seed some parcels into the domain
+ * in physical gridpoint space, and then
+ * fill the remainder of the parcel traces
+ * with missing values. 
+ */
+void seed_parcels(parcel_pos *parcels, float X0, float Y0, float Z0, int NX, int NY, int NZ, \
+                    float DX, float DY, float DZ, int nTotTimes) {
+    int nParcels = NX*NY*NZ;
+
+    int pid = 0;
+    for (int k = 0; k < NZ; ++k) {
+        for (int j = 0; j < NY; ++j) {
+            for (int i = 0; i < NX; ++i) {
+                parcels->xpos[P2(0, pid, parcels->nTimes)] = X0 + i*DX;
+                parcels->ypos[P2(0, pid, parcels->nTimes)] = Y0 + j*DY;
+                parcels->zpos[P2(0, pid, parcels->nTimes)] = Z0 + k*DZ;
+                pid += 1;
+            }
+        }
+    }
+
+    // fill the remaining portions of the array
+    // with the missing value flag for the future
+    // times that we haven't integrated to yet.
+    for (int p = 0; p < nParcels; ++p) {
+        for (int t = 1; t < parcels->nTimes; ++t) {
+            parcels->xpos[P2(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
+            parcels->ypos[P2(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
+            parcels->zpos[P2(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
+        }
+    }
+    cout << "END PARCEL SEED" << endl;
+}
+
 
 /* This is the main program that does the parcel trajectory analysis.
  * It first sets up the parcel vectors and seeds the starting locations.
@@ -427,7 +461,8 @@ int main(int argc, char **argv ) {
     lofs_get_dataset_structure(base_dir);
     // our parcel struct containing 
     // the position arrays
-    datagrid requested_grid;
+    datagrid *requested_grid;
+    parcel_pos *parcels;
 
     // This is the main loop that does the data reading and eventually
     // calls the CUDA code to integrate forward.
@@ -436,7 +471,15 @@ int main(int argc, char **argv ) {
         // parcel start locations
         if (tChunk == 0) {
             cout << "SEEDING PARCELS" << endl;
-            //seed_parcels_cm1(&parcels, nTotTimes);
+            if (rank == 0) {
+                // allocate parcels on both CPU and GPU
+                parcels = allocate_parcels_managed(pNX, pNY, pNZ, nTotTimes);
+            }
+            else {
+                // for all other ranks, only
+                // allocate on CPU
+                parcels = allocate_parcels_cpu(pNX, pNY, pNZ, nTotTimes);
+            }
             
             // seed the parcel starting positions based on the command line
             // arguments provided by the user. I don't think any sanity checking is done
@@ -451,10 +494,6 @@ int main(int argc, char **argv ) {
         // that is dynamically based on where our parcels
         // are in the simulation
         loadMetadataAndGrid(base_dir, &requested_grid, &parcels); 
-        // read in some base state variables we will use
-        if ((rank == 0) && (tChunk == 0)) {
-            cout << requested_grid.qv0[0] << " " << requested_grid.th0[0] << endl;
-        }
         if (requested_grid.isValid == 0) {
             cout << "Something went horribly wrong when requesting a domain subset. Abort." << endl;
             exit(-1);
@@ -526,10 +565,10 @@ int main(int argc, char **argv ) {
         if (rank == 0) {
             // send to the GPU!!
             int nParcels = parcels.nParcels;
-            cudaIntegrateParcels(requested_grid, parcels, u_time_chunk, v_time_chunk, w_time_chunk, p_time_chunk, th_time_chunk, \
+            //cudaIntegrateParcels(requested_grid, parcels, u_time_chunk, v_time_chunk, w_time_chunk, p_time_chunk, th_time_chunk, \
                                 rho_time_chunk, khh_time_chunk, MX, MY, MZ, size, nTotTimes, direct); 
             // write out our information to disk
-            write_parcels(outfilename, &parcels, tChunk);
+            //write_parcels(outfilename, &parcels, tChunk);
 
             // Now that we've integrated forward and written to disk, before we can go again
             // we have to set the current end position of the parcel to the beginning for 
@@ -543,45 +582,10 @@ int main(int argc, char **argv ) {
                 parcels.pclu[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
                 parcels.pclv[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
                 parcels.pclw[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                parcels.pclkhh[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                parcels.pclppert[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                parcels.pclthrhoprime[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                parcels.pclxvort[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                parcels.pclyvort[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                parcels.pclzvort[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                parcels.pclxvorttilt[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                parcels.pclyvorttilt[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                parcels.pclzvorttilt[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                parcels.pclxvortstretch[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                parcels.pclyvortstretch[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                parcels.pclzvortstretch[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                parcels.pclxvortbaro[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                parcels.pclyvortbaro[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                parcels.pclxvortturb[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                parcels.pclyvortturb[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                parcels.pclzvortturb[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
             }
 
             // memory management for root rank
-            delete[] requested_grid.xf;
-            delete[] requested_grid.yf;
-            delete[] requested_grid.zf;
-
-            delete[] requested_grid.xh;
-            delete[] requested_grid.yh;
-            delete[] requested_grid.zh;
-
-            delete[] requested_grid.uh;
-            delete[] requested_grid.vh;
-            delete[] requested_grid.mh;
-            
-            delete[] requested_grid.uf;
-            delete[] requested_grid.vf;
-            delete[] requested_grid.mf;
-            
-            delete[] requested_grid.th0;
-            delete[] requested_grid.qv0;
-            delete[] requested_grid.rho0;
+            deallocate_grid_managed(requested_grid);
 
             delete[] ubuf;
             delete[] vbuf;
@@ -604,25 +608,7 @@ int main(int argc, char **argv ) {
         // MPI ranks
         else {
             // memory management
-            delete[] requested_grid.xf;
-            delete[] requested_grid.yf;
-            delete[] requested_grid.zf;
-
-            delete[] requested_grid.xh;
-            delete[] requested_grid.yh;
-            delete[] requested_grid.zh;
-
-            delete[] requested_grid.uh;
-            delete[] requested_grid.vh;
-            delete[] requested_grid.mh;
-            
-            delete[] requested_grid.uf;
-            delete[] requested_grid.vf;
-            delete[] requested_grid.mf;
-            
-            delete[] requested_grid.th0;
-            delete[] requested_grid.qv0;
-            delete[] requested_grid.rho0;
+            deallocate_grid_cpu(requested_grid);
 
             delete[] ubuf;
             delete[] vbuf;
