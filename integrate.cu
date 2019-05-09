@@ -1,6 +1,6 @@
 #include <iostream>
 #include <stdio.h>
-#include "datastructs.cpp"
+#include "datastructs.cu"
 #include "macros.cpp"
 #include "interp.cu"
 #ifndef INTEGRATE_CU
