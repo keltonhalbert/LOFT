@@ -211,4 +211,40 @@ void deallocate_parcels_cpu(parcel_pos *parcels) {
     delete[] parcels->pclw;
     delete[] parcels;
 }
+
+/* Allocate the struct of 4D arrays that store
+   fields for integration and calculation. This
+   only ever gets called by Rank 0, so there 
+   should be no need for a CPU counterpart. */
+integration_data* allocate_integration_managed(long bufsize) {
+    integration_data *data;
+    // create the struct on both the GPU and the CPU.
+    cudaMallocManaged(&data, sizeof(integration_data));
+
+    // allocate the arrays in the struct
+    cudaMallocManaged(&(data->u_4d_chunk), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->v_4d_chunk), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->w_4d_chunk), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->pres_4d_chunk), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->th_4d_chunk), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->rho_4d_chunk), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->khh_4d_chunk), bufsize*sizeof(float));
+
+    return data;
+
+}
+
+/* Deallocate the struct of 4D arrays that store
+   fields for integration and calculation. This 
+   only ever gets called by Rank 0, so there
+   should be no need for a CPU counterpart. */
+void deallocate_integration_managed(integration_data *data) {
+    cudaFree(data->u_4d_chunk);
+    cudaFree(data->v_4d_chunk);
+    cudaFree(data->w_4d_chunk);
+    cudaFree(data->pres_4d_chunk);
+    cudaFree(data->th_4d_chunk);
+    cudaFree(data->rho_4d_chunk);
+    cudaFree(data->khh_4d_chunk);
+}
 #endif

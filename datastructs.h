@@ -51,8 +51,6 @@ struct datagrid {
     long X1; long Y1;
     long Z0; long Z1;
 
-
-
 };
 
 struct parcel_pos {
@@ -70,6 +68,26 @@ struct parcel_pos {
 };
 
 
+/* This struct is used to hold the 4D arrays
+ * used by the GPU to integrate the parcels 
+ * and calculate various quantities/forcing 
+ * terms along their paths. It has a
+ * corresponding allocator and deallocator,
+ * and is only ever used by Rank 0. This 
+ * means that there shouldn't be any CPU
+ * only code for this one. */
+struct integration_data {
+
+    float *u_4d_chunk;
+    float *v_4d_chunk;
+    float *w_4d_chunk;
+    float *pres_4d_chunk;
+    float *th_4d_chunk;
+    float *rho_4d_chunk;
+    float *khh_4d_chunk;
+};
+
+
 datagrid* allocate_grid_managed( int X0, int X1, int Y0, int Y1, int Z0, int Z1 );
 datagrid* allocate_grid_cpu( int X0, int X1, int Y0, int Y1, int Z0, int Z1 );
 void deallocate_grid_managed(datagrid *grid);
@@ -78,4 +96,6 @@ parcel_pos* allocate_parcels_managed(int NX, int NY, int NZ, int nTotTimes);
 parcel_pos* allocate_parcels_cpu(int NX, int NY, int NZ, int nTotTimes);
 void deallocate_parcels_managed(parcel_pos *parcels);
 void deallocate_parcels_cpu(parcel_pos *parcels);
+integration_data* allocate_integration_managed(long bufsize);
+void deallocate_integration_managed(integration_data *data);
 #endif
