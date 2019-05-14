@@ -551,24 +551,23 @@ int main(int argc, char **argv ) {
             cout << "Something went horribly wrong when requesting a domain subset. Abort." << endl;
             exit(-1);
         }
-        /*
 
 
         // the number of grid points requested
-        N = (requested_grid.NX)*(requested_grid.NY)*(requested_grid.NZ);
+        N = (requested_grid->NX)*(requested_grid->NY)*(requested_grid->NZ);
 
 
         // get the size of the domain we will
         // be requesting. The +1 is safety for
         // staggered grids
-        MX = (long) (requested_grid.NX);
-        MY = (long) (requested_grid.NY);
-        MZ = (long) (requested_grid.NZ);
+        MX = (long) (requested_grid->NX);
+        MY = (long) (requested_grid->NY);
+        MZ = (long) (requested_grid->NZ);
 
         // allocate space for U, V, and W arrays
         // for all ranks, because this is what
         // LOFS will return it's data subset to
-        long bufsize = (long) (requested_grid.NX+1) * (long) (requested_grid.NY+1) * (long) (requested_grid.NZ+1) * (long) sizeof(float);
+        long bufsize = (long) (requested_grid->NX+1) * (long) (requested_grid->NY+1) * (long) (requested_grid->NZ+1) * (long) sizeof(float);
         float *ubuf, *vbuf, *wbuf, *pbuf, *thbuf, *rhobuf, *khhbuf;
         ubuf = new float[(size_t)bufsize];
         vbuf = new float[(size_t)bufsize];
@@ -590,20 +589,24 @@ int main(int argc, char **argv ) {
         if (rank == 0) {
             data = allocate_integration_managed(bufsize*size);
         }
+        else {
+            data = new integration_data();
+        }
 
         // we need to find the index of the nearest time to the user requested
         // time. If the index isn't found, abort.
         int nearest_tidx = find_nearest_index(alltimes, time, ntottimes);
         if (nearest_tidx < 0) {
             cout << "Invalid time index: " << nearest_tidx << " for time " << time << ". Abort." << endl;
-            return;
+            return 0;
         }
         printf("TIMESTEP %d/%d %d %f\n", rank, size, rank + tChunk*size, alltimes[nearest_tidx + direct*( rank + tChunk*size)]);
         // load u, v, and w into memory
-        loadDataFromDisk(&requested_grid, ubuf, vbuf, wbuf, pbuf, thbuf, rhobuf, khhbuf, alltimes[nearest_tidx + direct*(rank + tChunk*size)]);
+        loadDataFromDisk(requested_grid, ubuf, vbuf, wbuf, pbuf, thbuf, rhobuf, khhbuf, alltimes[nearest_tidx + direct*(rank + tChunk*size)]);
         
         // for MPI runs that load multiple time steps into memory,
         // communicate the data you've read into our 4D array
+
         int senderr_u = MPI_Gather(ubuf, N, MPI_FLOAT, data->u_4d_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
         int senderr_v = MPI_Gather(vbuf, N, MPI_FLOAT, data->v_4d_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
         int senderr_w = MPI_Gather(wbuf, N, MPI_FLOAT, data->w_4d_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
@@ -615,7 +618,14 @@ int main(int argc, char **argv ) {
 
         if (rank == 0) {
             // send to the GPU!!
-            int nParcels = parcels.nParcels;
+            cout << "MPI Gather Error U: " << senderr_u << endl;
+            cout << "MPI Gather Error V: " << senderr_v << endl;
+            cout << "MPI Gather Error W: " << senderr_w << endl;
+            cout << "MPI Gather Error P: " << senderr_p << endl;
+            cout << "MPI Gather Error TH: " << senderr_th << endl;
+            cout << "MPI Gather Error RHO: " << senderr_rho << endl;
+            cout << "MPI Gather Error KHH: " << senderr_khh << endl;
+            int nParcels = parcels->nParcels;
             //cudaIntegrateParcels(requested_grid, parcels, u_time_chunk, v_time_chunk, w_time_chunk, p_time_chunk, th_time_chunk, \
                                 rho_time_chunk, khh_time_chunk, MX, MY, MZ, size, nTotTimes, direct); 
             // write out our information to disk
@@ -625,6 +635,7 @@ int main(int argc, char **argv ) {
             // we have to set the current end position of the parcel to the beginning for 
             // the next leg of integration. Do that, and then reset all the other values
             // to missing.
+            /*
             for (int pcl = 0; pcl < parcels.nParcels; ++pcl) {
                 parcels.xpos[P2(0, pcl, parcels.nTimes)] = parcels.xpos[P2(size, pcl, parcels.nTimes)];
                 parcels.ypos[P2(0, pcl, parcels.nTimes)] = parcels.ypos[P2(size, pcl, parcels.nTimes)];
@@ -634,6 +645,7 @@ int main(int argc, char **argv ) {
                 parcels.pclv[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
                 parcels.pclw[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
             }
+            */
 
             // memory management for root rank
             deallocate_grid_managed(requested_grid);
@@ -666,12 +678,11 @@ int main(int argc, char **argv ) {
         // receive the updated parcel arrays
         // so that we can do proper subseting. This happens
         // after integration is complete from CUDA.
-        MPI_Status status;
-        MPI_Bcast(parcels.xpos, parcels.nParcels*nTotTimes, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        MPI_Bcast(parcels.ypos, parcels.nParcels*nTotTimes, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        MPI_Bcast(parcels.zpos, parcels.nParcels*nTotTimes, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        //MPI_Status status;
+        //MPI_Bcast(parcels.xpos, parcels.nParcels*nTotTimes, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        //MPI_Bcast(parcels.ypos, parcels.nParcels*nTotTimes, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        //MPI_Bcast(parcels.zpos, parcels.nParcels*nTotTimes, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-    */
     }
 
     MPI_Finalize();
