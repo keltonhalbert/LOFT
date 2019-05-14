@@ -15,7 +15,7 @@ CFLAGS = -I$(LOFSINC)
 LINKOPTS = -L$(LOFSINC) -L$(CUDA)/lib64 -lh5zzfp -lzfp -lhdf5_hl -lhdf5 -lnetcdf -lnetcdf_c++4 -lcm -lcudart -lm -fopenmp
 CC = mpiCC 
 
-all: datastructs.o readlofs.o
+all: run datastructs.o readlofs.o
 
 datastructs.o: datastructs.cu
 	nvcc -Xptxas -O2,-v -c -gencode=arch=compute_61,code=compute_61 -o datastructs.o datastructs.cu
@@ -26,8 +26,8 @@ readlofs.o: readlofs.cpp
 #integrate.o: integrate.cu interp.cu
 #	nvcc -Xptxas -O2,-v -c -gencode=arch=compute_61,code=compute_61 -o integrate.o integrate.cu
 
-#run: run_traj.cpp integrate.o
-#	$(CC) -O2 -std=c++11 -o run run_traj.cpp integrate.o $(LOFSINC)/libcm.a $(CFLAGS) $(LINKOPTS) 
+run: run_cm1.cpp datastructs.o readlofs.o
+	$(CC) -O2 -std=c++11 -o run run_cm1.cpp datastructs.o $(LOFSINC)/libcm.a $(CFLAGS) $(LINKOPTS) 
 
 clean:
 	rm -rf *.o 

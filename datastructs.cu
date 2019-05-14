@@ -50,6 +50,7 @@ datagrid* allocate_grid_managed( int X0, int X1, int Y0, int Y1, int Z0, int Z1 
     cudaMallocManaged(&(grid->qv0), NZ*sizeof(float));
     cudaMallocManaged(&(grid->th0), NZ*sizeof(float));
     cudaMallocManaged(&(grid->rho0), NZ*sizeof(float));
+    cudaDeviceSynchronize();
 
     return grid;
 }
@@ -58,7 +59,7 @@ datagrid* allocate_grid_managed( int X0, int X1, int Y0, int Y1, int Z0, int Z1 
    for using with MPI, as only 1 rank should be allocating memory
    on the GPU */
 datagrid* allocate_grid_cpu( int X0, int X1, int Y0, int Y1, int Z0, int Z1 ) {
-    struct datagrid *grid = new datagrid;
+    datagrid *grid = new datagrid();
     long NX, NY, NZ;
 
     grid->X0 = X0; grid->X1 = X1;
@@ -119,6 +120,7 @@ void deallocate_grid_managed(datagrid *grid) {
     cudaFree(grid->rho0);
     cudaFree(grid->th0);
     cudaFree(grid->qv0);
+    cudaDeviceSynchronize();
 }
 
 /* Deallocate all of the arrays in the
@@ -162,6 +164,7 @@ parcel_pos* allocate_parcels_managed(int NX, int NY, int NZ, int nTotTimes) {
     // set the static variables
     parcels->nParcels = nParcels;
     parcels->nTimes = nTotTimes;
+    cudaDeviceSynchronize();
 
     return parcels;
 }
@@ -171,7 +174,7 @@ parcel_pos* allocate_parcels_managed(int NX, int NY, int NZ, int nTotTimes) {
    on the GPU */
 parcel_pos* allocate_parcels_cpu(int NX, int NY, int NZ, int nTotTimes) {
     int nParcels = NX*NY*NZ;
-    struct parcel_pos *parcels = new parcel_pos;
+    parcel_pos *parcels = new parcel_pos();
 
     // allocate memory for the parcels
     // we are integrating for the entirety 
@@ -199,6 +202,7 @@ void deallocate_parcels_managed(parcel_pos *parcels) {
     cudaFree(parcels->pclv);
     cudaFree(parcels->pclw);
     cudaFree(parcels);
+    cudaDeviceSynchronize();
 }
 
 /* Deallocate parcel arrays only on the CPU */
@@ -229,6 +233,7 @@ integration_data* allocate_integration_managed(long bufsize) {
     cudaMallocManaged(&(data->th_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->rho_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->khh_4d_chunk), bufsize*sizeof(float));
+    cudaDeviceSynchronize();
 
     return data;
 
@@ -246,5 +251,6 @@ void deallocate_integration_managed(integration_data *data) {
     cudaFree(data->th_4d_chunk);
     cudaFree(data->rho_4d_chunk);
     cudaFree(data->khh_4d_chunk);
+    cudaDeviceSynchronize();
 }
 #endif

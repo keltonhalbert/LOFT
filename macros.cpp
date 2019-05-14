@@ -25,7 +25,7 @@ using namespace std;
 #define VA(x,y,z) vstag[P3(x+1,y+1,z,NX+2,NY+2)]
 #define WA(x,y,z) wstag[P3(x+1,y+1,z,NX+2,NY+2)]
 
-#define P2(t,p,mt) (((p)*(mt))+(t))
+#define PCL(t,p,mt) (((p)*(mt))+(t))
 // stole this define from LOFS
 #define P3(x,y,z,mx,my) (((z)*(mx)*(my))+((y)*(mx))+(x))
 // I made this myself by stealing from LOFS
