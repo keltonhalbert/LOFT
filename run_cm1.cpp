@@ -28,6 +28,50 @@ int find_nearest_index(double *arr, double val, int N) {
     }
     return nearest;
 }
+// find the nearest grid index i, j, and k for a point contained inside of a cube.
+// i, j, and k are set to -1 if the point requested is out of the domain bounds
+// of the cube provided.
+void nearest_grid_idx(float *point, datagrid *grid, \
+                      int *idx_4D, int nX, int nY, int nZ) {
+
+	int near_i = -1;
+	int near_j = -1;
+	int near_k = -1;
+
+    float pt_x = point[0];
+    float pt_y = point[1];
+    float pt_z = point[2];
+
+
+	// loop over the X grid
+	for ( int i = 0; i < nX-1; i++ ) {
+		// find the nearest grid point index at X
+		if ( ( pt_x >= grid->xf[i] ) && ( pt_x <= grid->xf[i+1] ) ) { near_i = i; } 
+	}
+
+
+	// loop over the Y grid
+	for ( int j = 0; j < nY-1; j++ ) {
+		// find the nearest grid point index in the Y
+		if ( ( pt_y >= grid->yf[j] ) && ( pt_y <= grid->yf[j+1] ) ) { near_j = j; } 
+	}
+
+
+    int k = 0;
+    while (pt_z >= grid->zf[k+1]) {
+        k += 1;
+    }
+    near_k = k;
+
+	// if a nearest index was not found, set all indices to -1 to flag
+	// that the point is not in the domain
+	if ((near_i == -1) || (near_j == -1) || (near_k == -1)) {
+		near_i = -1; near_j = -1; near_k = -1;
+	}
+
+	idx_4D[0] = near_i; idx_4D[1] = near_j; idx_4D[2] = near_k;
+	return;
+}
 
 // this was stolen from LOFS/cm1tools-3.0 hdf2.c
 // under the parce_cmdline_hdf2nc function. I could
@@ -209,22 +253,29 @@ void parse_cmdline(int argc, char **argv, \
  * When the next chunk of time is read in, check and see where the parcels
  * are currently and request a subset that is relevent to those parcels.   
  */
-void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *parcels) {
+datagrid* loadMetadataAndGrid(string base_dir, parcel_pos *parcels, int rank) {
     // get the HDF metadata from LOFS - return the first filename
+    cout << "Retrieving HDF Metadata" << endl;
     get_hdf_metadata(firstfilename,&nx,&ny,&nz,&nodex,&nodey);
 
     // Create a temporary full grid that we will then subset. We will
     // only do this in CPU memory because this will get deleted
     datagrid *temp_grid;
+    // this is the grid we will return
+    datagrid *requested_grid;
+        
+
     // load the saved grid dimmensions into 
     // the temporary grid, then we will find
     // a smaller subset to load into memory.
     //  nz comes from readlofs
+    cout << "Allocating temporary grid" << endl;
     temp_grid = allocate_grid_cpu( saved_X0, saved_X1, saved_Y0, saved_Y1, 0, nz-1);
 
     // request the full grid so that we can find the indices
     // of where our parcels are, and then request a smaller
     // subset from there.
+    cout << "Calling LOFS on temporary grid" << endl;
     lofs_get_grid(temp_grid);
 
     // find the min/max index bounds of 
@@ -238,12 +289,13 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *
     int max_j = -1;
     int max_k = -1;
     int invalidCount = 0;
+    cout << "Searching the parcel bounds" << endl;
     for (int pcl = 0; pcl < parcels->nParcels; ++pcl) {
         point[0] = parcels->xpos[PCL(0, pcl, parcels->nTimes)];
         point[1] = parcels->ypos[PCL(0, pcl, parcels->nTimes)];
         point[2] = parcels->zpos[PCL(0, pcl, parcels->nTimes)];
         // find the nearest grid point!
-        //_nearest_grid_idx(point, temp_grid, idx_4D, temp_grid->NX, temp_grid->NY, temp_grid->NZ);
+        nearest_grid_idx(point, temp_grid, idx_4D, temp_grid->NX, temp_grid->NY, temp_grid->NZ);
         if ( (idx_4D[0] == -1) || (idx_4D[1] == -1) || (idx_4D[2] == -1) ) {
             cout << "INVALID POINT X " << point[0] << " Y " << point[1] << " Z " << point[2] << endl;
             cout << "Parcel X " << parcels->xpos[PCL(0, pcl, parcels->nTimes)];
@@ -261,17 +313,10 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *
         if (idx_4D[2] < min_k) min_k = idx_4D[2]; 
         if (idx_4D[2] > max_k) max_k = idx_4D[2]; 
     }
-    requested_grid->isValid = 1;
+    cout << "Finished searching parcel bounds" << endl;
     // clear the memory from the temp grid
+    cout << "Deallocating temporary grid" << endl;
     deallocate_grid_cpu(temp_grid);
-    // if literally all of our parcels aren't
-    // in the domain then something has gone
-    // horribly wrong
-    if (invalidCount == parcels->nParcels) {
-        requested_grid->isValid = 0;
-        return;
-    }
-
 
     // we want to add a buffer to our dimensions so that
     // the parcels don't accidentally move outside of our
@@ -305,15 +350,34 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *
     cout << "Z0: " << min_k << " Z1: " << max_k << endl;
 
 
-    requested_grid->X0 = min_i; requested_grid->Y0 = min_j;
-    requested_grid->X1 = max_i; requested_grid->Y1 = max_j;
-    requested_grid->Z0 = min_k; requested_grid->Z1 = max_k;
-
     // request our grid subset now
     cout << "REQUESTING METADATA & GRID" << endl;
+    // on rank zero, allocate our grid on both the
+    // CPU and GPU so that the GPU knows something
+    // about our data for future integration.
+    if (rank == 0) {
+        requested_grid = allocate_grid_managed( min_i, max_i, min_j, max_j, min_k, max_k);
+    }
+    // For the other MPI ranks, we only need to
+    // allocate the grids on the CPU for copying
+    // data to the MPI_Gather call
+    else {
+        requested_grid = allocate_grid_cpu( min_i, max_i, min_j, max_j, min_k, max_k);
+    }
+
+    requested_grid->isValid = 1;
+    // if literally all of our parcels aren't
+    // in the domain then something has gone
+    // horribly wrong
+    if (invalidCount == parcels->nParcels) {
+        requested_grid->isValid = 0;
+        return requested_grid;
+    }
+
+
     lofs_get_grid(requested_grid);
     cout << "END METADATA & GRID REQUEST" << endl;
-
+    return requested_grid;
 }
 
 /* Read in the U, V, and W vector components plus the buoyancy and turbulence fields 
@@ -482,12 +546,12 @@ int main(int argc, char **argv ) {
         // steps, but only Rank 0 will allocate the grid
         // arrays on both the CPU and GPU.
         
-        /*
-        loadMetadataAndGrid(base_dir, &requested_grid, &parcels); 
-        if (requested_grid.isValid == 0) {
+        requested_grid = loadMetadataAndGrid(base_dir, parcels, rank); 
+        if (requested_grid->isValid == 0) {
             cout << "Something went horribly wrong when requesting a domain subset. Abort." << endl;
             exit(-1);
         }
+        /*
 
 
         // the number of grid points requested
