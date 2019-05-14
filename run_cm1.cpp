@@ -527,17 +527,12 @@ int main(int argc, char **argv ) {
         // bufsize is the size of the 3D component and size is
         // the number of MPI ranks (which is also the number of times)
         // read in
-        float *u_time_chunk, *v_time_chunk, *w_time_chunk, *p_time_chunk, *th_time_chunk; 
-        float *rho_time_chunk, *khh_time_chunk; 
+        //
+        // declare the struct on all ranks, but only
+        // allocate space for it on Rank 0
+        integration_data *data;
         if (rank == 0) {
-            u_time_chunk = (float *) malloc ((size_t)bufsize*size);
-            v_time_chunk = (float *) malloc ((size_t)bufsize*size);
-            w_time_chunk = (float *) malloc ((size_t)bufsize*size);
-            p_time_chunk = (float *) malloc ((size_t)bufsize*size);
-            th_time_chunk = (float *) malloc ((size_t)bufsize*size);
-            rho_time_chunk = (float *) malloc ((size_t)bufsize*size);
-            khh_time_chunk = (float *) malloc ((size_t)bufsize*size);
-
+            data = allocate_integration_managed(bufsize*size);
         }
 
         // we need to find the index of the nearest time to the user requested
@@ -553,13 +548,13 @@ int main(int argc, char **argv ) {
         
         // for MPI runs that load multiple time steps into memory,
         // communicate the data you've read into our 4D array
-        int senderr_u = MPI_Gather(ubuf, N, MPI_FLOAT, u_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_v = MPI_Gather(vbuf, N, MPI_FLOAT, v_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_w = MPI_Gather(wbuf, N, MPI_FLOAT, w_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_p = MPI_Gather(pbuf, N, MPI_FLOAT, p_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_th = MPI_Gather(thbuf, N, MPI_FLOAT, th_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_rho = MPI_Gather(rhobuf, N, MPI_FLOAT, rho_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_khh = MPI_Gather(khhbuf, N, MPI_FLOAT, khh_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_u = MPI_Gather(ubuf, N, MPI_FLOAT, data->u_4d_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_v = MPI_Gather(vbuf, N, MPI_FLOAT, data->v_4d_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_w = MPI_Gather(wbuf, N, MPI_FLOAT, data->w_4d_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_p = MPI_Gather(pbuf, N, MPI_FLOAT, data->pres_4d_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_th = MPI_Gather(thbuf, N, MPI_FLOAT, data->th_4d_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_rho = MPI_Gather(rhobuf, N, MPI_FLOAT, data->rho_4d_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_khh = MPI_Gather(khhbuf, N, MPI_FLOAT, data->khh_4d_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
 
         if (rank == 0) {
@@ -595,13 +590,7 @@ int main(int argc, char **argv ) {
             delete[] rhobuf;
             delete[] khhbuf;
 
-            delete[] u_time_chunk;
-            delete[] v_time_chunk;
-            delete[] w_time_chunk;
-            delete[] p_time_chunk;
-            delete[] th_time_chunk;
-            delete[] rho_time_chunk;
-            delete[] khh_time_chunk;
+            deallocate_integration_managed(data);
         }
 
         // house keeping for the non-master
