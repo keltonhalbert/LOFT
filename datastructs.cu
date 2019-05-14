@@ -132,8 +132,8 @@ void deallocate_grid_cpu(datagrid *grid) {
     delete[] grid->zh;
     delete[] grid->uf;
     delete[] grid->uh;
-    delete[] grid->yf;
-    delete[] grid->yh;
+    delete[] grid->vf;
+    delete[] grid->vh;
     delete[] grid->mf;
     delete[] grid->mh;
     delete[] grid->rho0;
