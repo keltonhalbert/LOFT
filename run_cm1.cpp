@@ -6,8 +6,8 @@
 #include "datastructs.h"
 #include "macros.cpp"
 #include "readlofs.cpp"
-#include "integrate.h"
-#include "writenc.cpp"
+//#include "integrate.h"
+//#include "writenc.cpp"
 
 using namespace std;
 
@@ -213,43 +213,42 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *
     // get the HDF metadata from LOFS - return the first filename
     get_hdf_metadata(firstfilename,&nx,&ny,&nz,&nodex,&nodey);
 
-    // create a temporary full grid that we will then subset
-    datagrid temp_grid;
-
+    // Create a temporary full grid that we will then subset. We will
+    // only do this in CPU memory because this will get deleted
+    datagrid *temp_grid;
     // load the saved grid dimmensions into 
     // the temporary grid, then we will find
-    // a smaller subset to load into memory
-    temp_grid.X0 = saved_X0; temp_grid.Y0 = saved_Y0;
-    temp_grid.X1 = saved_X1; temp_grid.Y1 = saved_Y1;
-    temp_grid.Z0 = 0; temp_grid.Z1 = nz-1; // nz comes from readlofs
+    // a smaller subset to load into memory.
+    //  nz comes from readlofs
+    temp_grid = allocate_grid_cpu( saved_X0, saved_X1, saved_Y0, saved_Y1, 0, nz-1);
 
     // request the full grid so that we can find the indices
     // of where our parcels are, and then request a smaller
     // subset from there.
-    lofs_get_grid(&temp_grid);
+    lofs_get_grid(temp_grid);
 
     // find the min/max index bounds of 
     // our parcels
     float point[3];
     int idx_4D[4];
-    int min_i = temp_grid.NX+1;
-    int min_j = temp_grid.NY+1;
-    int min_k = temp_grid.NZ+1;
+    int min_i = temp_grid->NX+1;
+    int min_j = temp_grid->NY+1;
+    int min_k = temp_grid->NZ+1;
     int max_i = -1;
     int max_j = -1;
     int max_k = -1;
     int invalidCount = 0;
     for (int pcl = 0; pcl < parcels->nParcels; ++pcl) {
-        point[0] = parcels->xpos[P2(0, pcl, parcels->nTimes)];
-        point[1] = parcels->ypos[P2(0, pcl, parcels->nTimes)];
-        point[2] = parcels->zpos[P2(0, pcl, parcels->nTimes)];
+        point[0] = parcels->xpos[PCL(0, pcl, parcels->nTimes)];
+        point[1] = parcels->ypos[PCL(0, pcl, parcels->nTimes)];
+        point[2] = parcels->zpos[PCL(0, pcl, parcels->nTimes)];
         // find the nearest grid point!
-        _nearest_grid_idx(point, temp_grid, idx_4D, temp_grid.NX, temp_grid.NY, temp_grid.NZ);
+        //_nearest_grid_idx(point, temp_grid, idx_4D, temp_grid->NX, temp_grid->NY, temp_grid->NZ);
         if ( (idx_4D[0] == -1) || (idx_4D[1] == -1) || (idx_4D[2] == -1) ) {
             cout << "INVALID POINT X " << point[0] << " Y " << point[1] << " Z " << point[2] << endl;
-            cout << "Parcel X " << parcels->xpos[P2(0, pcl, parcels->nTimes)];
-            cout << " Parcel Y " << parcels->ypos[P2(0, pcl, parcels->nTimes)];
-            cout << " Parcel Z " << parcels->zpos[P2(0, pcl, parcels->nTimes)] << endl;
+            cout << "Parcel X " << parcels->xpos[PCL(0, pcl, parcels->nTimes)];
+            cout << " Parcel Y " << parcels->ypos[PCL(0, pcl, parcels->nTimes)];
+            cout << " Parcel Z " << parcels->zpos[PCL(0, pcl, parcels->nTimes)] << endl;
             invalidCount += 1;
         }
 
@@ -264,21 +263,7 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *
     }
     requested_grid->isValid = 1;
     // clear the memory from the temp grid
-    delete[] temp_grid.xh;
-    delete[] temp_grid.yh;
-    delete[] temp_grid.zh;
-    delete[] temp_grid.xf;
-    delete[] temp_grid.yf;
-    delete[] temp_grid.zf;
-    delete[] temp_grid.uh;
-    delete[] temp_grid.uf;
-    delete[] temp_grid.vh;
-    delete[] temp_grid.vf;
-    delete[] temp_grid.mh;
-    delete[] temp_grid.mf;
-    delete[] temp_grid.th0;
-    delete[] temp_grid.qv0;
-    delete[] temp_grid.rho0;
+    deallocate_grid_cpu(temp_grid);
     // if literally all of our parcels aren't
     // in the domain then something has gone
     // horribly wrong
@@ -365,9 +350,9 @@ void seed_parcels(parcel_pos *parcels, float X0, float Y0, float Z0, int NX, int
     for (int k = 0; k < NZ; ++k) {
         for (int j = 0; j < NY; ++j) {
             for (int i = 0; i < NX; ++i) {
-                parcels->xpos[P2(0, pid, parcels->nTimes)] = X0 + i*DX;
-                parcels->ypos[P2(0, pid, parcels->nTimes)] = Y0 + j*DY;
-                parcels->zpos[P2(0, pid, parcels->nTimes)] = Z0 + k*DZ;
+                parcels->xpos[PCL(0, pid, parcels->nTimes)] = X0 + i*DX;
+                parcels->ypos[PCL(0, pid, parcels->nTimes)] = Y0 + j*DY;
+                parcels->zpos[PCL(0, pid, parcels->nTimes)] = Z0 + k*DZ;
                 pid += 1;
             }
         }
@@ -378,9 +363,9 @@ void seed_parcels(parcel_pos *parcels, float X0, float Y0, float Z0, int NX, int
     // times that we haven't integrated to yet.
     for (int p = 0; p < nParcels; ++p) {
         for (int t = 1; t < parcels->nTimes; ++t) {
-            parcels->xpos[P2(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
-            parcels->ypos[P2(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
-            parcels->zpos[P2(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
+            parcels->xpos[PCL(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
+            parcels->ypos[PCL(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
+            parcels->zpos[PCL(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
         }
     }
     cout << "END PARCEL SEED" << endl;
@@ -485,14 +470,19 @@ int main(int argc, char **argv ) {
             // arguments provided by the user. I don't think any sanity checking is done
             // here for out of bounds positions so we probably need to be careful
             // of this and consider fixing that
-            seed_parcels(&parcels, pX0, pY0, pZ0, pNX, pNY, pNZ, pDX, pDY, pDZ, nTotTimes);
+            seed_parcels(parcels, pX0, pY0, pZ0, pNX, pNY, pNZ, pDX, pDY, pDZ, nTotTimes);
             // we also initialize the output netcdf file here
-            if (rank == 0) init_nc(outfilename, &parcels);
+            //if (rank == 0) init_nc(outfilename, &parcels);
         }
 
-        // read in the metadata and request a grid subset 
+        // Read in the metadata and request a grid subset 
         // that is dynamically based on where our parcels
-        // are in the simulation
+        // are in the simulation. This is done for all MPI
+        // ranks so that they can request different time
+        // steps, but only Rank 0 will allocate the grid
+        // arrays on both the CPU and GPU.
+        
+        /*
         loadMetadataAndGrid(base_dir, &requested_grid, &parcels); 
         if (requested_grid.isValid == 0) {
             cout << "Something went horribly wrong when requesting a domain subset. Abort." << endl;
@@ -512,6 +502,8 @@ int main(int argc, char **argv ) {
         MZ = (long) (requested_grid.NZ);
 
         // allocate space for U, V, and W arrays
+        // for all ranks, because this is what
+        // LOFS will return it's data subset to
         long bufsize = (long) (requested_grid.NX+1) * (long) (requested_grid.NY+1) * (long) (requested_grid.NZ+1) * (long) sizeof(float);
         float *ubuf, *vbuf, *wbuf, *pbuf, *thbuf, *rhobuf, *khhbuf;
         ubuf = new float[(size_t)bufsize];
@@ -615,6 +607,7 @@ int main(int argc, char **argv ) {
         MPI_Bcast(parcels.ypos, parcels.nParcels*nTotTimes, MPI_FLOAT, 0, MPI_COMM_WORLD);
         MPI_Bcast(parcels.zpos, parcels.nParcels*nTotTimes, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
+    */
     }
 
     MPI_Finalize();
