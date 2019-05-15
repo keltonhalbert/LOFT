@@ -6,7 +6,7 @@
 #include "datastructs.h"
 #include "macros.cpp"
 #include "readlofs.cpp"
-//#include "integrate.h"
+#include "integrate.h"
 //#include "writenc.cpp"
 
 using namespace std;

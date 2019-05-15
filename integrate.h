@@ -1,5 +1,5 @@
 #include <iostream>
-#include "datastructs.cu"
+#include "datastructs.h"
 #ifndef INTEGRATE_H
 #define INTEGRATE_H
 
