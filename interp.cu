@@ -10,7 +10,7 @@ using namespace std;
 // find the nearest grid index i, j, and k for a point contained inside of a cube.
 // i, j, and k are set to -1 if the point requested is out of the domain bounds
 // of the cube provided.
-__device__ __host__ void _nearest_grid_idx(float *point, datagrid grid, \
+__device__ __host__ void _nearest_grid_idx(float *point, datagrid *grid, \
                                  int *idx_4D, int nX, int nY, int nZ) {
 
 	int near_i = -1;
@@ -23,24 +23,23 @@ __device__ __host__ void _nearest_grid_idx(float *point, datagrid grid, \
 
 
 	// loop over the X grid
-	for ( int i = 0; i < nX-1; i++ ) {
+	for ( int i = 1; i < nX+2; i++ ) {
 		// find the nearest grid point index at X
-		if ( ( pt_x >= grid.xf[i] ) && ( pt_x <= grid.xf[i+1] ) ) { near_i = i; } 
+		if ( ( pt_x >= grid->xf[i] ) && ( pt_x <= grid->xf[i+1] ) ) { near_i = i; } 
 	}
 
 
 	// loop over the Y grid
-	for ( int j = 0; j < nY-1; j++ ) {
+	for ( int j = 1; j < nY+2; j++ ) {
 		// find the nearest grid point index in the Y
-		if ( ( pt_y >= grid.yf[j] ) && ( pt_y <= grid.yf[j+1] ) ) { near_j = j; } 
+		if ( ( pt_y >= grid->yf[j] ) && ( pt_y <= grid->yf[j+1] ) ) { near_j = j; } 
 	}
 
-
-    int k = 0;
-    while (pt_z >= grid.zf[k+1]) {
-        k += 1;
-    }
-    near_k = k;
+	// loop over the Z grid
+	for ( int k = 1; k < nZ+2; k++ ) {
+		// find the nearest grid point index in the Y
+		if ( ( pt_z >= grid->zf[k] ) && ( pt_z <= grid->zf[k+1] ) ) { near_k = k; } 
+	}
 
 	// if a nearest index was not found, set all indices to -1 to flag
 	// that the point is not in the domain
@@ -54,7 +53,7 @@ __device__ __host__ void _nearest_grid_idx(float *point, datagrid grid, \
 
 // calculate the 8 interpolation weights for a trilinear interpolation of a point inside of a cube.
 // Returns an array full of -1 if the requested poit is out of the domain bounds
-__host__ __device__ void _calc_weights(datagrid grid, float *weights, \
+__host__ __device__ void _calc_weights(datagrid *grid, float *weights, \
                                        float *point, int *idx_4D, bool ugrd, bool vgrd, bool wgrd, \
                                        int nX, int nY, int nZ) {
 	int i, j, k;
@@ -86,101 +85,65 @@ __host__ __device__ void _calc_weights(datagrid grid, float *weights, \
     // the changes between staggered and unstaggered 
     // meshes
 	if (ugrd) {
-        if (y_pt < grid.yh[idx_4D[1]]) {
+        if (y_pt < grid->yh[idx_4D[1]]) {
             idx_4D[1] = idx_4D[1] - 1;
         }
-        if (z_pt < grid.zh[idx_4D[2]]) {
+        if (z_pt < grid->zh[idx_4D[2]]) {
             idx_4D[2] = idx_4D[2] - 1;
-            if (idx_4D[2] < 0) idx_4D[2] = 0;
         }
-        // enforce non-negative indices. The nearest grid
-        // point below zh[0] is zh[0]
-        if (idx_4D[2] < 0) idx_4D[2] = 0;
         i = idx_4D[0]; j = idx_4D[1]; k = idx_4D[2];
 
-        // this is some trickery done to ensure there is a
-        // free slip boundary condition below the lowest 
-        // physical gridpoint
-        if ( z_pt < grid.zh[k]) {
-            // instead of extrapolating below the lowest
-            // grid point, we can "enforce" the idea
-            // of free slip by effectively keeping
-            // the interpolation weights for the vertical
-            // dimension constant. It's dirty, and needs
-            // to be properly documented, hence this note
-            rz = 0;
-        }
-        else {
-            rz = (z_pt - grid.zh[k]) / (grid.zh[k+1] - grid.zh[k]); 
-        }
-		rx = (x_pt - grid.xf[i]) / (grid.xf[i+1] - grid.xf[i]); 
-		ry = (y_pt - grid.yh[j]) / (grid.yh[j+1] - grid.yh[j]); 
+		rx = (x_pt - grid->xf[i]) / (grid->xf[i+1] - grid->xf[i]); 
+		ry = (y_pt - grid->yh[j]) / (grid->yh[j+1] - grid->yh[j]); 
+        rz = (z_pt - grid->zh[k]) / (grid->zh[k+1] - grid->zh[k]); 
 	}
 
     else if (vgrd) {
-        if (x_pt < grid.xh[idx_4D[0]]) {
+        if (x_pt < grid->xh[idx_4D[0]]) {
             idx_4D[0] = idx_4D[0] - 1;
         }
-        if (z_pt < grid.zh[idx_4D[2]]) {
+        if (z_pt < grid->zh[idx_4D[2]]) {
             idx_4D[2] = idx_4D[2] - 1;
         }
-        // enforce non-negative indices. The nearest grid
-        // point below zh[0] is zh[0]
-        if (idx_4D[2] < 0) idx_4D[2] = 0;
         i = idx_4D[0]; j = idx_4D[1]; k = idx_4D[2];
 
-        // this is some trickery done to ensure there is a
-        // free slip boundary condition below the lowest 
-        // physical gridpoint
-        if ( z_pt < grid.zh[k]) {
-            // instead of extrapolating below the lowest
-            // grid point, we can "enforce" the idea
-            // of free slip by effectively keeping
-            // the interpolation weights for the vertical
-            // dimension constant. It's dirty, and needs
-            // to be properly documented, hence this note
-            rz = 0;
-        }
-        else {
-            rz = (z_pt - grid.zh[k]) / (grid.zh[k+1] - grid.zh[k]); 
-        }
 
-        rx = (x_pt - grid.xh[i]) / (grid.xh[i+1] - grid.xh[i]); 
-		ry = (y_pt - grid.yf[j]) / (grid.yf[j+1] - grid.yf[j]); 
+        rx = (x_pt - grid->xh[i]) / (grid->xh[i+1] - grid->xh[i]); 
+		ry = (y_pt - grid->yf[j]) / (grid->yf[j+1] - grid->yf[j]); 
+        rz = (z_pt - grid->zh[k]) / (grid->zh[k+1] - grid->zh[k]); 
 
 	}
 
     else if (wgrd) {
-        if (x_pt < grid.xh[idx_4D[0]]) {
+        if (x_pt < grid->xh[idx_4D[0]]) {
             idx_4D[0] = idx_4D[0] - 1;
         }
-        if (y_pt < grid.yh[idx_4D[1]]) {
+        if (y_pt < grid->yh[idx_4D[1]]) {
             idx_4D[1] = idx_4D[1] - 1;
         }
         i = idx_4D[0]; j = idx_4D[1]; k = idx_4D[2];
-		rx = (x_pt - grid.xh[i]) / (grid.xh[i+1] - grid.xh[i]); 
-		ry = (y_pt - grid.yh[j]) / (grid.yh[j+1] - grid.yh[j]); 
-		rz = (z_pt - grid.zf[k]) / (grid.zf[k+1] - grid.zf[k]); 
+		rx = (x_pt - grid->xh[i]) / (grid->xh[i+1] - grid->xh[i]); 
+		ry = (y_pt - grid->yh[j]) / (grid->yh[j+1] - grid->yh[j]); 
+		rz = (z_pt - grid->zf[k]) / (grid->zf[k+1] - grid->zf[k]); 
 
 	}
 
     // data is on scalar grid
     else {
-        if (x_pt < grid.xh[idx_4D[0]]) {
+        if (x_pt < grid->xh[idx_4D[0]]) {
             idx_4D[0] = idx_4D[0] - 1;
         }
-        if (y_pt < grid.yh[idx_4D[1]]) {
+        if (y_pt < grid->yh[idx_4D[1]]) {
             idx_4D[1] = idx_4D[1] - 1;
         }
-        if (z_pt < grid.zh[idx_4D[2]]) {
+        if (z_pt < grid->zh[idx_4D[2]]) {
             idx_4D[2] = idx_4D[2] - 1;
         }
-        if (idx_4D[2] < 0) idx_4D[2] = 0; 
         i = idx_4D[0]; j = idx_4D[1]; k = idx_4D[2];
     
-		rx = (x_pt - grid.xh[i]) / (grid.xh[i+1] - grid.xh[i]); 
-		ry = (y_pt - grid.yh[j]) / (grid.yh[j+1] - grid.yh[j]); 
-		rz = (z_pt - grid.zh[k]) / (grid.zh[k+1] - grid.zh[k]); 
+		rx = (x_pt - grid->xh[i]) / (grid->xh[i+1] - grid->xh[i]); 
+		ry = (y_pt - grid->yh[j]) / (grid->yh[j+1] - grid->yh[j]); 
+		rz = (z_pt - grid->zh[k]) / (grid->zh[k+1] - grid->zh[k]); 
     }
 
 	// calculate the weights
@@ -213,10 +176,9 @@ __host__ __device__ void _calc_weights(datagrid grid, float *weights, \
 // weights is a 1D array of interpolation weights returned by _calc_weights
 // idx_3D containing the i, j, and k are the respective indices of the nearest grid point we are
 // interpolating to, returned by _nearest_grid_idx 
-__host__ __device__ float _tri_interp(float *data_arr, float* weights, int *idx_4D, int NX, int NY, int NZ) {
+__host__ __device__ float _tri_interp(float *data_arr, float* weights,\
+                                        int *idx_4D, int NX, int NY, int NZ) {
 	float out = -999.0;
-	int idx1, idx2, idx3, idx4;
-	int idx5, idx6, idx7, idx8;
 
     int i = idx_4D[0]; int j = idx_4D[1]; int k = idx_4D[2]; int t = idx_4D[3];
 
@@ -233,27 +195,18 @@ __host__ __device__ float _tri_interp(float *data_arr, float* weights, int *idx_
 	}
 
 
-	// from here on our, we assume out point is inside of the domain,
+	// from here on out, we assume out point is inside of the domain,
 	// and there are weights with values between 0 and 1.
 
-	// get the array indices
-	idx1 = arrayIndex(i, j, k, t, NX, NY, NZ);
-	idx2 = arrayIndex(i+1, j, k, t, NX, NY, NZ);
-	idx3 = arrayIndex(i, j+1, k, t, NX, NY, NZ);
-	idx4 = arrayIndex(i, j, k+1, t, NX, NY, NZ);
-	idx5 = arrayIndex(i+1, j, k+1, t, NX, NY, NZ);
-	idx6 = arrayIndex(i, j+1, k+1, t, NX, NY, NZ);
-	idx7 = arrayIndex(i+1, j+1, k, t, NX, NY, NZ);
-	idx8 = arrayIndex(i+1, j+1, k+1, t, NX, NY, NZ);
-
-	out = (data_arr[idx1] * weights[0]) + \
-		  (data_arr[idx2] * weights[1]) + \
-		  (data_arr[idx3] * weights[2]) + \
-		  (data_arr[idx4] * weights[3]) + \
-		  (data_arr[idx5] * weights[4]) + \
-		  (data_arr[idx6] * weights[5]) + \
-		  (data_arr[idx7] * weights[6]) + \
-		  (data_arr[idx8] * weights[7]);
+    float *buf0 = data_arr;
+	out = (BUF4D(i ,  j, k  , t) * weights[0]) + \
+		  (BUF4D(i+1, j, k  , t) * weights[1]) + \
+		  (BUF4D(i ,j+1, k  , t) * weights[2]) + \
+		  (BUF4D(i ,j  , k+1, t) * weights[3]) + \
+		  (BUF4D(i+1, j, k+1, t) * weights[4]) + \
+		  (BUF4D(i  ,j+1,k+1, t) * weights[5]) + \
+		  (BUF4D(i+1,j+1, k,  t) * weights[6]) + \
+		  (BUF4D(i+1,j+1, k+1,t) * weights[7]);
 	return out;
 
 }
@@ -264,7 +217,7 @@ __host__ __device__ float _tri_interp(float *data_arr, float* weights, int *idx_
 // and then calls the trilinear interpolator. Returns -999.0 if the data is not inside the grid or the weights
 // are invalid.
 __host__ __device__ float interp3D(datagrid grid, float *data_grd, float *point, \
-                                    bool ugrd, bool vgrd, bool wgrd, int tstep, int nX, int nY, int nZ) {
+                                    bool ugrd, bool vgrd, bool wgrd, int tstep, int NX, int NY, int NZ) {
     int idx_4D[4];
     float weights[8];
     float output_val;
@@ -276,10 +229,10 @@ __host__ __device__ float interp3D(datagrid grid, float *data_grd, float *point,
     _nearest_grid_idx(point, grid, idx_4D, nX, nY, nZ);
 
     // get the interpolation weights
-    _calc_weights(grid, weights, point, idx_4D, ugrd, vgrd, wgrd, nX, nY, nZ); 
+    _calc_weights(grid, weights, point, idx_4D, ugrd, vgrd, wgrd, NX, NY, NZ); 
 
     // interpolate the value
-    output_val = _tri_interp(data_grd, weights, idx_4D, nX, nY, nZ);
+    output_val = _tri_interp(data_grd, weights, idx_4D, NX, NY, NZ);
     if (output_val == -999.0) {
         printf("val = %f x = %f y = %f z = %f i = %d j = %d k = %d\n", output_val, point[0], point[1], point[2], idx_4D[0], idx_4D[1], idx_4D[2]);
     }
