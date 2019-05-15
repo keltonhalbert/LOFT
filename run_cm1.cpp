@@ -567,7 +567,7 @@ int main(int argc, char **argv ) {
         // allocate space for U, V, and W arrays
         // for all ranks, because this is what
         // LOFS will return it's data subset to
-        long bufsize = (long) (requested_grid->NX+1) * (long) (requested_grid->NY+1) * (long) (requested_grid->NZ+1) * (long) sizeof(float);
+        long bufsize = (long) (requested_grid->NX+2) * (long) (requested_grid->NY+2) * (long) (requested_grid->NZ+1) * (long) sizeof(float);
         float *ubuf, *vbuf, *wbuf, *pbuf, *thbuf, *rhobuf, *khhbuf;
         ubuf = new float[(size_t)bufsize];
         vbuf = new float[(size_t)bufsize];
