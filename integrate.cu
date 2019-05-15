@@ -173,7 +173,7 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, float *u_time_chu
 /*This function handles allocating memory on the GPU, transferring the CPU
 arrays to GPU global memory, calling the integrate GPU kernel, and then
 updating the position vectors with the new stuff*/
-void cudaIntegrateParcels(datagrid *grid, integration_data *data, parcel_pos parcels, int nT, int totTime, int direct) {
+void cudaIntegrateParcels(datagrid *grid, integration_data *data, parcel_pos *parcels, int nT, int totTime, int direct) {
 
     int tStart, tEnd;
     tStart = 0;
