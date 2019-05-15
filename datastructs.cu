@@ -28,23 +28,23 @@ datagrid* allocate_grid_managed( int X0, int X1, int Y0, int Y1, int Z0, int Z1 
     grid->NZ = NZ;
 
     // allocage grid arrays
-    cudaMallocManaged(&(grid->xf), NX*sizeof(float));
+    cudaMallocManaged(&(grid->xf), (NX+1)*sizeof(float));
     cudaMallocManaged(&(grid->xh), NX*sizeof(float));
 
-    cudaMallocManaged(&(grid->yf), NY*sizeof(float));
+    cudaMallocManaged(&(grid->yf), (NY+1)*sizeof(float));
     cudaMallocManaged(&(grid->yh), NY*sizeof(float));
 
-    cudaMallocManaged(&(grid->zf), NZ*sizeof(float));
+    cudaMallocManaged(&(grid->zf), (NZ+1)*sizeof(float));
     cudaMallocManaged(&(grid->zh), NZ*sizeof(float));
 
-    cudaMallocManaged(&(grid->uf), NX*sizeof(float));
-    cudaMallocManaged(&(grid->uh), NX*sizeof(float));
+    cudaMallocManaged(&(grid->uf), (NX+2)*sizeof(float));
+    cudaMallocManaged(&(grid->uh), (NX+2)*sizeof(float));
 
-    cudaMallocManaged(&(grid->vf), NY*sizeof(float));
-    cudaMallocManaged(&(grid->vh), NY*sizeof(float));
+    cudaMallocManaged(&(grid->vf), (NY+2)*sizeof(float));
+    cudaMallocManaged(&(grid->vh), (NY+2)*sizeof(float));
 
-    cudaMallocManaged(&(grid->mf), NZ*sizeof(float));
-    cudaMallocManaged(&(grid->mh), NZ*sizeof(float));
+    cudaMallocManaged(&(grid->mf), (NZ+2)*sizeof(float));
+    cudaMallocManaged(&(grid->mh), (NZ+2)*sizeof(float));
 
     // allocate base state arrays
     cudaMallocManaged(&(grid->qv0), NZ*sizeof(float));
@@ -76,23 +76,23 @@ datagrid* allocate_grid_cpu( int X0, int X1, int Y0, int Y1, int Z0, int Z1 ) {
     grid->NZ = NZ;
 
     // allocage grid arrays
-    grid->xf = new float[NX];
+    grid->xf = new float[NX+1];
     grid->xh = new float[NX];
 
-    grid->yf = new float[NY];
+    grid->yf = new float[NY+1];
     grid->yh = new float[NY];
 
-    grid->zf = new float[NZ];
+    grid->zf = new float[NZ+1];
     grid->zh = new float[NZ];
 
-    grid->uf = new float[NX];
-    grid->uh = new float[NX];
+    grid->uf = new float[NX+2];
+    grid->uh = new float[NX+2];
 
-    grid->vf = new float[NY];
-    grid->vh = new float[NY];
+    grid->vf = new float[NY+2];
+    grid->vh = new float[NY+2];
 
-    grid->mf = new float[NZ];
-    grid->mh = new float[NZ];
+    grid->mf = new float[NZ+2];
+    grid->mh = new float[NZ+2];
 
     // allocate base state arrays
     grid->qv0 = new float[NZ];

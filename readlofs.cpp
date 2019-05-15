@@ -161,9 +161,6 @@ void lofs_get_grid( datagrid *grid ) {
     // fill the z arrays with the subset portion
     // of the vertical dimension
 	for (int iz = grid->Z0; iz <= grid->Z1; iz++) {
-        grid->zh[iz-grid->Z0] = zh[iz];
-	    grid->zf[iz-grid->Z0] = zf[iz];
-
         grid->qv0[iz-grid->Z0] = qv0[iz];
         grid->th0[iz-grid->Z0] = th0[iz];
         grid->rho0[iz-grid->Z0] = rho0[iz];
@@ -191,10 +188,13 @@ void lofs_get_grid( datagrid *grid ) {
     for (int iz = grid->Z0 - 1; iz <= grid->Z1 + 1; iz++) MH(iz-grid->Z0) = dz/(zf[iz+1]-zf[iz]);
     for (int iz = grid->Z0 - 1; iz <= grid->Z1 + 1; iz++) MF(iz-grid->Z0) = dz/(zh[iz]-zf[iz-1]);
     
-    for (int iy = grid->Y0; iy <= grid->Y1; iy++) grid->yf[iy-grid->Y0] = yffull[iy];
-    for (int ix = grid->X0; ix <= grid->X1; ix++) grid->xf[ix-grid->X0] = xffull[ix];
+    for (int iz = grid->Z0; iz <= grid->Z1; iz++) grid->zh[iz-grid->Z0] = zh[iz];
 	for (int iy = grid->Y0; iy <= grid->Y1; iy++) grid->yh[iy-grid->Y0] = yhfull[iy];
 	for (int ix = grid->X0; ix <= grid->X1; ix++) grid->xh[ix-grid->X0] = xhfull[ix];
+
+    for (int iz = grid->Z0; iz <= grid->Z1+1; iz++) grid->zf[iz-grid->Z0] = zf[iz];
+    for (int iy = grid->Y0; iy <= grid->Y1+1; iy++) grid->yf[iy-grid->Y0] = yffull[iy];
+    for (int ix = grid->X0; ix <= grid->X1+1; ix++) grid->xf[ix-grid->X0] = xffull[ix];
 
 
     delete[] xffull;
