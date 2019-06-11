@@ -567,15 +567,14 @@ int main(int argc, char **argv ) {
         // allocate space for U, V, and W arrays
         // for all ranks, because this is what
         // LOFS will return it's data subset to
-        long bufsize = (long) (requested_grid->NX+2) * (long) (requested_grid->NY+2) * (long) (requested_grid->NZ+1) * (long) sizeof(float);
         float *ubuf, *vbuf, *wbuf, *pbuf, *thbuf, *rhobuf, *khhbuf;
-        ubuf = new float[(size_t)bufsize];
-        vbuf = new float[(size_t)bufsize];
-        wbuf = new float[(size_t)bufsize];
-        pbuf = new float[(size_t)bufsize];
-        thbuf = new float[(size_t)bufsize];
-        rhobuf = new float[(size_t)bufsize];
-        khhbuf = new float[(size_t)bufsize];
+        ubuf = new float[MX*MY*MZ];
+        vbuf = new float[MX*MY*MZ];
+        wbuf = new float[MX*MY*MZ];
+        pbuf = new float[MX*MY*MZ];
+        thbuf = new float[MX*MY*MZ];
+        rhobuf = new float[MX*MY*MZ];
+        khhbuf = new float[MX*MY*MZ];
 
 
         // construct a 4D contiguous array to store stuff in.
@@ -587,7 +586,7 @@ int main(int argc, char **argv ) {
         // allocate space for it on Rank 0
         integration_data *data;
         if (rank == 0) {
-            data = allocate_integration_managed(bufsize*size);
+            data = allocate_integration_managed(MX*MY*MZ*size);
         }
         else {
             data = new integration_data();
@@ -626,8 +625,7 @@ int main(int argc, char **argv ) {
             cout << "MPI Gather Error RHO: " << senderr_rho << endl;
             cout << "MPI Gather Error KHH: " << senderr_khh << endl;
             int nParcels = parcels->nParcels;
-            //cudaIntegrateParcels(requested_grid, parcels, u_time_chunk, v_time_chunk, w_time_chunk, p_time_chunk, th_time_chunk, \
-                                rho_time_chunk, khh_time_chunk, MX, MY, MZ, size, nTotTimes, direct); 
+            cudaIntegrateParcels(requested_grid, data, parcels, size, nTotTimes, direct); 
             // write out our information to disk
             //write_parcels(outfilename, &parcels, tChunk);
 
