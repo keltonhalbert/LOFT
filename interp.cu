@@ -10,8 +10,7 @@ using namespace std;
 // find the nearest grid index i, j, and k for a point contained inside of a cube.
 // i, j, and k are set to -1 if the point requested is out of the domain bounds
 // of the cube provided.
-__device__ __host__ void _nearest_grid_idx(float *point, datagrid *grid, \
-                                 int *idx_4D, int NX, int NY, int NZ) {
+__device__ __host__ void _nearest_grid_idx(float *point, datagrid *grid, int *idx_4D) {
 
 	int near_i = -1;
 	int near_j = -1;
@@ -23,20 +22,20 @@ __device__ __host__ void _nearest_grid_idx(float *point, datagrid *grid, \
 
 
 	// loop over the X grid
-	for ( int i = 1; i < NX+2; i++ ) {
+	for ( int i = 1; i < grid->NX+2; i++ ) {
 		// find the nearest grid point index at X
 		if ( ( pt_x >= grid->xf[i] ) && ( pt_x <= grid->xf[i+1] ) ) { near_i = i; } 
 	}
 
 
 	// loop over the Y grid
-	for ( int j = 1; j < NY+2; j++ ) {
+	for ( int j = 1; j < grid->NY+2; j++ ) {
 		// find the nearest grid point index in the Y
 		if ( ( pt_y >= grid->yf[j] ) && ( pt_y <= grid->yf[j+1] ) ) { near_j = j; } 
 	}
 
 	// loop over the Z grid
-	for ( int k = 1; k < NZ+2; k++ ) {
+	for ( int k = 1; k < grid->NZ+2; k++ ) {
 		// find the nearest grid point index in the Y
 		if ( ( pt_z >= grid->zf[k] ) && ( pt_z <= grid->zf[k+1] ) ) { near_k = k; } 
 	}
@@ -54,8 +53,7 @@ __device__ __host__ void _nearest_grid_idx(float *point, datagrid *grid, \
 // calculate the 8 interpolation weights for a trilinear interpolation of a point inside of a cube.
 // Returns an array full of -1 if the requested poit is out of the domain bounds
 __host__ __device__ void _calc_weights(datagrid *grid, float *weights, \
-                                       float *point, int *idx_4D, bool ugrd, bool vgrd, bool wgrd, \
-                                       int NX, int NY, int NZ) {
+                                       float *point, int *idx_4D, bool ugrd, bool vgrd, bool wgrd) {
 	int i, j, k;
 	float rx, ry, rz;
 	float w1, w2, w3, w4;
@@ -217,7 +215,7 @@ __host__ __device__ float _tri_interp(float *data_arr, float* weights,\
 // and then calls the trilinear interpolator. Returns -999.0 if the data is not inside the grid or the weights
 // are invalid.
 __host__ __device__ float interp3D(datagrid *grid, float *data_grd, float *point, \
-                                    bool ugrd, bool vgrd, bool wgrd, int tstep, int NX, int NY, int NZ) {
+                                    bool ugrd, bool vgrd, bool wgrd, int tstep) {
     int idx_4D[4];
     float weights[8];
     float output_val;
@@ -226,13 +224,13 @@ __host__ __device__ float interp3D(datagrid *grid, float *data_grd, float *point
 
     // get the index of the nearest grid point to the
     // data we are requesting
-    _nearest_grid_idx(point, grid, idx_4D, NX, NY, NZ);
+    _nearest_grid_idx(point, grid, idx_4D);
 
     // get the interpolation weights
-    _calc_weights(grid, weights, point, idx_4D, ugrd, vgrd, wgrd, NX, NY, NZ); 
+    _calc_weights(grid, weights, point, idx_4D, ugrd, vgrd, wgrd); 
 
     // interpolate the value
-    output_val = _tri_interp(data_grd, weights, idx_4D, NX, NY, NZ);
+    output_val = _tri_interp(data_grd, weights, idx_4D, grid->NX, grid->NY, grid->NZ);
     if (output_val == -999.0) {
         printf("val = %f x = %f y = %f z = %f i = %d j = %d k = %d\n", output_val, point[0], point[1], point[2], idx_4D[0], idx_4D[1], idx_4D[2]);
     }

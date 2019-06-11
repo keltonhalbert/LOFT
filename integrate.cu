@@ -113,8 +113,8 @@ __global__ void calcvort(datagrid *grid, float *u_time_chunk, float *v_time_chun
     }
 }
 
-__global__ void integrate(datagrid *grid, parcel_pos *parcels, float *u_time_chunk, float *v_time_chunk, float *w_time_chunk, \
-                    int MX, int MY, int MZ, int tStart, int tEnd, int totTime, int direct) {
+__global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data *data, \
+                          int tStart, int tEnd, int totTime, int direct) {
 
 	int parcel_id = blockIdx.x;
     // safety check to make sure our thread index doesn't
@@ -138,17 +138,17 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, float *u_time_chu
             is_ugrd = true;
             is_vgrd = false;
             is_wgrd = false;
-            pcl_u = interp3D(grid, u_time_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx, MX, MY, MZ);
+            pcl_u = interp3D(grid, data->u_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
 
             is_ugrd = false;
             is_vgrd = true;
             is_wgrd = false;
-            pcl_v = interp3D(grid, v_time_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx, MX, MY, MZ);
+            pcl_v = interp3D(grid, data->v_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
 
             is_ugrd = false;
             is_vgrd = false;
             is_wgrd = true;
-            pcl_w = interp3D(grid, w_time_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx, MX, MY, MZ);
+            pcl_w = interp3D(grid, data->w_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             
             // integrate X position forward by the U wind
             point[0] += pcl_u * (1.0f/6.0f) * direct;
@@ -178,6 +178,7 @@ void cudaIntegrateParcels(datagrid *grid, integration_data *data, parcel_pos *pa
     int tStart, tEnd;
     tStart = 0;
     tEnd = nT;
+    //integrate(grid, parcels, data, nT, totTime, direct);
 }
 
 #endif
