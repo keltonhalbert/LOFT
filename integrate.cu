@@ -130,10 +130,10 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
         // loop over the number of time steps we are
         // integrating over
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            // GPU sanity test of data integrity
             point[0] = parcels->xpos[PCL(tidx, parcel_id, totTime)];
             point[1] = parcels->ypos[PCL(tidx, parcel_id, totTime)];
             point[2] = parcels->zpos[PCL(tidx, parcel_id, totTime)];
+            //printf("My Point Is: X = %f Y = %f Z = %f t = %d nParcels = %d\n", point[0], point[1], point[2], tidx, parcels->nParcels);
 
             is_ugrd = true;
             is_vgrd = false;
@@ -149,6 +149,7 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             is_vgrd = false;
             is_wgrd = true;
             pcl_w = interp3D(grid, data->w_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            //printf("pcl u: %f pcl v: %f pcl w: %f\n", pcl_u, pcl_v, pcl_w);
             
             // integrate X position forward by the U wind
             point[0] += pcl_u * (1.0f/6.0f) * direct;
@@ -179,56 +180,32 @@ void cudaIntegrateParcels(datagrid *grid, integration_data *data, parcel_pos *pa
     tStart = 0;
     tEnd = nT;
     int NX, NY, NZ;
+    // set the NX, NY, NZ
+    // variables for calculations
     NX = grid->NX;
     NY = grid->NY;
     NZ = grid->NZ;
 
 
+    // set the thread/block execution strategy for the kernels
     dim3 threadsPerBlock(8, 8, 8);
     dim3 numBlocks((NX/threadsPerBlock.x)+1, (NY/threadsPerBlock.y)+1, (NZ/threadsPerBlock.z)+1); 
-    float *wstag = data->w_4d_chunk;
-    float *vstag = data->v_4d_chunk;
-    float *ustag = data->u_4d_chunk;
-    float *buf0 = data->th_4d_chunk;
+
+    // we synchronize the device before doing anything to make sure all
+    // array memory transfers have safely completed. This is probably 
+    // unnecessary but I'm doing it anyways because overcaution never
+    // goes wrong. Ever.
     gpuErrchk( cudaDeviceSynchronize() );
 
-    for (int t = 0; t < nT; ++t) {
-        for (int j = 0; j < grid->NY; ++j) {
-            for (int i = 0; i < grid->NX; ++i) {
-                cout << "Time: " << t;
-                cout << " W momentum pre: " << (WA4D(i, j, 0, t) == -1*WA4D(i, j, 2, t));
-                cout << " V momentum pre: " << (VA4D(i, j, 0, t) == VA4D(i, j, 1, t));
-                cout << " U momentum pre: " << (UA4D(i, j, 0, t) == UA4D(i, j, 1, t)) << endl;
-                if (t == nT - 1) {
-                    for (int k = 0; k < grid->NZ; ++k) {
-                        cout << BUF4D(i, j, k, t) << " ";
-                    }
-                    cout << endl;
-                }
-            }
-        }
-    }
-    cout << endl;
+    // Before integrating the trajectories, George Bryan sets some below-grid/surface conditions 
+    // that we need to consider. This handles applying those boundary conditions. 
     applyMomentumBC<<<numBlocks, threadsPerBlock>>>(data->u_4d_chunk, data->v_4d_chunk, data->w_4d_chunk, NX, NY, NZ, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize() );
-    for (int t = 0; t < nT; ++t) {
-        for (int j = 0; j < grid->NY; ++j) {
-            for (int i = 0; i < grid->NX; ++i) {
-                cout << "Time: " << t;
-                cout << " W momentum: " << (WA4D(i, j, 0, t) == -1*WA4D(i, j, 2, t));
-                cout << " V momentum: " << (VA4D(i, j, 0, t) == VA4D(i, j, 1, t));
-                cout << " U momentum: " << (UA4D(i, j, 0, t) == UA4D(i, j, 1, t)) << endl;
-                if (t == nT - 1) {
-                    //for (int k = 0; k < grid->NZ; ++k) {
-                    //    cout << VA4D(i, j, k, t) << " ";
-                    //}
-                    //cout << endl;
-                }
-            }
-        }
-    }
-    cout << endl;
-    //integrate(grid, parcels, data, nT, totTime, direct);
+
+    // integrate the parcels forward in time and interpolate
+    // calculations to trajectories. 
+    integrate<<<parcels->nParcels, 1>>>(grid, parcels, data, tStart, tEnd, totTime, direct);
+
 }
 
 #endif

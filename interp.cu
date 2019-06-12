@@ -22,20 +22,20 @@ __device__ __host__ void _nearest_grid_idx(float *point, datagrid *grid, int *id
 
 
 	// loop over the X grid
-	for ( int i = 1; i < grid->NX+2; i++ ) {
+	for ( int i = 0; i < grid->NX; i++ ) {
 		// find the nearest grid point index at X
 		if ( ( pt_x >= grid->xf[i] ) && ( pt_x <= grid->xf[i+1] ) ) { near_i = i; } 
 	}
 
 
 	// loop over the Y grid
-	for ( int j = 1; j < grid->NY+2; j++ ) {
+	for ( int j = 0; j < grid->NY; j++ ) {
 		// find the nearest grid point index in the Y
 		if ( ( pt_y >= grid->yf[j] ) && ( pt_y <= grid->yf[j+1] ) ) { near_j = j; } 
 	}
 
 	// loop over the Z grid
-	for ( int k = 1; k < grid->NZ+2; k++ ) {
+	for ( int k = 0; k < grid->NZ; k++ ) {
 		// find the nearest grid point index in the Y
 		if ( ( pt_z >= grid->zf[k] ) && ( pt_z <= grid->zf[k+1] ) ) { near_k = k; } 
 	}
@@ -144,6 +144,7 @@ __host__ __device__ void _calc_weights(datagrid *grid, float *weights, \
 		rz = (z_pt - grid->zh[k]) / (grid->zh[k+1] - grid->zh[k]); 
     }
 
+
 	// calculate the weights
     w1 = (1.0 - rx) * (1.0 - ry) * (1.0 - rz);
     w2 = rx * (1.0 - ry) * (1.0 - rz);
@@ -174,7 +175,7 @@ __host__ __device__ void _calc_weights(datagrid *grid, float *weights, \
 // weights is a 1D array of interpolation weights returned by _calc_weights
 // idx_3D containing the i, j, and k are the respective indices of the nearest grid point we are
 // interpolating to, returned by _nearest_grid_idx 
-__host__ __device__ float _tri_interp(float *data_arr, float* weights,\
+__host__ __device__ float _tri_interp(float *data_arr, float* weights, bool ugrd, bool vgrd, bool wgrd,\
                                         int *idx_4D, int NX, int NY, int NZ) {
 	float out = -999.0;
 
@@ -196,15 +197,54 @@ __host__ __device__ float _tri_interp(float *data_arr, float* weights,\
 	// from here on out, we assume out point is inside of the domain,
 	// and there are weights with values between 0 and 1.
 
-    float *buf0 = data_arr;
-	out = (BUF4D(i ,  j, k  , t) * weights[0]) + \
-		  (BUF4D(i+1, j, k  , t) * weights[1]) + \
-		  (BUF4D(i ,j+1, k  , t) * weights[2]) + \
-		  (BUF4D(i ,j  , k+1, t) * weights[3]) + \
-		  (BUF4D(i+1, j, k+1, t) * weights[4]) + \
-		  (BUF4D(i  ,j+1,k+1, t) * weights[5]) + \
-		  (BUF4D(i+1,j+1, k,  t) * weights[6]) + \
-		  (BUF4D(i+1,j+1, k+1,t) * weights[7]);
+    if (ugrd) {
+        //printf("I'm a U staggered interpolation!\n");
+        float *ustag = data_arr;
+        out = (UA4D(i ,  j, k  , t) * weights[0]) + \
+              (UA4D(i+1, j, k  , t) * weights[1]) + \
+              (UA4D(i ,j+1, k  , t) * weights[2]) + \
+              (UA4D(i ,j  , k+1, t) * weights[3]) + \
+              (UA4D(i+1, j, k+1, t) * weights[4]) + \
+              (UA4D(i  ,j+1,k+1, t) * weights[5]) + \
+              (UA4D(i+1,j+1, k,  t) * weights[6]) + \
+              (UA4D(i+1,j+1, k+1,t) * weights[7]);
+    }
+    else if (vgrd) {
+        //printf("I'm a V staggered interpolation!\n");
+        float *vstag = data_arr;
+        out = (VA4D(i ,  j, k  , t) * weights[0]) + \
+              (VA4D(i+1, j, k  , t) * weights[1]) + \
+              (VA4D(i ,j+1, k  , t) * weights[2]) + \
+              (VA4D(i ,j  , k+1, t) * weights[3]) + \
+              (VA4D(i+1, j, k+1, t) * weights[4]) + \
+              (VA4D(i  ,j+1,k+1, t) * weights[5]) + \
+              (VA4D(i+1,j+1, k,  t) * weights[6]) + \
+              (VA4D(i+1,j+1, k+1,t) * weights[7]);
+        }
+    else if (wgrd) {
+        //printf("I'm a W staggered interpolation!\n");
+        float *wstag = data_arr;
+        out = (WA4D(i ,  j, k  , t) * weights[0]) + \
+              (WA4D(i+1, j, k  , t) * weights[1]) + \
+              (WA4D(i ,j+1, k  , t) * weights[2]) + \
+              (WA4D(i ,j  , k+1, t) * weights[3]) + \
+              (WA4D(i+1, j, k+1, t) * weights[4]) + \
+              (WA4D(i  ,j+1,k+1, t) * weights[5]) + \
+              (WA4D(i+1,j+1, k,  t) * weights[6]) + \
+              (WA4D(i+1,j+1, k+1,t) * weights[7]);
+    }
+    else {
+        float *buf0 = data_arr;
+        //printf("I'm a scalar interpolation!\n");
+        out = (BUF4D(i ,  j, k  , t) * weights[0]) + \
+              (BUF4D(i+1, j, k  , t) * weights[1]) + \
+              (BUF4D(i ,j+1, k  , t) * weights[2]) + \
+              (BUF4D(i ,j  , k+1, t) * weights[3]) + \
+              (BUF4D(i+1, j, k+1, t) * weights[4]) + \
+              (BUF4D(i  ,j+1,k+1, t) * weights[5]) + \
+              (BUF4D(i+1,j+1, k,  t) * weights[6]) + \
+              (BUF4D(i+1,j+1, k+1,t) * weights[7]);
+        }
 	return out;
 
 }
@@ -228,9 +268,10 @@ __host__ __device__ float interp3D(datagrid *grid, float *data_grd, float *point
 
     // get the interpolation weights
     _calc_weights(grid, weights, point, idx_4D, ugrd, vgrd, wgrd); 
+    //printf("Weights: %f %f %f %f %f %f %f %f \t", weights[0], weights[1], weights[2], weights[3], weights[4], weights[5], weights[6], weights[7]);
 
     // interpolate the value
-    output_val = _tri_interp(data_grd, weights, idx_4D, grid->NX, grid->NY, grid->NZ);
+    output_val = _tri_interp(data_grd, weights, ugrd, vgrd, wgrd, idx_4D, grid->NX, grid->NY, grid->NZ);
     if (output_val == -999.0) {
         printf("val = %f x = %f y = %f z = %f i = %d j = %d k = %d\n", output_val, point[0], point[1], point[2], idx_4D[0], idx_4D[1], idx_4D[2]);
     }
