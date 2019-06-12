@@ -1,7 +1,7 @@
 #ifndef WRITENC_CPP
 #define WRITENC_CPP
 
-#include "datastructs.cpp"
+#include "datastructs.h"
 #include <iostream>
 #include <string>
 #include <netcdf>
@@ -122,28 +122,28 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
     yVar.putVar(startp,countp,parcels->ypos);
     zVar.putVar(startp,countp,parcels->zpos);
 
-    uVar.putVar(startp,countp,parcels->pclu);
-    vVar.putVar(startp,countp,parcels->pclv);
-    wVar.putVar(startp,countp,parcels->pclw);
-    khhVar.putVar(startp,countp,parcels->pclkhh);
+    //uVar.putVar(startp,countp,parcels->pclu);
+    //vVar.putVar(startp,countp,parcels->pclv);
+    //wVar.putVar(startp,countp,parcels->pclw);
+    //khhVar.putVar(startp,countp,parcels->pclkhh);
 
-    ppertVar.putVar(startp,countp,parcels->pclppert);
-    thrhoprimeVar.putVar(startp,countp,parcels->pclthrhoprime);
+    //ppertVar.putVar(startp,countp,parcels->pclppert);
+    //thrhoprimeVar.putVar(startp,countp,parcels->pclthrhoprime);
 
-    xvortVar.putVar(startp,countp,parcels->pclxvort);
-    yvortVar.putVar(startp,countp,parcels->pclyvort);
-    zvortVar.putVar(startp,countp,parcels->pclzvort);
-    xvorttiltVar.putVar(startp,countp,parcels->pclxvorttilt);
-    yvorttiltVar.putVar(startp,countp,parcels->pclyvorttilt);
-    zvorttiltVar.putVar(startp,countp,parcels->pclzvorttilt);
-    xvortstretchVar.putVar(startp,countp,parcels->pclxvortstretch);
-    yvortstretchVar.putVar(startp,countp,parcels->pclyvortstretch);
-    zvortstretchVar.putVar(startp,countp,parcels->pclzvortstretch);
-    xvortbaroVar.putVar(startp,countp,parcels->pclxvortbaro);
-    yvortbaroVar.putVar(startp,countp,parcels->pclyvortbaro);
-    xvortturbVar.putVar(startp,countp,parcels->pclxvortturb);
-    yvortturbVar.putVar(startp,countp,parcels->pclyvortturb);
-    zvortturbVar.putVar(startp,countp,parcels->pclzvortturb);
+    //xvortVar.putVar(startp,countp,parcels->pclxvort);
+    //yvortVar.putVar(startp,countp,parcels->pclyvort);
+    //zvortVar.putVar(startp,countp,parcels->pclzvort);
+    //xvorttiltVar.putVar(startp,countp,parcels->pclxvorttilt);
+    //yvorttiltVar.putVar(startp,countp,parcels->pclyvorttilt);
+    //zvorttiltVar.putVar(startp,countp,parcels->pclzvorttilt);
+    //xvortstretchVar.putVar(startp,countp,parcels->pclxvortstretch);
+    //yvortstretchVar.putVar(startp,countp,parcels->pclyvortstretch);
+    //zvortstretchVar.putVar(startp,countp,parcels->pclzvortstretch);
+    //xvortbaroVar.putVar(startp,countp,parcels->pclxvortbaro);
+    //yvortbaroVar.putVar(startp,countp,parcels->pclyvortbaro);
+    //xvortturbVar.putVar(startp,countp,parcels->pclxvortturb);
+    //yvortturbVar.putVar(startp,countp,parcels->pclyvortturb);
+    //zvortturbVar.putVar(startp,countp,parcels->pclzvortturb);
     cout << "*** SUCCESS writing file " << filename << "!" << endl;
     return;
 }

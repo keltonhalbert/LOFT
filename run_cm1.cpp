@@ -7,7 +7,7 @@
 #include "macros.cpp"
 #include "readlofs.cpp"
 #include "integrate.h"
-//#include "writenc.cpp"
+#include "writenc.cpp"
 
 using namespace std;
 
@@ -548,7 +548,7 @@ int main(int argc, char **argv ) {
             // of this and consider fixing that
             seed_parcels(parcels, pX0, pY0, pZ0, pNX, pNY, pNZ, pDX, pDY, pDZ, nTotTimes);
             // we also initialize the output netcdf file here
-            //if (rank == 0) init_nc(outfilename, &parcels);
+            if (rank == 0) init_nc(outfilename, parcels);
         }
 
         // Read in the metadata and request a grid subset 
@@ -644,7 +644,7 @@ int main(int argc, char **argv ) {
             int nParcels = parcels->nParcels;
             cudaIntegrateParcels(requested_grid, data, parcels, size, nTotTimes, direct); 
             // write out our information to disk
-            //write_parcels(outfilename, &parcels, tChunk);
+            write_parcels(outfilename, parcels, tChunk);
 
             // Now that we've integrated forward and written to disk, before we can go again
             // we have to set the current end position of the parcel to the beginning for 
