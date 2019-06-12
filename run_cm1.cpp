@@ -389,15 +389,27 @@ void loadDataFromDisk(datagrid *requested_grid, float *ubuffer, float *vbuffer, 
     // request 3D field!
     // u,v, and w are on their
     // respective staggered grids
-    lofs_read_3dvar(requested_grid, ubuffer, (char *)"u", t0);
-    lofs_read_3dvar(requested_grid, vbuffer, (char *)"v", t0);
-    lofs_read_3dvar(requested_grid, wbuffer, (char *)"w", t0);
+    bool isu = true;
+    bool isv = false;
+    bool isw = false;
+    lofs_read_3dvar(requested_grid, ubuffer, (char *)"u", isu, isv, isw, t0);
+    isu = false;
+    isv = true;
+    isw = false;
+    lofs_read_3dvar(requested_grid, vbuffer, (char *)"v", isu, isv, isw, t0);
+    isu = false;
+    isv = false;
+    isw = true;
+    lofs_read_3dvar(requested_grid, wbuffer, (char *)"w", isu, isv, isw, t0);
 
     // request additional fields for calculations
-    lofs_read_3dvar(requested_grid, pbuffer, (char *)"prespert", t0);
-    lofs_read_3dvar(requested_grid, thbuffer, (char *)"thpert", t0);
-    lofs_read_3dvar(requested_grid, rhobuffer, (char *)"rhopert", t0);
-    lofs_read_3dvar(requested_grid, khhbuffer, (char *)"khh", t0);
+    isu = false;
+    isv = false;
+    isw = false;
+    lofs_read_3dvar(requested_grid, pbuffer, (char *)"prespert", isu, isv, isw, t0);
+    lofs_read_3dvar(requested_grid, thbuffer, (char *)"thpert", isu, isv, isw, t0);
+    lofs_read_3dvar(requested_grid, rhobuffer, (char *)"rhopert", isu, isv, isw, t0);
+    lofs_read_3dvar(requested_grid, khhbuffer, (char *)"khh", isu, isv, isw, t0);
 
 }
 
@@ -476,7 +488,7 @@ int main(int argc, char **argv ) {
     delete[] histpath;
 
     int rank, size;
-    long N, MX, MY, MZ;
+    long N, N_scalar, MX, MY, MZ;
     //int nTimeChunks = 120*2;
 
     // initialize a bunch of MPI stuff.
@@ -553,16 +565,20 @@ int main(int argc, char **argv ) {
         }
 
 
-        // the number of grid points requested
-        N = (requested_grid->NX)*(requested_grid->NY)*(requested_grid->NZ);
+        // The number of grid points requested...
+        // There's some awkwardness here I have to figure out a better way around,
+        // but MPI Scatter/Gather behaves weird if I use the generic large buffer,
+        // so I use N_scalar for the MPI calls to non staggered/vector fields. 
+        N = (requested_grid->NX+2)*(requested_grid->NY+2)*(requested_grid->NZ+1);
+        N_scalar = (requested_grid->NX)*(requested_grid->NY)*(requested_grid->NZ);
 
 
         // get the size of the domain we will
         // be requesting. The +1 is safety for
         // staggered grids
-        MX = (long) (requested_grid->NX);
-        MY = (long) (requested_grid->NY);
-        MZ = (long) (requested_grid->NZ);
+        MX = requested_grid->NX+2;
+        MY = requested_grid->NY+2;
+        MZ = requested_grid->NZ+1;
 
         // allocate space for U, V, and W arrays
         // for all ranks, because this is what
@@ -609,10 +625,11 @@ int main(int argc, char **argv ) {
         int senderr_u = MPI_Gather(ubuf, N, MPI_FLOAT, data->u_4d_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
         int senderr_v = MPI_Gather(vbuf, N, MPI_FLOAT, data->v_4d_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
         int senderr_w = MPI_Gather(wbuf, N, MPI_FLOAT, data->w_4d_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_p = MPI_Gather(pbuf, N, MPI_FLOAT, data->pres_4d_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_th = MPI_Gather(thbuf, N, MPI_FLOAT, data->th_4d_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_rho = MPI_Gather(rhobuf, N, MPI_FLOAT, data->rho_4d_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_khh = MPI_Gather(khhbuf, N, MPI_FLOAT, data->khh_4d_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        // Use N_scalar here so that there aren't random zeroes throughout the middle of the array
+        int senderr_p = MPI_Gather(pbuf, N_scalar, MPI_FLOAT, data->pres_4d_chunk, N_scalar, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_th = MPI_Gather(thbuf, N_scalar, MPI_FLOAT, data->th_4d_chunk, N_scalar, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_rho = MPI_Gather(rhobuf, N_scalar, MPI_FLOAT, data->rho_4d_chunk, N_scalar, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_khh = MPI_Gather(khhbuf, N_scalar, MPI_FLOAT, data->khh_4d_chunk, N_scalar, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
 
         if (rank == 0) {

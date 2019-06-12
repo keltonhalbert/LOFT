@@ -184,27 +184,26 @@ void cudaIntegrateParcels(datagrid *grid, integration_data *data, parcel_pos *pa
     NZ = grid->NZ;
 
 
-    gpuErrchk( cudaDeviceSynchronize() );
     dim3 threadsPerBlock(8, 8, 8);
     dim3 numBlocks((NX/threadsPerBlock.x)+1, (NY/threadsPerBlock.y)+1, (NZ/threadsPerBlock.z)+1); 
+    float *wstag = data->w_4d_chunk;
+    float *vstag = data->v_4d_chunk;
+    float *ustag = data->u_4d_chunk;
+    float *buf0 = data->th_4d_chunk;
+    gpuErrchk( cudaDeviceSynchronize() );
 
     for (int t = 0; t < nT; ++t) {
         for (int j = 0; j < grid->NY; ++j) {
             for (int i = 0; i < grid->NX; ++i) {
-                float *wstag = data->w_4d_chunk;
-                float *vstag = data->v_4d_chunk;
-                float *ustag = data->u_4d_chunk;
-                float *buf0 = data->pres_4d_chunk;
-
                 cout << "Time: " << t;
                 cout << " W momentum pre: " << (WA4D(i, j, 0, t) == -1*WA4D(i, j, 2, t));
                 cout << " V momentum pre: " << (VA4D(i, j, 0, t) == VA4D(i, j, 1, t));
                 cout << " U momentum pre: " << (UA4D(i, j, 0, t) == UA4D(i, j, 1, t)) << endl;
                 if (t == nT - 1) {
-                    //for (int k = 0; k < grid->NZ; ++k) {
-                    //    cout << VA4D(i, j, k, t) << " ";
-                    //}
-                    //cout << endl;
+                    for (int k = 0; k < grid->NZ; ++k) {
+                        cout << BUF4D(i, j, k, t) << " ";
+                    }
+                    cout << endl;
                 }
             }
         }
@@ -215,11 +214,6 @@ void cudaIntegrateParcels(datagrid *grid, integration_data *data, parcel_pos *pa
     for (int t = 0; t < nT; ++t) {
         for (int j = 0; j < grid->NY; ++j) {
             for (int i = 0; i < grid->NX; ++i) {
-                float *wstag = data->w_4d_chunk;
-                float *vstag = data->v_4d_chunk;
-                float *ustag = data->u_4d_chunk;
-                float *buf0 = data->pres_4d_chunk;
-
                 cout << "Time: " << t;
                 cout << " W momentum: " << (WA4D(i, j, 0, t) == -1*WA4D(i, j, 2, t));
                 cout << " V momentum: " << (VA4D(i, j, 0, t) == VA4D(i, j, 1, t));

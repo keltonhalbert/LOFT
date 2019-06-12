@@ -96,6 +96,6 @@ parcel_pos* allocate_parcels_managed(int NX, int NY, int NZ, int nTotTimes);
 parcel_pos* allocate_parcels_cpu(int NX, int NY, int NZ, int nTotTimes);
 void deallocate_parcels_managed(parcel_pos *parcels);
 void deallocate_parcels_cpu(parcel_pos *parcels);
-integration_data* allocate_integration_managed(long bufsize);
+integration_data* allocate_integration_managed(int bufsize);
 void deallocate_integration_managed(integration_data *data);
 #endif

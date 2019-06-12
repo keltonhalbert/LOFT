@@ -208,15 +208,26 @@ void lofs_get_grid( datagrid *grid ) {
     delete[] th0;
 }
 
-void lofs_read_3dvar(datagrid *grid, float *buffer, char *varname, double t0) {
+void lofs_read_3dvar(datagrid *grid, float *buffer, char *varname, bool isu, bool isv, bool isw, double t0) {
 
     // lifted from LOFS hdf2.c
     // topdir, timedir, nodedir, ntimedirs, dn, dirtimes, alltimes, ntottimes,
     // nodex, nodey all from lofs_get_dataset_structure
     //
     // X0, Y0, X1, Y1, Z0, Y1, nx, ny, nz all from lofs_get_grid
-    read_hdf_mult_md(buffer,topdir,timedir,nodedir,ntimedirs,dn,dirtimes,alltimes,ntottimes,t0,varname, \
-            grid->X0,grid->Y0,grid->X1,grid->Y1,grid->Z0,grid->Z1,nx,ny,nz,nodex,nodey);
+    if ((isu) || (isv)) {
+        //X0-1,Y0-1,X1+1,Y1+1,Z0,Z1,
+        read_hdf_mult_md(buffer,topdir,timedir,nodedir,ntimedirs,dn,dirtimes,alltimes,ntottimes,t0,varname, \
+                grid->X0-1,grid->Y0-1,grid->X1+1,grid->Y1+1,grid->Z0,grid->Z1,nx,ny,nz,nodex,nodey);
+    }
+    else if (isw) {
+        read_hdf_mult_md(buffer,topdir,timedir,nodedir,ntimedirs,dn,dirtimes,alltimes,ntottimes,t0,varname, \
+                grid->X0-1,grid->Y0-1,grid->X1+1,grid->Y1+1,grid->Z0,grid->Z1+1,nx,ny,nz,nodex,nodey);
+    }
+    else {
+        read_hdf_mult_md(buffer,topdir,timedir,nodedir,ntimedirs,dn,dirtimes,alltimes,ntottimes,t0,varname, \
+                grid->X0,grid->Y0,grid->X1,grid->Y1,grid->Z0,grid->Z1,nx,ny,nz,nodex,nodey);
+    }
 }
 
 #endif

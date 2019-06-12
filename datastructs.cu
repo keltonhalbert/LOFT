@@ -220,7 +220,7 @@ void deallocate_parcels_cpu(parcel_pos *parcels) {
    fields for integration and calculation. This
    only ever gets called by Rank 0, so there 
    should be no need for a CPU counterpart. */
-integration_data* allocate_integration_managed(long bufsize) {
+integration_data* allocate_integration_managed(int bufsize) {
     integration_data *data;
     // create the struct on both the GPU and the CPU.
     cudaMallocManaged(&data, sizeof(integration_data));
