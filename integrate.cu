@@ -205,6 +205,7 @@ void cudaIntegrateParcels(datagrid *grid, integration_data *data, parcel_pos *pa
     // integrate the parcels forward in time and interpolate
     // calculations to trajectories. 
     integrate<<<parcels->nParcels, 1>>>(grid, parcels, data, tStart, tEnd, totTime, direct);
+    gpuErrchk(cudaDeviceSynchronize() );
 
 }
 

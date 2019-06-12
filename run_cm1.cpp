@@ -650,17 +650,15 @@ int main(int argc, char **argv ) {
             // we have to set the current end position of the parcel to the beginning for 
             // the next leg of integration. Do that, and then reset all the other values
             // to missing.
-            /*
-            for (int pcl = 0; pcl < parcels.nParcels; ++pcl) {
-                parcels.xpos[P2(0, pcl, parcels.nTimes)] = parcels.xpos[P2(size, pcl, parcels.nTimes)];
-                parcels.ypos[P2(0, pcl, parcels.nTimes)] = parcels.ypos[P2(size, pcl, parcels.nTimes)];
-                parcels.zpos[P2(0, pcl, parcels.nTimes)] = parcels.zpos[P2(size, pcl, parcels.nTimes)];
+            for (int pcl = 0; pcl < parcels->nParcels; ++pcl) {
+                parcels->xpos[P2(0, pcl, parcels->nTimes)] = parcels->xpos[P2(size, pcl, parcels->nTimes)];
+                parcels->ypos[P2(0, pcl, parcels->nTimes)] = parcels->ypos[P2(size, pcl, parcels->nTimes)];
+                parcels->zpos[P2(0, pcl, parcels->nTimes)] = parcels->zpos[P2(size, pcl, parcels->nTimes)];
                 // empty out our parcel data arrays too
-                parcels.pclu[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                parcels.pclv[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                parcels.pclw[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
+                parcels->pclu[P2(0, pcl, parcels->nTimes)] = NC_FILL_FLOAT;
+                parcels->pclv[P2(0, pcl, parcels->nTimes)] = NC_FILL_FLOAT;
+                parcels->pclw[P2(0, pcl, parcels->nTimes)] = NC_FILL_FLOAT;
             }
-            */
 
             // memory management for root rank
             deallocate_grid_managed(requested_grid);
@@ -693,10 +691,10 @@ int main(int argc, char **argv ) {
         // receive the updated parcel arrays
         // so that we can do proper subseting. This happens
         // after integration is complete from CUDA.
-        //MPI_Status status;
-        //MPI_Bcast(parcels.xpos, parcels.nParcels*nTotTimes, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        //MPI_Bcast(parcels.ypos, parcels.nParcels*nTotTimes, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        //MPI_Bcast(parcels.zpos, parcels.nParcels*nTotTimes, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        MPI_Status status;
+        MPI_Bcast(parcels->xpos, parcels->nParcels*nTotTimes, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        MPI_Bcast(parcels->ypos, parcels->nParcels*nTotTimes, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        MPI_Bcast(parcels->zpos, parcels->nParcels*nTotTimes, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
     }
 
