@@ -392,6 +392,10 @@ void loadDataFromDisk(datagrid *requested_grid, float *ubuffer, float *vbuffer, 
     bool isu = true;
     bool isv = false;
     bool isw = false;
+    // we need the boolean variables to tell the code
+    // what type of array indexing we're using, and what
+    // grid bounds should be requested to accomodate the
+    // data. 
     lofs_read_3dvar(requested_grid, ubuffer, (char *)"u", isu, isv, isw, t0);
     isu = false;
     isv = true;
@@ -642,14 +646,18 @@ int main(int argc, char **argv ) {
             cout << "MPI Gather Error RHO: " << senderr_rho << endl;
             cout << "MPI Gather Error KHH: " << senderr_khh << endl;
             int nParcels = parcels->nParcels;
+            cout << "Beginning parcel integration! Heading over to the GPU to do GPU things..." << endl;
             cudaIntegrateParcels(requested_grid, data, parcels, size, nTotTimes, direct); 
+            cout << "Finished integrating parcels!" << endl;
             // write out our information to disk
+            cout << "Beginning to write to disk..." << endl;
             write_parcels(outfilename, parcels, tChunk);
 
             // Now that we've integrated forward and written to disk, before we can go again
             // we have to set the current end position of the parcel to the beginning for 
             // the next leg of integration. Do that, and then reset all the other values
             // to missing.
+            cout << "Setting final parcel position to beginning of array for next integration cycle..." << endl;
             for (int pcl = 0; pcl < parcels->nParcels; ++pcl) {
                 parcels->xpos[P2(0, pcl, parcels->nTimes)] = parcels->xpos[P2(size, pcl, parcels->nTimes)];
                 parcels->ypos[P2(0, pcl, parcels->nTimes)] = parcels->ypos[P2(size, pcl, parcels->nTimes)];
@@ -659,6 +667,7 @@ int main(int argc, char **argv ) {
                 parcels->pclv[P2(0, pcl, parcels->nTimes)] = NC_FILL_FLOAT;
                 parcels->pclw[P2(0, pcl, parcels->nTimes)] = NC_FILL_FLOAT;
             }
+            cout << "Parcel position arrays reset." << endl;
 
             // memory management for root rank
             deallocate_grid_managed(requested_grid);
@@ -699,4 +708,5 @@ int main(int argc, char **argv ) {
     }
 
     MPI_Finalize();
+    cout << "Finished!" << endl << endl;
 }
