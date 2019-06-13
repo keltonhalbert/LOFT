@@ -167,6 +167,9 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             parcels->xpos[PCL(tidx+1, parcel_id, totTime)] = point[0]; 
             parcels->ypos[PCL(tidx+1, parcel_id, totTime)] = point[1];
             parcels->zpos[PCL(tidx+1, parcel_id, totTime)] = point[2];
+            parcels->pclu[PCL(tidx,   parcel_id, totTime)] = pcl_u;
+            parcels->pclv[PCL(tidx,   parcel_id, totTime)] = pcl_v;
+            parcels->pclw[PCL(tidx,   parcel_id, totTime)] = pcl_w;
         }
     }
 }

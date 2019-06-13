@@ -122,9 +122,9 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
     yVar.putVar(startp,countp,parcels->ypos);
     zVar.putVar(startp,countp,parcels->zpos);
 
-    //uVar.putVar(startp,countp,parcels->pclu);
-    //vVar.putVar(startp,countp,parcels->pclv);
-    //wVar.putVar(startp,countp,parcels->pclw);
+    uVar.putVar(startp,countp,parcels->pclu);
+    vVar.putVar(startp,countp,parcels->pclv);
+    wVar.putVar(startp,countp,parcels->pclw);
     //khhVar.putVar(startp,countp,parcels->pclkhh);
 
     //ppertVar.putVar(startp,countp,parcels->pclppert);

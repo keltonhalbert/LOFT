@@ -707,6 +707,8 @@ int main(int argc, char **argv ) {
 
     }
 
+    if (rank == 0) {
+        cout << "Finished!" << endl << endl;
+    }
     MPI_Finalize();
-    cout << "Finished!" << endl << endl;
 }
