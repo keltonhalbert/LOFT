@@ -244,6 +244,14 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             is_wgrd = true;
             pcl_w = interp3D(grid, data->w_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             //printf("pcl u: %f pcl v: %f pcl w: %f\n", pcl_u, pcl_v, pcl_w);
+
+            // interpolate scalar values to the parcel point
+            is_ugrd = false;
+            is_vgrd = false;
+            is_wgrd = false;
+            float pclxvort = interp3D(grid, data->xvort_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclyvort = interp3D(grid, data->yvort_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclzvort = interp3D(grid, data->zvort_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             
             // integrate X position forward by the U wind
             point[0] += pcl_u * (1.0f/6.0f) * direct;
@@ -264,6 +272,10 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             parcels->pclu[PCL(tidx,   parcel_id, totTime)] = pcl_u;
             parcels->pclv[PCL(tidx,   parcel_id, totTime)] = pcl_v;
             parcels->pclw[PCL(tidx,   parcel_id, totTime)] = pcl_w;
+
+            parcels->pclxvort[PCL(tidx, parcel_id, totTime)] = pclxvort;
+            parcels->pclyvort[PCL(tidx, parcel_id, totTime)] = pclyvort;
+            parcels->pclzvort[PCL(tidx, parcel_id, totTime)] = pclzvort;
         }
     }
 }
@@ -298,6 +310,18 @@ void cudaIntegrateParcels(datagrid *grid, integration_data *data, parcel_pos *pa
     // that we need to consider. This handles applying those boundary conditions. 
     applyMomentumBC<<<numBlocks, threadsPerBlock>>>(data->u_4d_chunk, data->v_4d_chunk, data->w_4d_chunk, NX, NY, NZ, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize() );
+
+    // calculate the three compionents of vorticity
+    calcvort<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize() );
+
+    // apply the lower boundary condition to the horizontal
+    // components of vorticity
+    applyVortBC<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize() );
+
+    // average the vorticity to the scalar grid
+    //doVortAvg<<<numBlocks, threadsPerBlock>>>();
 
     // integrate the parcels forward in time and interpolate
     // calculations to trajectories. 
