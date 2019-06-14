@@ -273,6 +273,7 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             parcels->pclv[PCL(tidx,   parcel_id, totTime)] = pcl_v;
             parcels->pclw[PCL(tidx,   parcel_id, totTime)] = pcl_w;
 
+            // Store the vorticity along the parcel
             parcels->pclxvort[PCL(tidx, parcel_id, totTime)] = pclxvort;
             parcels->pclyvort[PCL(tidx, parcel_id, totTime)] = pclyvort;
             parcels->pclzvort[PCL(tidx, parcel_id, totTime)] = pclzvort;
