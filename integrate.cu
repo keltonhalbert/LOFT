@@ -166,6 +166,47 @@ __global__ void calcvort(datagrid *grid, integration_data *data, int tStart, int
     }
 }
 
+
+/* Apply the free-slip lower boundary condition to the vorticity field. */
+__global__ void applyVortBC(datagrid *grid, integration_data *data, int tStart, int tEnd) {
+    // get our grid indices based on our block and thread info
+    int i = blockIdx.x*blockDim.x + threadIdx.x;
+    int j = blockIdx.y*blockDim.y + threadIdx.y;
+    int k = blockIdx.z*blockDim.z + threadIdx.z;
+
+    int NX = grid->NX;
+    int NY = grid->NY;
+    int NZ = grid->NZ;
+    float *buf0;
+
+    // NOTE: Not sure if need to use BUF4D or TEM4D. The size of the array
+    // will for sure be respected by BUF4D but unsure if it even matters here.
+
+    // This is a lower boundary condition, so only when k is 0.
+    // Start with xvort. 
+    if (( j < NX+1) && ( i < NY) && ( k == 0)) {
+        buf0 = data->xvort_4d_chunk;
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            BUF4D(i, j, 0, tidx) = BUF4D(i, j, 1, tidx);
+            // I'm technically ignoring an upper boundary condition
+            // here, but we never really guarantee that we're at
+            // the top of the model domain because we do a lot of subsetting.
+            // So, for now, we assume we're nowehere near the top. 
+        }
+    }
+    
+    // Do the same but now on the yvort array 
+    if (( j < NY) && ( i < NX+1) && ( k == 0)) {
+        buf0 = data->yvort_4d_chunk;
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            // use the v stagger macro to handle the
+            // proper indexing
+            BUF4D(i, j, 0, tidx) = BUF4D(i, j, 1, tidx);
+            // Same note about ignoring upper boundary condition. 
+        }
+    }
+}
+
 __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data *data, \
                           int tStart, int tEnd, int totTime, int direct) {
 
