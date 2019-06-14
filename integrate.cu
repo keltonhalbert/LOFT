@@ -22,27 +22,70 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 
 
 
+/* Compute the x component of vorticity. After this is called by the calvort kernel, you must also run 
+   the kernel for applying the lower boundary condition and then the kernel for averaging to the
+   scalar grid. */
 __device__ void calc_xvort(datagrid *grid, float *wstag, float *vstag, float *xvort, int *idx_4D, int NX, int NY, int NZ) {
     int i = idx_4D[0];
     int j = idx_4D[1];
     int k = idx_4D[2];
     int t = idx_4D[3];
+
+    float *buf0 = xvort;
+    float dwdy = ( ( WA4D(i, j, k, t) - WA4D(i, j-1, k, t) )/grid->dy ) * VF(j);
+    float dvdz = ( ( VA4D(i, j, k, t) - VA4D(i, j, k-1, t) )/grid->dz ) * MF(k);
+    // we have to be careful here, because NX, NY, and NZ represent their staggered grid
+    // counterparts, but the buffer is a scalar grid point. I think the easiest way to get
+    // around this is to reset NX, NY, and NZ to their scalar grid counterparts.
+    // This is because the macro secretly uses NX, NY, and NZ.
+    if (NX != grid->NX) NX = grid->NX;
+    if (NY != grid->NY) NY = grid->NY;
+    if (NZ != grid->NZ) NZ = grid->NZ;
+    BUF4D(i, j, k, t) = dwdy - dvdz; 
 }
 
+/* Compute the y component of vorticity. After this is called by the calvort kernel, you must also run 
+   the kernel for applying the lower boundary condition and then the kernel for averaging to the
+   scalar grid. */
 __device__ void calc_yvort(datagrid *grid, float *ustag, float *wstag, float *yvort, int *idx_4D, int NX, int NY, int NZ) {
     int i = idx_4D[0];
     int j = idx_4D[1];
     int k = idx_4D[2];
     int t = idx_4D[3];
 
+    float *buf0 = yvort;
+    float dwdx = ( ( WA4D(i, j, k, t) - WA4D(i-1, j, k, t) )/grid->dx ) * UF(i);
+    float dudz = ( ( UA4D(i, j, k, t) - UA4D(i, j, k-1, t) )/grid->dz ) * MF(k);
+    // we have to be careful here, because NX, NY, and NZ represent their staggered grid
+    // counterparts, but the buffer is a scalar grid point. I think the easiest way to get
+    // around this is to reset NX, NY, and NZ to their scalar grid counterparts.
+    // This is because the macro secretly uses NX, NY, and NZ.
+    if (NX != grid->NX) NX = grid->NX;
+    if (NY != grid->NY) NY = grid->NY;
+    if (NZ != grid->NZ) NZ = grid->NZ;
+    BUF4D(i, j, k, t) = dudz - dwdx;
 }
 
+/* Compute the z component of vorticity. After this is called by the calvort kernel, you must also run 
+   the kernel for applying the lower boundary condition and then the kernel for averaging to the
+   scalar grid. */
 __device__ void calc_zvort(datagrid *grid, float *ustag, float *vstag, float *zvort, int *idx_4D, int NX, int NY, int NZ) {
     int i = idx_4D[0];
     int j = idx_4D[1];
     int k = idx_4D[2];
     int t = idx_4D[3];
 
+    float *buf0 = zvort;
+    float dvdx = ( ( VA4D(i, j, k, t) - VA4D(i-1, j, k, t) )/grid->dx) * UF(i);
+    float dudy = ( ( UA4D(i, j, k, t) - UA4D(i, j-1, k, t) )/grid->dy) * VF(j);
+    // we have to be careful here, because NX, NY, and NZ represent their staggered grid
+    // counterparts, but the buffer is a scalar grid point. I think the easiest way to get
+    // around this is to reset NX, NY, and NZ to their scalar grid counterparts.
+    // This is because the macro secretly uses NX, NY, and NZ.
+    if (NX != grid->NX) NX = grid->NX;
+    if (NY != grid->NY) NY = grid->NY;
+    if (NZ != grid->NZ) NZ = grid->NZ;
+    BUF4D(i, j, k, t) = dvdx - dudy;
 }
 
 /* When doing the parcel trajectory integration, George Bryan does
@@ -86,29 +129,39 @@ __global__ void applyMomentumBC(float *ustag, float *vstag, float *wstag, int NX
     }
 }
 
-/* Kernel for computing the components of vorticity
-    and vorticity forcing terms. We do this using our domain subset containing the parcels
-    instead of doing it locally for each parcel, as it would scale poorly for large 
-    numbers of parcels. */
-__global__ void calcvort(datagrid *grid, float *u_time_chunk, float *v_time_chunk, float *w_time_chunk, \
-                        float *xvort, float *yvort, float *zvort, \
-                        int MX, int MY, int MZ, int tStart, int tEnd, int totTime) {
 
+__global__ void calcvort(datagrid *grid, integration_data *data, int tStart, int tEnd) {
     // get our 3D index based on our blocks/threads
     int i = blockIdx.x*blockDim.x + threadIdx.x;
     int j = blockIdx.y*blockDim.y + threadIdx.y;
     int k = blockIdx.z*blockDim.z + threadIdx.z;
     int idx_4D[4];
+    int NX = grid->NX;
+    int NY = grid->NY;
+    int NZ = grid->NZ;
     //printf("%i, %i, %i\n", i, j, k);
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < MX-1) && (j < MY-1) && (k < MZ-1)) {
+    if ((i < NX) && (j < NY+1) && (k >= 1) && (k < NZ)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
-            calc_xvort(grid, w_time_chunk, v_time_chunk, xvort, idx_4D, MX, MY, MZ);
-            calc_yvort(grid, u_time_chunk, w_time_chunk, yvort, idx_4D, MX, MY, MZ);
-            calc_zvort(grid, u_time_chunk, v_time_chunk, zvort, idx_4D, MX, MY, MZ);
+            calc_xvort(grid, data->w_4d_chunk, data->v_4d_chunk, data->xvort_4d_chunk, idx_4D, NX, NY, NZ);
+        }
+    }
+
+    if ((i < NX+1) && (j < NY) && (k >= 1) && (k < NZ)) {
+        // loop over the number of time steps we have in memory
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            idx_4D[3] = tidx;
+            calc_yvort(grid, data->u_4d_chunk, data->w_4d_chunk, data->yvort_4d_chunk, idx_4D, NX, NY, NZ);
+        }
+    }
+    if ((i < NX+1) && (j < NY+1) && (k < NZ)) {
+        // loop over the number of time steps we have in memory
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            idx_4D[3] = tidx;
+            calc_zvort(grid, data->u_4d_chunk, data->v_4d_chunk, data->zvort_4d_chunk, idx_4D, NX, NY, NZ);
         }
     }
 }

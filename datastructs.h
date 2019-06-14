@@ -63,6 +63,9 @@ struct parcel_pos {
     float *pclu;
     float *pclv;
     float *pclw;
+    float *pclxvort;
+    float *pclyvort;
+    float *pclzvort;
     int nParcels;
     int nTimes;
 };
@@ -85,6 +88,10 @@ struct integration_data {
     float *th_4d_chunk;
     float *rho_4d_chunk;
     float *khh_4d_chunk;
+
+    float *xvort_4d_chunk;
+    float *yvort_4d_chunk;
+    float *zvort_4d_chunk;
 };
 
 
