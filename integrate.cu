@@ -207,6 +207,36 @@ __global__ void applyVortBC(datagrid *grid, integration_data *data, int tStart, 
     }
 }
 
+/* Apply the free-slip lower boundary condition to the vorticity field. */
+__global__ void doVortAvg(datagrid *grid, integration_data *data, int tStart, int tEnd) {
+    // get our grid indices based on our block and thread info
+    int i = blockIdx.x*blockDim.x + threadIdx.x;
+    int j = blockIdx.y*blockDim.y + threadIdx.y;
+    int k = blockIdx.z*blockDim.z + threadIdx.z;
+
+    int NX = grid->NX;
+    int NY = grid->NY;
+    int NZ = grid->NZ;
+    float *buf0;
+
+    if ((i < NX) && (j < NY) && (k < NZ)) {
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            buf0 = data->xvort_4d_chunk;
+            BUF4D(i, j, k, tidx) = 0.25 * ( BUF4D(i, j, k, tidx) + BUF4D(i, j+1, k, tidx) +\
+                                            BUF4D(i, j, k+1, tidx) + BUF4D(i, j+1, k+1, tidx) );
+
+            buf0 = data->yvort_4d_chunk;
+            BUF4D(i, j, k, tidx) = 0.25 * ( BUF4D(i, j, k, tidx) + BUF4D(i+1, j, k, tidx) +\
+                                            BUF4D(i, j, k+1, tidx) + BUF4D(i+1, j, k+1, tidx) );
+
+            buf0 = data->zvort_4d_chunk;
+            BUF4D(i, j, k, tidx) = 0.25 * ( BUF4D(i, j, k, tidx) + BUF4D(i+1, j, k, tidx) +\
+                                            BUF4D(i, j+1, k, tidx) + BUF4D(i+1, j+1, k, tidx) );
+        }
+    }
+}
+
+
 __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data *data, \
                           int tStart, int tEnd, int totTime, int direct) {
 
@@ -322,7 +352,7 @@ void cudaIntegrateParcels(datagrid *grid, integration_data *data, parcel_pos *pa
     gpuErrchk(cudaDeviceSynchronize() );
 
     // average the vorticity to the scalar grid
-    //doVortAvg<<<numBlocks, threadsPerBlock>>>();
+    doVortAvg<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
 
     // integrate the parcels forward in time and interpolate
     // calculations to trajectories. 
