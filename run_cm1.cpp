@@ -343,7 +343,6 @@ datagrid* loadMetadataAndGrid(string base_dir, parcel_pos *parcels, int rank) {
     if (max_k > nz-1) max_k = nz-1;
 
 
-
     cout << "Parcel Bounds In Grid" << endl;
     cout << "X0: " << min_i << " X1: " << max_i << endl;
     cout << "Y0: " << min_j << " Y1: " << max_j << endl;
@@ -389,13 +388,14 @@ void loadDataFromDisk(datagrid *requested_grid, float *ubuffer, float *vbuffer, 
     // request 3D field!
     // u,v, and w are on their
     // respective staggered grids
-    bool isu = true;
-    bool isv = false;
-    bool isw = false;
+
     // we need the boolean variables to tell the code
     // what type of array indexing we're using, and what
     // grid bounds should be requested to accomodate the
     // data. 
+    bool isu = true;
+    bool isv = false;
+    bool isw = false;
     lofs_read_3dvar(requested_grid, ubuffer, (char *)"u", isu, isv, isw, t0);
     isu = false;
     isv = true;
@@ -580,21 +580,21 @@ int main(int argc, char **argv ) {
         // get the size of the domain we will
         // be requesting. The +1 is safety for
         // staggered grids
-        MX = requested_grid->NX+2;
-        MY = requested_grid->NY+2;
-        MZ = requested_grid->NZ+1;
+        //MX = requested_grid->NX+2;
+        //MY = requested_grid->NY+2;
+        //MZ = requested_grid->NZ+1;
 
         // allocate space for U, V, and W arrays
         // for all ranks, because this is what
         // LOFS will return it's data subset to
         float *ubuf, *vbuf, *wbuf, *pbuf, *thbuf, *rhobuf, *khhbuf;
-        ubuf = new float[MX*MY*MZ];
-        vbuf = new float[MX*MY*MZ];
-        wbuf = new float[MX*MY*MZ];
-        pbuf = new float[MX*MY*MZ];
-        thbuf = new float[MX*MY*MZ];
-        rhobuf = new float[MX*MY*MZ];
-        khhbuf = new float[MX*MY*MZ];
+        ubuf = new float[N];
+        vbuf = new float[N];
+        wbuf = new float[N];
+        pbuf = new float[N_scalar];
+        thbuf = new float[N_scalar];
+        rhobuf = new float[N_scalar];
+        khhbuf = new float[N_scalar];
 
 
         // construct a 4D contiguous array to store stuff in.
@@ -606,11 +606,17 @@ int main(int argc, char **argv ) {
         // allocate space for it on Rank 0
         integration_data *data;
         if (rank == 0) {
-            data = allocate_integration_managed(MX*MY*MZ*size);
+            data = allocate_integration_managed(N*size);
+            for (int i = 0; i < N*size; ++i) {
+                data->u_4d_chunk[i] = -9999.0;
+                data->v_4d_chunk[i] = -9999.0;
+                data->w_4d_chunk[i] = -9999.0;
+            }
         }
         else {
             data = new integration_data();
         }
+
 
         // we need to find the index of the nearest time to the user requested
         // time. If the index isn't found, abort.

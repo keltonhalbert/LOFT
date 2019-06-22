@@ -29,5 +29,5 @@ using namespace std;
 // stole this define from LOFS
 #define P3(x,y,z,mx,my) (((z)*(mx)*(my))+((y)*(mx))+(x))
 // I made this myself by stealing from LOFS
-#define P4(x,y,z,t,mx,my,mz) (((t)*(mx)*(my)*(mz))+((z)*(mx)*(my))+((y)*(mx))+(x))
+#define P4(x, y, z, t, mx, my, mz) (((t)*(mx)*(my)*(mz))+((z)*(mx)*(my))+((y)*(mx))+(x))
 #endif

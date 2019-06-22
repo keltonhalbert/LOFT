@@ -34,13 +34,6 @@ __device__ void calc_xvort(datagrid *grid, float *wstag, float *vstag, float *xv
     float *buf0 = xvort;
     float dwdy = ( ( WA4D(i, j, k, t) - WA4D(i, j-1, k, t) )/grid->dy ) * VF(j);
     float dvdz = ( ( VA4D(i, j, k, t) - VA4D(i, j, k-1, t) )/grid->dz ) * MF(k);
-    // we have to be careful here, because NX, NY, and NZ represent their staggered grid
-    // counterparts, but the buffer is a scalar grid point. I think the easiest way to get
-    // around this is to reset NX, NY, and NZ to their scalar grid counterparts.
-    // This is because the macro secretly uses NX, NY, and NZ.
-    if (NX != grid->NX) NX = grid->NX;
-    if (NY != grid->NY) NY = grid->NY;
-    if (NZ != grid->NZ) NZ = grid->NZ;
     BUF4D(i, j, k, t) = dwdy - dvdz; 
 }
 
@@ -56,13 +49,6 @@ __device__ void calc_yvort(datagrid *grid, float *ustag, float *wstag, float *yv
     float *buf0 = yvort;
     float dwdx = ( ( WA4D(i, j, k, t) - WA4D(i-1, j, k, t) )/grid->dx ) * UF(i);
     float dudz = ( ( UA4D(i, j, k, t) - UA4D(i, j, k-1, t) )/grid->dz ) * MF(k);
-    // we have to be careful here, because NX, NY, and NZ represent their staggered grid
-    // counterparts, but the buffer is a scalar grid point. I think the easiest way to get
-    // around this is to reset NX, NY, and NZ to their scalar grid counterparts.
-    // This is because the macro secretly uses NX, NY, and NZ.
-    if (NX != grid->NX) NX = grid->NX;
-    if (NY != grid->NY) NY = grid->NY;
-    if (NZ != grid->NZ) NZ = grid->NZ;
     BUF4D(i, j, k, t) = dudz - dwdx;
 }
 
@@ -78,13 +64,6 @@ __device__ void calc_zvort(datagrid *grid, float *ustag, float *vstag, float *zv
     float *buf0 = zvort;
     float dvdx = ( ( VA4D(i, j, k, t) - VA4D(i-1, j, k, t) )/grid->dx) * UF(i);
     float dudy = ( ( UA4D(i, j, k, t) - UA4D(i, j-1, k, t) )/grid->dy) * VF(j);
-    // we have to be careful here, because NX, NY, and NZ represent their staggered grid
-    // counterparts, but the buffer is a scalar grid point. I think the easiest way to get
-    // around this is to reset NX, NY, and NZ to their scalar grid counterparts.
-    // This is because the macro secretly uses NX, NY, and NZ.
-    if (NX != grid->NX) NX = grid->NX;
-    if (NY != grid->NY) NY = grid->NY;
-    if (NZ != grid->NZ) NZ = grid->NZ;
     BUF4D(i, j, k, t) = dvdx - dudy;
 }
 
@@ -98,11 +77,11 @@ __global__ void applyMomentumBC(float *ustag, float *vstag, float *wstag, int NX
     int k = blockIdx.z*blockDim.z + threadIdx.z;
 
     // this is done for easy comparison to CM1 code
-    int ni = NX; int nj = NY; int nk = NZ;
+    int ni = NX; int nj = NY;
 
     // this is a lower boundary condition, so only when k is 0
     // also this is on the u staggered mesh
-    if (( j >= 0 ) && ( i >= 0) && ( j < nj+1) && ( i < ni+2) && ( k == 0)) {
+    if (( j < nj+1) && ( i < ni+1) && ( k == 0)) {
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             // use the u stagger macro to handle the
             // proper indexing
@@ -111,7 +90,7 @@ __global__ void applyMomentumBC(float *ustag, float *vstag, float *wstag, int NX
     }
     
     // do the same but now on the v staggered grid
-    if (( j >= 0 ) && ( i >= 0) && ( j < nj+2) && ( i < ni+1) && ( k == 0)) {
+    if (( j < nj+1) && ( i < ni+1) && ( k == 0)) {
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             // use the v stagger macro to handle the
             // proper indexing
@@ -120,7 +99,7 @@ __global__ void applyMomentumBC(float *ustag, float *vstag, float *wstag, int NX
     }
 
     // do the same but now on the w staggered grid
-    if (( j >= 0 ) && ( i >= 0) && ( j < nj+1) && ( i < ni+1) && ( k == 0)) {
+    if (( j < nj+1) && ( i < ni+1) && ( k == 0)) {
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             // use the w stagger macro to handle the
             // proper indexing
@@ -132,9 +111,9 @@ __global__ void applyMomentumBC(float *ustag, float *vstag, float *wstag, int NX
 
 __global__ void calcvort(datagrid *grid, integration_data *data, int tStart, int tEnd) {
     // get our 3D index based on our blocks/threads
-    int i = blockIdx.x*blockDim.x + threadIdx.x;
-    int j = blockIdx.y*blockDim.y + threadIdx.y;
-    int k = blockIdx.z*blockDim.z + threadIdx.z;
+    int i = (blockIdx.x*blockDim.x) + threadIdx.x;
+    int j = (blockIdx.y*blockDim.y) + threadIdx.y;
+    int k = (blockIdx.z*blockDim.z) + threadIdx.z;
     int idx_4D[4];
     int NX = grid->NX;
     int NY = grid->NY;
@@ -142,7 +121,7 @@ __global__ void calcvort(datagrid *grid, integration_data *data, int tStart, int
     //printf("%i, %i, %i\n", i, j, k);
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX) && (j < NY+1) && (k >= 1) && (k < NZ)) {
+    if ((i < NX) && (j < NY+1) && (k > 0) && (k < NZ)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -150,7 +129,7 @@ __global__ void calcvort(datagrid *grid, integration_data *data, int tStart, int
         }
     }
 
-    if ((i < NX+1) && (j < NY) && (k >= 1) && (k < NZ)) {
+    if ((i < NX+1) && (j < NY) && (k > 0) && (k < NZ)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -184,7 +163,7 @@ __global__ void applyVortBC(datagrid *grid, integration_data *data, int tStart, 
 
     // This is a lower boundary condition, so only when k is 0.
     // Start with xvort. 
-    if (( j < NX+1) && ( i < NY) && ( k == 0)) {
+    if (( j < NX) && ( i < NY) && ( k == 0)) {
         buf0 = data->xvort_4d_chunk;
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             BUF4D(i, j, 0, tidx) = BUF4D(i, j, 1, tidx);
@@ -196,7 +175,7 @@ __global__ void applyVortBC(datagrid *grid, integration_data *data, int tStart, 
     }
     
     // Do the same but now on the yvort array 
-    if (( j < NY) && ( i < NX+1) && ( k == 0)) {
+    if (( j < NY) && ( i < NX) && ( k == 0)) {
         buf0 = data->yvort_4d_chunk;
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             // use the v stagger macro to handle the
@@ -303,7 +282,7 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             parcels->pclv[PCL(tidx,   parcel_id, totTime)] = pcl_v;
             parcels->pclw[PCL(tidx,   parcel_id, totTime)] = pcl_w;
 
-            // Store the vorticity along the parcel
+            // Store the vorticity aint the parcel
             parcels->pclxvort[PCL(tidx, parcel_id, totTime)] = pclxvort;
             parcels->pclyvort[PCL(tidx, parcel_id, totTime)] = pclyvort;
             parcels->pclzvort[PCL(tidx, parcel_id, totTime)] = pclzvort;
@@ -328,36 +307,53 @@ void cudaIntegrateParcels(datagrid *grid, integration_data *data, parcel_pos *pa
 
 
     // set the thread/block execution strategy for the kernels
+
+    // Okay, so I think the last remaining issue might lie here. For some reason, some blocks 
+    // must not be executing or something, seemingly related to the threadsPerBlock size. 
+    // Changing to 4x4x4 fixed for xvort, but not yvort. I think we need to dynamically set
+    // threadsPerBloc(x, y, z) based on the size of our grid at a given time step. 
     dim3 threadsPerBlock(8, 8, 8);
-    dim3 numBlocks((NX/threadsPerBlock.x)+1, (NY/threadsPerBlock.y)+1, (NZ/threadsPerBlock.z)+1); 
+    dim3 numBlocks((int)ceil((NX+threadsPerBlock.x-1)/threadsPerBlock.x), (int)ceil((NY+threadsPerBlock.y-1)/threadsPerBlock.y)+1, (int)ceil((NZ+threadsPerBlock.z-1)/threadsPerBlock.z)+1); 
 
     // we synchronize the device before doing anything to make sure all
     // array memory transfers have safely completed. This is probably 
     // unnecessary but I'm doing it anyways because overcaution never
     // goes wrong. Ever.
-    gpuErrchk( cudaDeviceSynchronize() );
+    //gpuErrchk( cudaDeviceSynchronize() );
+    gpuErrchk( cudaPeekAtLastError() );
+
+    // calculate the three compionents of vorticity
+    calcvort<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    //gpuErrchk(cudaDeviceSynchronize() );
+    gpuErrchk( cudaPeekAtLastError() );
+
+    // this is disabled right now because it was causing a 
+    // race condition that was screwing up the vorticity 
+    // calculations. Need to find a different way of handling
+    // the averaging back to the scalar grid. 
+
+    // average the vorticity to the scalar grid
+    //doVortAvg<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    //gpuErrchk(cudaDeviceSynchronize());
+    //gpuErrchk( cudaPeekAtLastError() );
+
+    // apply the lower boundary condition to the horizontal
+    // components of vorticity
+    //applyVortBC<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    //gpuErrchk(cudaDeviceSynchronize() );
+    //gpuErrchk( cudaPeekAtLastError() );
 
     // Before integrating the trajectories, George Bryan sets some below-grid/surface conditions 
     // that we need to consider. This handles applying those boundary conditions. 
     applyMomentumBC<<<numBlocks, threadsPerBlock>>>(data->u_4d_chunk, data->v_4d_chunk, data->w_4d_chunk, NX, NY, NZ, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize() );
-
-    // calculate the three compionents of vorticity
-    calcvort<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
-    gpuErrchk(cudaDeviceSynchronize() );
-
-    // apply the lower boundary condition to the horizontal
-    // components of vorticity
-    applyVortBC<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
-    gpuErrchk(cudaDeviceSynchronize() );
-
-    // average the vorticity to the scalar grid
-    doVortAvg<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk( cudaPeekAtLastError() );
 
     // integrate the parcels forward in time and interpolate
     // calculations to trajectories. 
     integrate<<<parcels->nParcels, 1>>>(grid, parcels, data, tStart, tEnd, totTime, direct);
     gpuErrchk(cudaDeviceSynchronize() );
+    gpuErrchk( cudaPeekAtLastError() );
 
 }
 

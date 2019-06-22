@@ -147,7 +147,7 @@ void lofs_get_grid( datagrid *grid ) {
     get1dfloat( f_id, (char *)"mesh/xffull", xffull, 0, nx+1 );
     get1dfloat( f_id, (char *)"mesh/yffull", yffull, 0, ny+1 );
     get1dfloat( f_id, (char *)"mesh/zh", zh, 0, nz );
-    get1dfloat( f_id, (char *)"mesh/zf", zf, 0, nz );
+    get1dfloat( f_id, (char *)"mesh/zf", zf, 0, nz+1 );
     float *qv0 = new float[nz];
     float *th0 = new float[nz];
     float *rho0 = new float[nz];
@@ -218,7 +218,7 @@ void lofs_read_3dvar(datagrid *grid, float *buffer, char *varname, bool isu, boo
     if ((isu) || (isv)) {
         //X0-1,Y0-1,X1+1,Y1+1,Z0,Z1,
         read_hdf_mult_md(buffer,topdir,timedir,nodedir,ntimedirs,dn,dirtimes,alltimes,ntottimes,t0,varname, \
-                grid->X0-1,grid->Y0-1,grid->X1+1,grid->Y1+1,grid->Z0,grid->Z1,nx,ny,nz,nodex,nodey);
+                grid->X0-1,grid->Y0-1,grid->X1+1,grid->Y1+1,grid->Z0,grid->Z1+1,nx,ny,nz,nodex,nodey);
     }
     else if (isw) {
         read_hdf_mult_md(buffer,topdir,timedir,nodedir,ntimedirs,dn,dirtimes,alltimes,ntottimes,t0,varname, \

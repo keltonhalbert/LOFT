@@ -22,19 +22,19 @@ __device__ __host__ void _nearest_grid_idx(float *point, datagrid *grid, int *id
 
 
 	// loop over the X grid
-	for ( int i = 0; i < grid->NX-1; i++ ) {
+	for ( int i = 0; i < grid->NX; i++ ) {
 		// find the nearest grid point index at X
 		if ( ( pt_x >= grid->xf[i] ) && ( pt_x <= grid->xf[i+1] ) ) { near_i = i; } 
 	}
 
 	// loop over the Y grid
-	for ( int j = 0; j < grid->NY-1; j++ ) {
+	for ( int j = 0; j < grid->NY; j++ ) {
 		// find the nearest grid point index in the Y
 		if ( ( pt_y >= grid->yf[j] ) && ( pt_y <= grid->yf[j+1] ) ) { near_j = j; } 
 	}
 
 	// loop over the Z grid
-	for ( int k = 0; k < grid->NZ-1; k++ ) {
+	for ( int k = 0; k < grid->NZ; k++ ) {
 		// find the nearest grid point index in the Y
 		if ( ( pt_z >= grid->zf[k] ) && ( pt_z <= grid->zf[k+1] ) ) { near_k = k; } 
 	}
@@ -271,6 +271,7 @@ __host__ __device__ float interp3D(datagrid *grid, float *data_grd, float *point
 
     // interpolate the value
     output_val = _tri_interp(data_grd, weights, ugrd, vgrd, wgrd, idx_4D, grid->NX, grid->NY, grid->NZ);
+
     if (output_val == -999.0) {
         printf("val = %f x = %f y = %f z = %f i = %d j = %d k = %d\n", output_val, point[0], point[1], point[2], idx_4D[0], idx_4D[1], idx_4D[2]);
     }
