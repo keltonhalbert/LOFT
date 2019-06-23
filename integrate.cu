@@ -163,7 +163,7 @@ __global__ void applyVortBC(datagrid *grid, integration_data *data, int tStart, 
 
     // This is a lower boundary condition, so only when k is 0.
     // Start with xvort. 
-    if (( j < NX) && ( i < NY) && ( k == 0)) {
+    if (( i < NX) && ( j < NY+1) && ( k == 0)) {
         buf0 = data->xvort_4d_chunk;
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             BUF4D(i, j, 0, tidx) = BUF4D(i, j, 1, tidx);
@@ -175,7 +175,7 @@ __global__ void applyVortBC(datagrid *grid, integration_data *data, int tStart, 
     }
     
     // Do the same but now on the yvort array 
-    if (( j < NY) && ( i < NX) && ( k == 0)) {
+    if (( j < NY) && ( i < NX+1) && ( k == 0)) {
         buf0 = data->yvort_4d_chunk;
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             // use the v stagger macro to handle the
@@ -186,31 +186,30 @@ __global__ void applyVortBC(datagrid *grid, integration_data *data, int tStart, 
     }
 }
 
-/* Apply the free-slip lower boundary condition to the vorticity field. */
-__global__ void doVortAvg(datagrid *grid, integration_data *data, int tStart, int tEnd) {
-    // get our grid indices based on our block and thread info
-    int i = blockIdx.x*blockDim.x + threadIdx.x;
-    int j = blockIdx.y*blockDim.y + threadIdx.y;
-    int k = blockIdx.z*blockDim.z + threadIdx.z;
+void doVortAvg(datagrid *grid, integration_data *data, int tStart, int tEnd) {
 
     int NX = grid->NX;
     int NY = grid->NY;
     int NZ = grid->NZ;
     float *buf0;
 
-    if ((i < NX) && (j < NY) && (k < NZ)) {
-        for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            buf0 = data->xvort_4d_chunk;
-            BUF4D(i, j, k, tidx) = 0.25 * ( BUF4D(i, j, k, tidx) + BUF4D(i, j+1, k, tidx) +\
-                                            BUF4D(i, j, k+1, tidx) + BUF4D(i, j+1, k+1, tidx) );
+    for (int i = 0; i < NX; ++i) {
+        for (int j = 0; j < NY; ++j) {
+            for (int k = 0; k < NZ; ++k) {
+                for (int tidx = tStart; tidx < tEnd; ++tidx) {
+                    buf0 = data->xvort_4d_chunk;
+                    BUF4D(i, j, k, tidx) = 0.25 * ( BUF4D(i, j, k, tidx) + BUF4D(i, j+1, k, tidx) +\
+                                                    BUF4D(i, j, k+1, tidx) + BUF4D(i, j+1, k+1, tidx) );
 
-            buf0 = data->yvort_4d_chunk;
-            BUF4D(i, j, k, tidx) = 0.25 * ( BUF4D(i, j, k, tidx) + BUF4D(i+1, j, k, tidx) +\
-                                            BUF4D(i, j, k+1, tidx) + BUF4D(i+1, j, k+1, tidx) );
+                    buf0 = data->yvort_4d_chunk;
+                    BUF4D(i, j, k, tidx) = 0.25 * ( BUF4D(i, j, k, tidx) + BUF4D(i+1, j, k, tidx) +\
+                                                    BUF4D(i, j, k+1, tidx) + BUF4D(i+1, j, k+1, tidx) );
 
-            buf0 = data->zvort_4d_chunk;
-            BUF4D(i, j, k, tidx) = 0.25 * ( BUF4D(i, j, k, tidx) + BUF4D(i+1, j, k, tidx) +\
-                                            BUF4D(i, j+1, k, tidx) + BUF4D(i+1, j+1, k, tidx) );
+                    buf0 = data->zvort_4d_chunk;
+                    BUF4D(i, j, k, tidx) = 0.25 * ( BUF4D(i, j, k, tidx) + BUF4D(i+1, j, k, tidx) +\
+                                                    BUF4D(i, j+1, k, tidx) + BUF4D(i+1, j+1, k, tidx) );
+                }
+            }
         }
     }
 }
@@ -313,35 +312,33 @@ void cudaIntegrateParcels(datagrid *grid, integration_data *data, parcel_pos *pa
     // Changing to 4x4x4 fixed for xvort, but not yvort. I think we need to dynamically set
     // threadsPerBloc(x, y, z) based on the size of our grid at a given time step. 
     dim3 threadsPerBlock(8, 8, 8);
-    dim3 numBlocks((int)ceil((NX+threadsPerBlock.x-1)/threadsPerBlock.x), (int)ceil((NY+threadsPerBlock.y-1)/threadsPerBlock.y)+1, (int)ceil((NZ+threadsPerBlock.z-1)/threadsPerBlock.z)+1); 
+    dim3 numBlocks((int)ceil(NX/threadsPerBlock.x)+1, (int)ceil(NY/threadsPerBlock.y)+1, (int)ceil(NZ/threadsPerBlock.z)+1); 
 
     // we synchronize the device before doing anything to make sure all
     // array memory transfers have safely completed. This is probably 
     // unnecessary but I'm doing it anyways because overcaution never
     // goes wrong. Ever.
-    //gpuErrchk( cudaDeviceSynchronize() );
+    gpuErrchk( cudaDeviceSynchronize() );
     gpuErrchk( cudaPeekAtLastError() );
 
     // calculate the three compionents of vorticity
     calcvort<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaDeviceSynchronize() );
+    gpuErrchk(cudaDeviceSynchronize() );
     gpuErrchk( cudaPeekAtLastError() );
-
-    // this is disabled right now because it was causing a 
-    // race condition that was screwing up the vorticity 
-    // calculations. Need to find a different way of handling
-    // the averaging back to the scalar grid. 
-
-    // average the vorticity to the scalar grid
-    //doVortAvg<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaDeviceSynchronize());
-    //gpuErrchk( cudaPeekAtLastError() );
 
     // apply the lower boundary condition to the horizontal
     // components of vorticity
-    //applyVortBC<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaDeviceSynchronize() );
-    //gpuErrchk( cudaPeekAtLastError() );
+    applyVortBC<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize() );
+    gpuErrchk( cudaPeekAtLastError() );
+
+    // average the vorticity to the scalar grid
+    // - we have to do this in serial because
+    // i'm too stupid to know how to do it in
+    // parallel without carrying around array copies
+    doVortAvg(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize());
+    gpuErrchk( cudaPeekAtLastError() );
 
     // Before integrating the trajectories, George Bryan sets some below-grid/surface conditions 
     // that we need to consider. This handles applying those boundary conditions. 
