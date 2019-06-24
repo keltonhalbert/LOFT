@@ -14,11 +14,9 @@ using namespace std;
  * through the field, and then compared to an analytical 
  * solution based on the imposed field. */
 
-
-/* Creates an artificial CM1 grid that has dimentions 
- * 10km x 10km x 2km (x, y, z) with an isotropic resolution
- * of 30 meters. Resolution is only because it's the same
- * as our actual dataset we will run this on. */
+/* Create a staggered C-grid based on the provided number
+ * of grid points in each dimension and spacing between them.
+ * This code was primarily lifted from param.F in CM1. */
 void create_grid(datagrid *grid) {
     int NX = grid->NX;
     int NY = grid->NY;
@@ -50,7 +48,6 @@ void create_grid(datagrid *grid) {
     // fill the staggered Z coordinates
     for (int k = 0; k < NZ+1; ++k) {
         grid->zf[k] = dz*k;
-        cout << "dz*k = " << dz*k << endl;
     }
 
     // fill the scalar Z coordinates
@@ -60,13 +57,19 @@ void create_grid(datagrid *grid) {
 
 
     // fill the scale factor arrays
-    for (int ix = 0; ix < grid->NX; ix++) grid->uh[ix] = dx/(grid->xf[ix+1]-grid->xf[ix]);
-    for (int ix = 1; ix < grid->NX+1; ix++) grid->uf[ix] = dx/(grid->xh[ix]-grid->xh[ix-1]);
-    for (int iy = 0; iy < grid->NY; iy++) grid->vh[iy] = dy/(grid->yf[iy+1]-grid->yf[iy]);
-    for (int iy = 1; iy < grid->NY+1; iy++) grid->vf[iy] = dy/(grid->yh[iy]-grid->yh[iy-1]);
+    for (int ix = 0; ix < NX; ix++) grid->uh[ix] = dx/(grid->xf[ix+1]-grid->xf[ix]);
+    for (int iy = 0; iy < NY; iy++) grid->vh[iy] = dy/(grid->yf[iy+1]-grid->yf[iy]);
+    for (int iz = 0; iz < NZ; iz++) grid->mh[iz] = dz/(grid->zf[iz+1]-grid->zf[iz]);
+    for (int ix = 1; ix < NX; ix++) grid->uf[ix] = dx/(grid->xh[ix]-grid->xh[ix-1]);
+    for (int iy = 1; iy < NY; iy++) grid->vf[iy] = dy/(grid->yh[iy]-grid->yh[iy-1]);
     grid->zf[0] = -grid->zf[2]; //param.F
-    for (int iz = 0; iz <= grid->NZ; iz++) grid->mh[iz] = dz/(grid->zf[iz+1]-grid->zf[iz]);
-    for (int iz = 1; iz <= grid->NZ+1; iz++) grid->mf[iz] = dz/(grid->zh[iz]-grid->zf[iz-1]);
+    for (int iz = 1; iz < NZ; iz++) grid->mf[iz] = dz/(grid->zh[iz]-grid->zh[iz-1]);
+    grid->uf[0] = grid->uf[1];
+    grid->uf[NX] = grid->uf[NX-1];
+    grid->vf[0] = grid->vf[1];
+    grid->vf[NY] = grid->vf[NY-1];
+    grid->mf[0] = grid->mf[1];
+    grid->mf[NZ] = grid->mf[NZ-1];
     
 }
 
@@ -74,6 +77,10 @@ void create_grid(datagrid *grid) {
 /* This function runs the trajectory integrations
  * and compares them to the known result. */
 int main(int argc, char **argv ) {
+    /* Creates an artificial CM1 grid that has dimentions 
+     * 10km x 10km x 2km (x, y, z) with an isotropic resolution
+     * of 30 meters. Resolution is only because it's the same
+     * as our actual dataset we will run this on. */
     float domain_extent = 10000.; // in meters or 20km 
     float domain_depth = 2000.; // in meters or 2km
     float dx = 30.; float dy = 30.; float dz = 30.;
@@ -130,6 +137,41 @@ int main(int argc, char **argv ) {
     }
     cout << endl;
 
+    cout << "UH: " << endl;
+    for (int i = 0; i < NX; ++i) {
+        cout << " " << grid->uh[i] << endl;
+    }
+    cout << endl;
+
+    cout << "VH: " << endl;
+    for (int j = 0; j < NY; ++j) {
+        cout << " " << grid->vh[j] << endl;
+    }
+    cout << endl;
+
+    cout << "MH: " << endl;
+    for (int k = 0; k < NZ; ++k) {
+        cout << " " << grid->mh[k] << endl;
+    }
+    cout << endl;
+
+    cout << "UF: " << endl;
+    for (int i = 0; i < NX+1; ++i) {
+        cout << " " << grid->uf[i] << endl;
+    }
+    cout << endl;
+
+    cout << "VF: " << endl;
+    for (int j = 0; j < NY+1; ++j) {
+        cout << " " << grid->vf[j] << endl;
+    }
+    cout << endl;
+
+    cout << "MF: " << endl;
+    for (int k = 0; k < NZ+1; ++k) {
+        cout << " " << grid->mf[k] << endl;
+    }
+    cout << endl;
 }
 
 #endif
