@@ -19,7 +19,6 @@ using namespace std;
  * of 30 meters. Resolution is only because it's the same
  * as our actual dataset we will run this on. */
 void create_grid(datagrid *grid) {
-    // fill the scalar X coordinates
     int NX = grid->NX;
     int NY = grid->NY;
     int NZ = grid->NZ;
@@ -27,6 +26,7 @@ void create_grid(datagrid *grid) {
     float dy = grid->dy;
     float dz = grid->dz;
 
+    // fill the scalar X coordinates
     for (int i = 0; i < NX; ++i) {
         grid->xh[i] = dx*i - 0.5*dx-0.5*dx*NX;
     }
@@ -34,6 +34,26 @@ void create_grid(datagrid *grid) {
     // fill the staggered X coordinates
     for (int i = 0; i < NX + 1; ++i) {
         grid->xf[i] = dx*(i-1) - 0.5*dx*NX;
+    }
+
+    // fill the scalar Y coordinates
+    for (int j = 0; j < NY; ++j) {
+        grid->yh[j] = dy*j - 0.5*dy-0.5*dy*NY;
+    }
+
+    // fill the staggered Y coordinates
+    for (int j = 0; j < NY + 1; ++j) {
+        grid->yf[j] = dy*(j-1) -0.5*dy*NY;
+    }
+
+    // fill the staggered Z coordinates
+    for (int k = 0; k < NZ+1; ++k) {
+        grid->zf[k] = dz*k;
+    }
+
+    // fill the scalar Z coordinates
+    for (int k = 0; k < NZ; ++k) {
+        grid->zh[k] = 0.5*(grid->zf[k] + grid->zf[k+1]);
     }
     
 }
@@ -54,8 +74,49 @@ int main(int argc, char **argv ) {
 
     datagrid *grid;
     grid = allocate_grid_managed( 0, NX, 0, NY, 0, NZ);
+    grid->NX = NX;
+    grid->NY = NY;
+    grid->NZ = NZ;
+    grid->dx = dx;
+    grid->dy = dy;
+    grid->dz = dz;
 
     create_grid(grid);
+    cout << "XH: " << endl;
+    for (int i = 0; i < NX; ++i) {
+        cout << " " << grid->xh[i] << " ";
+    }
+    cout << endl;
+
+    cout << "XF: " << endl;
+    for (int i = 0; i < NX+1; ++i) {
+        cout << " " << grid->xf[i] << " ";
+    }
+    cout << endl;
+
+    cout << "YH: " << endl;
+    for (int j = 0; j < NY; ++j) {
+        cout << " " << grid->yh[j] << " ";
+    }
+    cout << endl;
+
+    cout << "YF: " << endl;
+    for (int j = 0; j < NY+1; ++j) {
+        cout << " " << grid->yf[j] << " ";
+    }
+    cout << endl;
+
+    cout << "ZH: " << endl;
+    for (int k = 0; k < NZ; ++k) {
+        cout << " " << grid->zh[k] << " ";
+    }
+    cout << endl;
+
+    cout << "ZF: " << endl;
+    for (int k = 0; k < NZ+1; ++k) {
+        cout << " " << grid->zf[k] << " ";
+    }
+    cout << endl;
 
 }
 
