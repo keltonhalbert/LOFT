@@ -64,6 +64,9 @@ void create_grid(datagrid *grid) {
     for (int iy = 1; iy < NY; iy++) grid->vf[iy] = dy/(grid->yh[iy]-grid->yh[iy-1]);
     grid->zf[0] = -grid->zf[2]; //param.F
     for (int iz = 1; iz < NZ; iz++) grid->mf[iz] = dz/(grid->zh[iz]-grid->zh[iz-1]);
+
+    // a fix for the edges. This should be fine
+    // as long as we're not testing stretched meshes here. 
     grid->uf[0] = grid->uf[1];
     grid->uf[NX] = grid->uf[NX-1];
     grid->vf[0] = grid->vf[1];
@@ -85,14 +88,18 @@ int main(int argc, char **argv ) {
     float domain_depth = 2000.; // in meters or 2km
     float dx = 30.; float dy = 30.; float dz = 30.;
 
+    // get the number of grid points along each
+    // dimension
     int NX = (int) (domain_extent / dx);
     int NY = (int) (domain_extent / dy);
     int NZ = (int) (domain_depth / dz);
     cout << "NX: " << NX << " NY: " << NY << " NZ: " << NZ << endl;
 
 
+    // allocate memory for our grid
     datagrid *grid;
     grid = allocate_grid_managed( 0, NX, 0, NY, 0, NZ);
+    // set the grid attributes
     grid->NX = NX;
     grid->NY = NY;
     grid->NZ = NZ;
@@ -100,7 +107,10 @@ int main(int argc, char **argv ) {
     grid->dy = dy;
     grid->dz = dz;
 
+    // fill the arrays with grid values
     create_grid(grid);
+
+    // print them out for testing purposes
     cout << "XH: " << endl;
     for (int i = 0; i < NX; ++i) {
         cout << " " << grid->xh[i] << endl;
