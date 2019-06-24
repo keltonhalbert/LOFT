@@ -3,6 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include "../macros.cpp"
 #include "../datastructs.h"
 using namespace std;
 /* This code is used to test the trajectory calculations
@@ -49,12 +50,23 @@ void create_grid(datagrid *grid) {
     // fill the staggered Z coordinates
     for (int k = 0; k < NZ+1; ++k) {
         grid->zf[k] = dz*k;
+        cout << "dz*k = " << dz*k << endl;
     }
 
     // fill the scalar Z coordinates
     for (int k = 0; k < NZ; ++k) {
         grid->zh[k] = 0.5*(grid->zf[k] + grid->zf[k+1]);
     }
+
+
+    // fill the scale factor arrays
+    for (int ix = 0; ix < grid->NX; ix++) grid->uh[ix] = dx/(grid->xf[ix+1]-grid->xf[ix]);
+    for (int ix = 1; ix < grid->NX+1; ix++) grid->uf[ix] = dx/(grid->xh[ix]-grid->xh[ix-1]);
+    for (int iy = 0; iy < grid->NY; iy++) grid->vh[iy] = dy/(grid->yf[iy+1]-grid->yf[iy]);
+    for (int iy = 1; iy < grid->NY+1; iy++) grid->vf[iy] = dy/(grid->yh[iy]-grid->yh[iy-1]);
+    grid->zf[0] = -grid->zf[2]; //param.F
+    for (int iz = 0; iz <= grid->NZ; iz++) grid->mh[iz] = dz/(grid->zf[iz+1]-grid->zf[iz]);
+    for (int iz = 1; iz <= grid->NZ+1; iz++) grid->mf[iz] = dz/(grid->zh[iz]-grid->zf[iz-1]);
     
 }
 
@@ -84,37 +96,37 @@ int main(int argc, char **argv ) {
     create_grid(grid);
     cout << "XH: " << endl;
     for (int i = 0; i < NX; ++i) {
-        cout << " " << grid->xh[i] << " ";
+        cout << " " << grid->xh[i] << endl;
     }
     cout << endl;
 
     cout << "XF: " << endl;
     for (int i = 0; i < NX+1; ++i) {
-        cout << " " << grid->xf[i] << " ";
+        cout << " " << grid->xf[i] << endl;
     }
     cout << endl;
 
     cout << "YH: " << endl;
     for (int j = 0; j < NY; ++j) {
-        cout << " " << grid->yh[j] << " ";
+        cout << " " << grid->yh[j] << endl;
     }
     cout << endl;
 
     cout << "YF: " << endl;
     for (int j = 0; j < NY+1; ++j) {
-        cout << " " << grid->yf[j] << " ";
+        cout << " " << grid->yf[j] << endl;
     }
     cout << endl;
 
     cout << "ZH: " << endl;
     for (int k = 0; k < NZ; ++k) {
-        cout << " " << grid->zh[k] << " ";
+        cout << " " << grid->zh[k] << endl;
     }
     cout << endl;
 
     cout << "ZF: " << endl;
     for (int k = 0; k < NZ+1; ++k) {
-        cout << " " << grid->zf[k] << " ";
+        cout << " " << grid->zf[k] << endl;
     }
     cout << endl;
 
