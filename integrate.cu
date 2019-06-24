@@ -85,7 +85,7 @@ __global__ void applyMomentumBC(float *ustag, float *vstag, float *wstag, int NX
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             // use the u stagger macro to handle the
             // proper indexing
-            UA4D(i, j, 0, tidx) = UA4D(i, j, 1, tidx);
+            //UA4D(i, j, 0, tidx) = UA4D(i, j, 1, tidx);
         }
     }
     
@@ -94,7 +94,7 @@ __global__ void applyMomentumBC(float *ustag, float *vstag, float *wstag, int NX
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             // use the v stagger macro to handle the
             // proper indexing
-            VA4D(i, j, 0, tidx) = VA4D(i, j, 1, tidx);
+            //VA4D(i, j, 0, tidx) = VA4D(i, j, 1, tidx);
         }
     }
 
@@ -186,6 +186,9 @@ __global__ void applyVortBC(datagrid *grid, integration_data *data, int tStart, 
     }
 }
 
+
+/* Average our vorticity values back to the scalar grid for interpolation
+   to the parcel paths. */
 void doVortAvg(datagrid *grid, integration_data *data, int tStart, int tEnd) {
 
     int NX = grid->NX;

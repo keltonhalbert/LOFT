@@ -393,27 +393,17 @@ void loadDataFromDisk(datagrid *requested_grid, float *ubuffer, float *vbuffer, 
     // what type of array indexing we're using, and what
     // grid bounds should be requested to accomodate the
     // data. 
-    bool isu = true;
-    bool isv = false;
-    bool isw = false;
-    lofs_read_3dvar(requested_grid, ubuffer, (char *)"u", isu, isv, isw, t0);
-    isu = false;
-    isv = true;
-    isw = false;
-    lofs_read_3dvar(requested_grid, vbuffer, (char *)"v", isu, isv, isw, t0);
-    isu = false;
-    isv = false;
-    isw = true;
-    lofs_read_3dvar(requested_grid, wbuffer, (char *)"w", isu, isv, isw, t0);
+    bool istag = true;
+    lofs_read_3dvar(requested_grid, ubuffer, (char *)"u", istag, t0);
+    lofs_read_3dvar(requested_grid, vbuffer, (char *)"v", istag, t0);
+    lofs_read_3dvar(requested_grid, wbuffer, (char *)"w", istag, t0);
 
     // request additional fields for calculations
-    isu = false;
-    isv = false;
-    isw = false;
-    lofs_read_3dvar(requested_grid, pbuffer, (char *)"prespert", isu, isv, isw, t0);
-    lofs_read_3dvar(requested_grid, thbuffer, (char *)"thpert", isu, isv, isw, t0);
-    lofs_read_3dvar(requested_grid, rhobuffer, (char *)"rhopert", isu, isv, isw, t0);
-    lofs_read_3dvar(requested_grid, khhbuffer, (char *)"khh", isu, isv, isw, t0);
+    istag = false;
+    lofs_read_3dvar(requested_grid, pbuffer, (char *)"prespert", istag, t0);
+    lofs_read_3dvar(requested_grid, thbuffer, (char *)"thpert", istag, t0);
+    lofs_read_3dvar(requested_grid, rhobuffer, (char *)"rhopert", istag, t0);
+    lofs_read_3dvar(requested_grid, khhbuffer, (char *)"khh", istag, t0);
 
 }
 
@@ -518,6 +508,7 @@ int main(int argc, char **argv ) {
     // the number of MPI ranks there are
     // plus the very last integration end time
     int nTotTimes = size+1;
+    
     // Query our dataset structure.
     // If this has been done before, it reads
     // the information from cache files in the 
@@ -572,17 +563,10 @@ int main(int argc, char **argv ) {
         // The number of grid points requested...
         // There's some awkwardness here I have to figure out a better way around,
         // but MPI Scatter/Gather behaves weird if I use the generic large buffer,
-        // so I use N_scalar for the MPI calls to non staggered/vector fields. 
+        // so I use N_scalar for the MPI calls to non staggered/scalar fields. 
         N = (requested_grid->NX+2)*(requested_grid->NY+2)*(requested_grid->NZ+1);
         N_scalar = (requested_grid->NX)*(requested_grid->NY)*(requested_grid->NZ);
 
-
-        // get the size of the domain we will
-        // be requesting. The +1 is safety for
-        // staggered grids
-        //MX = requested_grid->NX+2;
-        //MY = requested_grid->NY+2;
-        //MZ = requested_grid->NZ+1;
 
         // allocate space for U, V, and W arrays
         // for all ranks, because this is what
