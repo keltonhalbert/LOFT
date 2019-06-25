@@ -125,7 +125,7 @@ void create_shear(datagrid *grid, integration_data *data) {
     int NX = grid->NX;
     int NY = grid->NY;
     int NZ = grid->NZ;
-    float shear = 5.0;
+    float shear = 0.02;
     float u0 = 5.0; //m/s
     float v0 = 5.0; //m/s
 
@@ -195,7 +195,7 @@ int main(int argc, char **argv ) {
     // parcel integration direction; default is forward
     int direct = 1;
     pX0 = -3000.0; pY0 = -3000.0; pZ0 = 30.0;
-    pDX = 30.0; pDY = 30.0; pDZ = 30.0;
+    pDX = 30.0; pDY = 30.0; pDZ = 100.0;
     pNX = 10; pNY = 10; pNZ = 10;
     parcel_pos *parcels;
     parcels = allocate_parcels_managed(pNX, pNY, pNZ, nTotTimes);
