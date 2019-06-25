@@ -197,6 +197,8 @@ int main(int argc, char **argv ) {
     int NX = (int) (domain_extent / dx);
     int NY = (int) (domain_extent / dy);
     int NZ = (int) (domain_depth / dz);
+    // This will be the buffer sized
+    // used for allocating 3D/4D arrays
     int N = (NX+2)*(NY+2)*(NZ+1);
     cout << "NX: " << NX << " NY: " << NY << " NZ: " << NZ << endl;
 
@@ -214,6 +216,7 @@ int main(int argc, char **argv ) {
     pDX = 30.0; pDY = 30.0; pDZ = 30.0;
     pNX = 100; pNY = 1; pNZ = 1;
     parcel_pos *parcels;
+    //allocate memory for the parcels
     parcels = allocate_parcels_managed(pNX, pNY, pNZ, nTotTimes);
     cout << "Allocated Parcels" << endl;
     
@@ -230,10 +233,14 @@ int main(int argc, char **argv ) {
     grid->dy = dy;
     grid->dz = dz;
 
-    // fill the arrays with grid values
+    // create a CM1-like staggered C grid and
+    // fill its values
     create_grid(grid);
+    // allocate space for the integration data
     integration_data *data;
     data = allocate_integration_managed(N*4);
+    // fill the integration data with an 
+    // idealized vortex
     create_vortex(grid, data);
     cout << endl;
     // I think I have to do this since I'm specifying
@@ -245,6 +252,8 @@ int main(int argc, char **argv ) {
     // This is the main loop that does the data reading and eventually
     // calls the CUDA code to integrate forward.
     for (int tChunk = 0; tChunk < nTimeChunks; ++tChunk) {
+        // if this is the first integration step, seed the parcel starting
+        // positions and initialize a new NetCDF file
         if (tChunk == 0) {
             cout << "SEEDING PARCELS" << endl;
             // seed the parcel starting positions based on the command line
@@ -254,6 +263,7 @@ int main(int argc, char **argv ) {
             seed_parcels(parcels, pX0, pY0, pZ0, pNX, pNY, pNZ, pDX, pDY, pDZ, nTotTimes);
             init_nc(outfilename, parcels);
         }
+        // Head to the GPU and integrate the parcels forward
         cout << "Beginning parcel integration! Heading over to the GPU to do GPU things..." << endl;
         cudaIntegrateParcels(grid, data, parcels, 4, nTotTimes, direct); 
         cout << "Finished integrating parcels!" << endl;
