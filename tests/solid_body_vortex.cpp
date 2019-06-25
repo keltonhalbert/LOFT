@@ -139,7 +139,7 @@ void create_vortex(datagrid *grid, integration_data *data) {
                     // forumla here, as the trajectories only enclose a single
                     // quadrant of the unit circle which is sus
                     r_xstag = sqrt(grid->xf[i]*grid->xf[i] + grid->yh[j]*grid->yh[j]);
-                    theta = atan(grid->yh[j] / grid->xf[i]);
+                    theta = atan2(grid->yh[j], grid->xf[i]);
                     v_r = 0.0;
                     v_theta = omega * r_xstag;
                     // I'm leaving it in is most general form instead
@@ -160,7 +160,7 @@ void create_vortex(datagrid *grid, integration_data *data) {
                     // forumla here, as the trajectories only enclose a single
                     // quadrant of the unit circle which is sus
                     r_ystag = sqrt(grid->xh[i]*grid->xh[i] + grid->yf[j]*grid->yf[j]);
-                    theta = atan(grid->yf[j] / grid->xh[i]);
+                    theta = atan2(grid->yf[j], grid->xh[i]);
                     //cout << " r = " << r_ystag << " theta = " << theta << endl;
                     v_r = 0.0;
                     v_theta = omega * r_ystag;
