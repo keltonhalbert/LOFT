@@ -135,6 +135,9 @@ void create_vortex(datagrid *grid, integration_data *data) {
         for (int j = 0; j < NY; ++j) {
             for (int k = 0; k < NZ; ++k) {
                 for (int t = 0; t < 4; ++t) {
+                    // I think something funky is going on with the arctan
+                    // forumla here, as the trajectories only enclose a single
+                    // quadrant of the unit circle which is sus
                     r_xstag = sqrt(grid->xf[i]*grid->xf[i] + grid->yh[j]*grid->yh[j]);
                     theta = atan(grid->yh[j] / grid->xf[i]);
                     v_r = 0.0;
@@ -153,6 +156,9 @@ void create_vortex(datagrid *grid, integration_data *data) {
         for (int j = 0; j < NY+1; ++j) {
             for (int k = 0; k < NZ; ++k) {
                 for (int t = 0; t < 4; ++t) {
+                    // I think something funky is going on with the arctan
+                    // forumla here, as the trajectories only enclose a single
+                    // quadrant of the unit circle which is sus
                     r_ystag = sqrt(grid->xh[i]*grid->xh[i] + grid->yf[j]*grid->yf[j]);
                     theta = atan(grid->yf[j] / grid->xh[i]);
                     //cout << " r = " << r_ystag << " theta = " << theta << endl;
@@ -186,14 +192,14 @@ int main(int argc, char **argv ) {
     int NX = (int) (domain_extent / dx);
     int NY = (int) (domain_extent / dy);
     int NZ = (int) (domain_depth / dz);
-    int N = NX*NY*NZ;
+    int N = (NX+2)*(NY+2)*(NZ+1);
     cout << "NX: " << NX << " NY: " << NY << " NZ: " << NZ << endl;
 
     // Parcels will be hard coded into the simulation for
     // the moment
     float pX0, pDX, pY0, pDY, pZ0, pDZ;
     int pNX, pNY, pNZ;
-    int nTimeSteps = 500;
+    int nTimeSteps = 2000;
     int nTotTimes = 5;
     int nTimeChunks = (int) (nTimeSteps / 4); // this is a temporary hack
     if (nTimeSteps % 4 > 0) nTimeChunks += 1;
@@ -204,6 +210,7 @@ int main(int argc, char **argv ) {
     pNX = 100; pNY = 1; pNZ = 1;
     parcel_pos *parcels;
     parcels = allocate_parcels_managed(pNX, pNY, pNZ, nTotTimes);
+    cout << "Allocated Parcels" << endl;
     
 
 
