@@ -193,13 +193,13 @@ int main(int argc, char **argv ) {
     // the moment
     float pX0, pDX, pY0, pDY, pZ0, pDZ;
     int pNX, pNY, pNZ;
-    int nTimeSteps = 1000;
+    int nTimeSteps = 500;
     int nTotTimes = 5;
     int nTimeChunks = (int) (nTimeSteps / 4); // this is a temporary hack
     if (nTimeSteps % 4 > 0) nTimeChunks += 1;
     // parcel integration direction; default is forward
     int direct = 1;
-    pX0 = 0.0; pY0 = 0.0; pZ0 = 0.0;
+    pX0 = 0.0; pY0 = 0.0; pZ0 = 30.0;
     pDX = 30.0; pDY = 30.0; pDZ = 30.0;
     pNX = 100; pNY = 1; pNZ = 1;
     parcel_pos *parcels;
@@ -229,7 +229,7 @@ int main(int argc, char **argv ) {
     // out since they weren't meant for this
     grid->NX = NX-2;
     grid->NY = NY-2;
-    grid->NZ = NZ-2;
+    grid->NZ = NZ-1;
     // This is the main loop that does the data reading and eventually
     // calls the CUDA code to integrate forward.
     for (int tChunk = 0; tChunk < nTimeChunks; ++tChunk) {
@@ -243,7 +243,7 @@ int main(int argc, char **argv ) {
             init_nc(outfilename, parcels);
         }
         cout << "Beginning parcel integration! Heading over to the GPU to do GPU things..." << endl;
-        //cudaIntegrateParcels(requested_grid, data, parcels, 4, nTotTimes, direct); 
+        cudaIntegrateParcels(grid, data, parcels, 4, nTotTimes, direct); 
         cout << "Finished integrating parcels!" << endl;
         // write out our information to disk
         cout << "Beginning to write to disk..." << endl;
