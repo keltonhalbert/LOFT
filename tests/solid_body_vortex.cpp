@@ -89,21 +89,21 @@ void create_vortex(datagrid *grid, integration_data *data) {
     int NX = grid->NX;
     int NY = grid->NY;
     int NZ = grid->NZ;
-    float omega = 0.1; // 1/s - our vertical vorticity value
+    float omega = 0.01; // 1/s - our vertical vorticity value
     float r_xstag, r_ystag, theta, v_theta, v_r;
 
     // U staggered grid
     for (int i = 0; i < NX+1; ++i) {
         for (int j = 0; j < NY; ++j) {
             for (int k = 0; k < NZ; ++k) {
-                r_xstag = grid->xf[i]*grid->xf[i] + grid->yh[j]*grid->yh[j];
+                r_xstag = sqrt(grid->xf[i]*grid->xf[i] + grid->yh[j]*grid->yh[j]);
                 theta = atan(grid->yh[j] / grid->xf[i]);
                 v_r = 0.0;
                 v_theta = omega * r_xstag;
                 // I'm leaving it in is most general form instead
                 // of dropping the v_r term in case I decide to 
                 // make use of this another way
-                data->u_4d_chunk[P4(i, j, k, 0, NX, NY, NZ)] = v_r*cos(theta) + r_xstag*v_theta*sin(theta);
+                data->u_4d_chunk[P4(i, j, k, 0, NX, NY, NZ)] = v_r*cos(theta) - v_theta*sin(theta);
             }
         }
     }
@@ -112,14 +112,15 @@ void create_vortex(datagrid *grid, integration_data *data) {
     for (int i = 0; i < NX; ++i) {
         for (int j = 0; j < NY+1; ++j) {
             for (int k = 0; k < NZ; ++k) {
-                r_ystag = grid->xh[i]*grid->xh[i] + grid->yf[j]*grid->yf[j];
+                r_ystag = sqrt(grid->xh[i]*grid->xh[i] + grid->yf[j]*grid->yf[j]);
                 theta = atan(grid->yf[j] / grid->xh[i]);
+                //cout << " r = " << r_ystag << " theta = " << theta << endl;
                 v_r = 0.0;
                 v_theta = omega * r_ystag;
                 // I'm leaving it in is most general form instead
                 // of dropping the v_r term in case I decide to 
                 // make use of this another way
-                data->v_4d_chunk[P4(i, j, k, 0, NX, NY, NZ)] = v_r*sin(theta) + r_ystag*v_theta*cos(theta);
+                data->v_4d_chunk[P4(i, j, k, 0, NX, NY, NZ)] = v_r*sin(theta) + v_theta*cos(theta);
             }
         }
     } 
@@ -142,6 +143,7 @@ int main(int argc, char **argv ) {
     int NX = (int) (domain_extent / dx);
     int NY = (int) (domain_extent / dy);
     int NZ = (int) (domain_depth / dz);
+    int N = NX*NY*NZ;
     cout << "NX: " << NX << " NY: " << NY << " NZ: " << NZ << endl;
 
 
@@ -229,6 +231,16 @@ int main(int argc, char **argv ) {
     cout << "MF: " << endl;
     for (int k = 0; k < NZ+1; ++k) {
         cout << " " << grid->mf[k] << endl;
+    }
+    cout << endl;
+
+    integration_data *data;
+    data = allocate_integration_managed(N);
+    create_vortex(grid, data);
+    for (int i = 0; i < NX+1; ++i) {
+        for (int j = 0; j < NY; ++j) {
+            cout << " " << data->u_4d_chunk[P4(i, j, 0, 0, NX, NY, NZ)] << " ";
+        }
     }
     cout << endl;
 }
