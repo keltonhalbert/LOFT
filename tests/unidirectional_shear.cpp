@@ -125,7 +125,7 @@ void create_shear(datagrid *grid, integration_data *data) {
     int NX = grid->NX;
     int NY = grid->NY;
     int NZ = grid->NZ;
-    float shear = 0.02;
+    float shear = 0.0025;
     float u0 = 5.0; //m/s
     float v0 = 5.0; //m/s
 
