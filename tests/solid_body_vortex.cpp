@@ -100,6 +100,10 @@ void create_vortex(datagrid *grid, integration_data *data) {
                 theta = atan(grid->yh[j] / grid->xf[i]);
                 v_r = 0.0;
                 v_theta = omega * r_xstag;
+                // I'm leaving it in is most general form instead
+                // of dropping the v_r term in case I decide to 
+                // make use of this another way
+                data->u_4d_chunk[P4(i, j, k, 0, NX, NY, NZ)] = v_r*cos(theta) + r_xstag*v_theta*sin(theta);
             }
         }
     }
@@ -112,6 +116,10 @@ void create_vortex(datagrid *grid, integration_data *data) {
                 theta = atan(grid->yf[j] / grid->xh[i]);
                 v_r = 0.0;
                 v_theta = omega * r_ystag;
+                // I'm leaving it in is most general form instead
+                // of dropping the v_r term in case I decide to 
+                // make use of this another way
+                data->v_4d_chunk[P4(i, j, k, 0, NX, NY, NZ)] = v_r*sin(theta) + r_ystag*v_theta*cos(theta);
             }
         }
     } 
