@@ -6,6 +6,8 @@
 #include <math.h>
 #include "../macros.cpp"
 #include "../datastructs.h"
+#include "../integrate.h"
+#include "../writenc.cpp"
 using namespace std;
 /* This code is used to test the trajectory calculations
  * for vorticity against some known field, in this case,
@@ -14,6 +16,42 @@ using namespace std;
  * imposed upon it. Trajectories are then seeded and moved
  * through the field, and then compared to an analytical 
  * solution based on the imposed field. */
+
+
+
+/* Seed some parcels into the domain
+ * in physical gridpoint space, and then
+ * fill the remainder of the parcel traces
+ * with missing values. 
+ */
+void seed_parcels(parcel_pos *parcels, float X0, float Y0, float Z0, int NX, int NY, int NZ, \
+                    float DX, float DY, float DZ, int nTotTimes) {
+    int nParcels = NX*NY*NZ;
+
+    int pid = 0;
+    for (int k = 0; k < NZ; ++k) {
+        for (int j = 0; j < NY; ++j) {
+            for (int i = 0; i < NX; ++i) {
+                parcels->xpos[PCL(0, pid, parcels->nTimes)] = X0 + i*DX;
+                parcels->ypos[PCL(0, pid, parcels->nTimes)] = Y0 + j*DY;
+                parcels->zpos[PCL(0, pid, parcels->nTimes)] = Z0 + k*DZ;
+                pid += 1;
+            }
+        }
+    }
+
+    // fill the remaining portions of the array
+    // with the missing value flag for the future
+    // times that we haven't integrated to yet.
+    for (int p = 0; p < nParcels; ++p) {
+        for (int t = 1; t < parcels->nTimes; ++t) {
+            parcels->xpos[PCL(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
+            parcels->ypos[PCL(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
+            parcels->zpos[PCL(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
+        }
+    }
+    cout << "END PARCEL SEED" << endl;
+}
 
 /* Create a staggered C-grid based on the provided number
  * of grid points in each dimension and spacing between them.
@@ -96,14 +134,16 @@ void create_vortex(datagrid *grid, integration_data *data) {
     for (int i = 0; i < NX+1; ++i) {
         for (int j = 0; j < NY; ++j) {
             for (int k = 0; k < NZ; ++k) {
-                r_xstag = sqrt(grid->xf[i]*grid->xf[i] + grid->yh[j]*grid->yh[j]);
-                theta = atan(grid->yh[j] / grid->xf[i]);
-                v_r = 0.0;
-                v_theta = omega * r_xstag;
-                // I'm leaving it in is most general form instead
-                // of dropping the v_r term in case I decide to 
-                // make use of this another way
-                data->u_4d_chunk[P4(i, j, k, 0, NX, NY, NZ)] = v_r*cos(theta) - v_theta*sin(theta);
+                for (int t = 0; t < 4; ++t) {
+                    r_xstag = sqrt(grid->xf[i]*grid->xf[i] + grid->yh[j]*grid->yh[j]);
+                    theta = atan(grid->yh[j] / grid->xf[i]);
+                    v_r = 0.0;
+                    v_theta = omega * r_xstag;
+                    // I'm leaving it in is most general form instead
+                    // of dropping the v_r term in case I decide to 
+                    // make use of this another way
+                    data->u_4d_chunk[P4(i, j, k, t, NX, NY, NZ)] = v_r*cos(theta) - v_theta*sin(theta);
+                }
             }
         }
     }
@@ -112,15 +152,17 @@ void create_vortex(datagrid *grid, integration_data *data) {
     for (int i = 0; i < NX; ++i) {
         for (int j = 0; j < NY+1; ++j) {
             for (int k = 0; k < NZ; ++k) {
-                r_ystag = sqrt(grid->xh[i]*grid->xh[i] + grid->yf[j]*grid->yf[j]);
-                theta = atan(grid->yf[j] / grid->xh[i]);
-                //cout << " r = " << r_ystag << " theta = " << theta << endl;
-                v_r = 0.0;
-                v_theta = omega * r_ystag;
-                // I'm leaving it in is most general form instead
-                // of dropping the v_r term in case I decide to 
-                // make use of this another way
-                data->v_4d_chunk[P4(i, j, k, 0, NX, NY, NZ)] = v_r*sin(theta) + v_theta*cos(theta);
+                for (int t = 0; t < 4; ++t) {
+                    r_ystag = sqrt(grid->xh[i]*grid->xh[i] + grid->yf[j]*grid->yf[j]);
+                    theta = atan(grid->yf[j] / grid->xh[i]);
+                    //cout << " r = " << r_ystag << " theta = " << theta << endl;
+                    v_r = 0.0;
+                    v_theta = omega * r_ystag;
+                    // I'm leaving it in is most general form instead
+                    // of dropping the v_r term in case I decide to 
+                    // make use of this another way
+                    data->v_4d_chunk[P4(i, j, k, t, NX, NY, NZ)] = v_r*sin(theta) + v_theta*cos(theta);
+                }
             }
         }
     } 
@@ -137,6 +179,7 @@ int main(int argc, char **argv ) {
     float domain_extent = 10000.; // in meters or 20km 
     float domain_depth = 2000.; // in meters or 2km
     float dx = 30.; float dy = 30.; float dz = 30.;
+    string outfilename = string("solid_body") + ".nc";
 
     // get the number of grid points along each
     // dimension
@@ -145,6 +188,23 @@ int main(int argc, char **argv ) {
     int NZ = (int) (domain_depth / dz);
     int N = NX*NY*NZ;
     cout << "NX: " << NX << " NY: " << NY << " NZ: " << NZ << endl;
+
+    // Parcels will be hard coded into the simulation for
+    // the moment
+    float pX0, pDX, pY0, pDY, pZ0, pDZ;
+    int pNX, pNY, pNZ;
+    int nTimeSteps = 1000;
+    int nTotTimes = 5;
+    int nTimeChunks = (int) (nTimeSteps / 4); // this is a temporary hack
+    if (nTimeSteps % 4 > 0) nTimeChunks += 1;
+    // parcel integration direction; default is forward
+    int direct = 1;
+    pX0 = 0.0; pY0 = 0.0; pZ0 = 0.0;
+    pDX = 30.0; pDY = 30.0; pDZ = 30.0;
+    pNX = 100; pNY = 1; pNZ = 1;
+    parcel_pos *parcels;
+    parcels = allocate_parcels_managed(pNX, pNY, pNZ, nTotTimes);
+    
 
 
     // allocate memory for our grid
@@ -160,89 +220,50 @@ int main(int argc, char **argv ) {
 
     // fill the arrays with grid values
     create_grid(grid);
-
-    // print them out for testing purposes
-    cout << "XH: " << endl;
-    for (int i = 0; i < NX; ++i) {
-        cout << " " << grid->xh[i] << endl;
-    }
-    cout << endl;
-
-    cout << "XF: " << endl;
-    for (int i = 0; i < NX+1; ++i) {
-        cout << " " << grid->xf[i] << endl;
-    }
-    cout << endl;
-
-    cout << "YH: " << endl;
-    for (int j = 0; j < NY; ++j) {
-        cout << " " << grid->yh[j] << endl;
-    }
-    cout << endl;
-
-    cout << "YF: " << endl;
-    for (int j = 0; j < NY+1; ++j) {
-        cout << " " << grid->yf[j] << endl;
-    }
-    cout << endl;
-
-    cout << "ZH: " << endl;
-    for (int k = 0; k < NZ; ++k) {
-        cout << " " << grid->zh[k] << endl;
-    }
-    cout << endl;
-
-    cout << "ZF: " << endl;
-    for (int k = 0; k < NZ+1; ++k) {
-        cout << " " << grid->zf[k] << endl;
-    }
-    cout << endl;
-
-    cout << "UH: " << endl;
-    for (int i = 0; i < NX; ++i) {
-        cout << " " << grid->uh[i] << endl;
-    }
-    cout << endl;
-
-    cout << "VH: " << endl;
-    for (int j = 0; j < NY; ++j) {
-        cout << " " << grid->vh[j] << endl;
-    }
-    cout << endl;
-
-    cout << "MH: " << endl;
-    for (int k = 0; k < NZ; ++k) {
-        cout << " " << grid->mh[k] << endl;
-    }
-    cout << endl;
-
-    cout << "UF: " << endl;
-    for (int i = 0; i < NX+1; ++i) {
-        cout << " " << grid->uf[i] << endl;
-    }
-    cout << endl;
-
-    cout << "VF: " << endl;
-    for (int j = 0; j < NY+1; ++j) {
-        cout << " " << grid->vf[j] << endl;
-    }
-    cout << endl;
-
-    cout << "MF: " << endl;
-    for (int k = 0; k < NZ+1; ++k) {
-        cout << " " << grid->mf[k] << endl;
-    }
-    cout << endl;
-
     integration_data *data;
-    data = allocate_integration_managed(N);
+    data = allocate_integration_managed(N*4);
     create_vortex(grid, data);
-    for (int i = 0; i < NX+1; ++i) {
-        for (int j = 0; j < NY; ++j) {
-            cout << " " << data->u_4d_chunk[P4(i, j, 0, 0, NX, NY, NZ)] << " ";
-        }
-    }
     cout << endl;
+    // I think I have to do this since I'm specifying
+    // the whole grid and that might freak the macros
+    // out since they weren't meant for this
+    grid->NX = NX-2;
+    grid->NY = NY-2;
+    grid->NZ = NZ-2;
+    // This is the main loop that does the data reading and eventually
+    // calls the CUDA code to integrate forward.
+    for (int tChunk = 0; tChunk < nTimeChunks; ++tChunk) {
+        if (tChunk == 0) {
+            cout << "SEEDING PARCELS" << endl;
+            // seed the parcel starting positions based on the command line
+            // arguments provided by the user. I don't think any sanity checking is done
+            // here for out of bounds positions so we probably need to be careful
+            // of this and consider fixing that
+            seed_parcels(parcels, pX0, pY0, pZ0, pNX, pNY, pNZ, pDX, pDY, pDZ, nTotTimes);
+            init_nc(outfilename, parcels);
+        }
+        cout << "Beginning parcel integration! Heading over to the GPU to do GPU things..." << endl;
+        //cudaIntegrateParcels(requested_grid, data, parcels, 4, nTotTimes, direct); 
+        cout << "Finished integrating parcels!" << endl;
+        // write out our information to disk
+        cout << "Beginning to write to disk..." << endl;
+        write_parcels(outfilename, parcels, tChunk);
+        // Now that we've integrated forward and written to disk, before we can go again
+        // we have to set the current end position of the parcel to the beginning for 
+        // the next leg of integration. Do that, and then reset all the other values
+        // to missing.
+        cout << "Setting final parcel position to beginning of array for next integration cycle..." << endl;
+        for (int pcl = 0; pcl < parcels->nParcels; ++pcl) {
+            parcels->xpos[PCL(0, pcl, parcels->nTimes)] = parcels->xpos[PCL(4, pcl, parcels->nTimes)];
+            parcels->ypos[PCL(0, pcl, parcels->nTimes)] = parcels->ypos[PCL(4, pcl, parcels->nTimes)];
+            parcels->zpos[PCL(0, pcl, parcels->nTimes)] = parcels->zpos[PCL(4, pcl, parcels->nTimes)];
+            // empty out our parcel data arrays too
+            parcels->pclu[PCL(0, pcl, parcels->nTimes)] = NC_FILL_FLOAT;
+            parcels->pclv[PCL(0, pcl, parcels->nTimes)] = NC_FILL_FLOAT;
+            parcels->pclw[PCL(0, pcl, parcels->nTimes)] = NC_FILL_FLOAT;
+        }
+        cout << "Parcel position arrays reset." << endl;
+    }
 }
 
 #endif
