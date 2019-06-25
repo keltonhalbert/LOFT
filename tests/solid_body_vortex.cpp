@@ -3,6 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <math.h>
 #include "../macros.cpp"
 #include "../datastructs.h"
 using namespace std;
@@ -74,6 +75,46 @@ void create_grid(datagrid *grid) {
     grid->mf[0] = grid->mf[1];
     grid->mf[NZ] = grid->mf[NZ-1];
     
+}
+
+
+
+/* Create a solid body body vortex on our grid. We do this
+ * by creating a V-R solid body vortex in polar/cylindrical
+ * coordinates and then convert the vectors into U/V cartesian
+ * space. A solid body vortex has the same vorticity everywhere, 
+ * so this should be a really simple test of the trajectory
+ * calculations. */
+void create_vortex(datagrid *grid, integration_data *data) {
+    int NX = grid->NX;
+    int NY = grid->NY;
+    int NZ = grid->NZ;
+    float omega = 0.1; // 1/s - our vertical vorticity value
+    float r_xstag, r_ystag, theta, v_theta, v_r;
+
+    // U staggered grid
+    for (int i = 0; i < NX+1; ++i) {
+        for (int j = 0; j < NY; ++j) {
+            for (int k = 0; k < NZ; ++k) {
+                r_xstag = grid->xf[i]*grid->xf[i] + grid->yh[j]*grid->yh[j];
+                theta = atan(grid->yh[j] / grid->xf[i]);
+                v_r = 0.0;
+                v_theta = omega * r_xstag;
+            }
+        }
+    }
+
+    // V staggered grid
+    for (int i = 0; i < NX; ++i) {
+        for (int j = 0; j < NY+1; ++j) {
+            for (int k = 0; k < NZ; ++k) {
+                r_ystag = grid->xh[i]*grid->xh[i] + grid->yf[j]*grid->yf[j];
+                theta = atan(grid->yf[j] / grid->xh[i]);
+                v_r = 0.0;
+                v_theta = omega * r_ystag;
+            }
+        }
+    } 
 }
 
 
