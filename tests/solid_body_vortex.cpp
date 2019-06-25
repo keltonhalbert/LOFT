@@ -135,9 +135,6 @@ void create_vortex(datagrid *grid, integration_data *data) {
         for (int j = 0; j < NY; ++j) {
             for (int k = 0; k < NZ; ++k) {
                 for (int t = 0; t < 4; ++t) {
-                    // I think something funky is going on with the arctan
-                    // forumla here, as the trajectories only enclose a single
-                    // quadrant of the unit circle which is sus
                     r_xstag = sqrt(grid->xf[i]*grid->xf[i] + grid->yh[j]*grid->yh[j]);
                     theta = atan2(grid->yh[j], grid->xf[i]);
                     v_r = 0.0;
@@ -156,9 +153,6 @@ void create_vortex(datagrid *grid, integration_data *data) {
         for (int j = 0; j < NY+1; ++j) {
             for (int k = 0; k < NZ; ++k) {
                 for (int t = 0; t < 4; ++t) {
-                    // I think something funky is going on with the arctan
-                    // forumla here, as the trajectories only enclose a single
-                    // quadrant of the unit circle which is sus
                     r_ystag = sqrt(grid->xh[i]*grid->xh[i] + grid->yf[j]*grid->yf[j]);
                     theta = atan2(grid->yf[j], grid->xh[i]);
                     //cout << " r = " << r_ystag << " theta = " << theta << endl;
@@ -168,6 +162,17 @@ void create_vortex(datagrid *grid, integration_data *data) {
                     // of dropping the v_r term in case I decide to 
                     // make use of this another way
                     data->v_4d_chunk[P4(i, j, k, t, NX, NY, NZ)] = v_r*sin(theta) + v_theta*cos(theta);
+                }
+            }
+        }
+    } 
+
+    // V staggered grid
+    for (int i = 0; i < NX+1; ++i) {
+        for (int j = 0; j < NY+1; ++j) {
+            for (int k = 0; k < NZ+1; ++k) {
+                for (int t = 0; t < 4; ++t) {
+                    data->w_4d_chunk[P4(i, j, k, t, NX, NY, NZ)] = 5.0; // m/s
                 }
             }
         }
