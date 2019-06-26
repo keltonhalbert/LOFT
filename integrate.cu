@@ -171,6 +171,7 @@ __global__ void applyMomentumBC(float *ustag, float *vstag, float *wstag, int NX
             // use the u stagger macro to handle the
             // proper indexing
             //UA4D(i, j, 0, tidx) = UA4D(i, j, 1, tidx);
+
             // I commented these out because in George's 
             // code, this index is actually for Z=0, but
             // in these arrays, it's on the scalar mesh
