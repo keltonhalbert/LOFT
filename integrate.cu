@@ -67,6 +67,61 @@ __device__ void calc_zvort(datagrid *grid, float *ustag, float *vstag, float *zv
     BUF4D(i, j, k, t) = dvdx - dudy;
 }
 
+
+/* Compute the X component of vorticity tendency due
+   to tilting Y and Z components into the X direction */
+__device__ void calc_xvort_tilt(datagrid *grid, float *ustag, float *vstag, float *wstag, float *xvort_tilt, int *idx_4D, int NX, int NY, int NZ) {
+    int i = idx_4D[0];
+    int j = idx_4D[1];
+    int k = idx_4D[2];
+    int t = idx_4D[3];
+}
+
+/* Compute the Y component of vorticity tendency due
+   to tilting X and Z components into the X direction */
+__device__ void calc_yvort_tilt(datagrid *grid, float *ustag, float *vstag, float *wstag,  float *yvort_tilt, int *idx_4D, int NX, int NY, int NZ) {
+    int i = idx_4D[0];
+    int j = idx_4D[1];
+    int k = idx_4D[2];
+    int t = idx_4D[3];
+}
+
+/* Compute the Z component of vorticity tendency due
+   to tilting X and Y components into the X direction */
+__device__ void calc_zvort_tilt(datagrid *grid, float *ustag, float *vstag, float *wstag, float *zvort_tilt, int *idx_4D, int NX, int NY, int NZ) {
+    int i = idx_4D[0];
+    int j = idx_4D[1];
+    int k = idx_4D[2];
+    int t = idx_4D[3];
+}
+
+/* Compute the X component of vorticity tendency due
+   to stretching of the vorticity along the X axis. */
+__device__ void calc_xvort_stretch(datagrid *grid, float *ustag, float *vstag, float *wstag, float *xvort_stretch, int *idx_4D, int NX, int NY, int NZ) {
+    int i = idx_4D[0];
+    int j = idx_4D[1];
+    int k = idx_4D[2];
+    int t = idx_4D[3];
+}
+
+/* Compute the Y component of vorticity tendency due
+   to stretching of the vorticity along the Y axis. */
+__device__ void calc_yvort_stretch(datagrid *grid, float *ustag, float *vstag, float *wstag, float *yvort_stretch, int *idx_4D, int NX, int NY, int NZ) {
+    int i = idx_4D[0];
+    int j = idx_4D[1];
+    int k = idx_4D[2];
+    int t = idx_4D[3];
+}
+
+/* Compute the Z component of vorticity tendency due
+   to stretching of the vorticity along the Z axis. */
+__device__ void calc_zvort_stretch(datagrid *grid, float *ustag, float *vstag, float *wstag, float *zvort_stretch, int *idx_4D, int NX, int NY, int NZ) {
+    int i = idx_4D[0];
+    int j = idx_4D[1];
+    int k = idx_4D[2];
+    int t = idx_4D[3];
+}
+
 /* When doing the parcel trajectory integration, George Bryan does
    some fun stuff with the lower boundaries of the arrays, presumably
    to prevent the parcels from exiting out the bottom of the domain
