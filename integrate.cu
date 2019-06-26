@@ -123,7 +123,7 @@ __device__ void calc_zvort_stretch(datagrid *grid, float *ustag, float *vstag, f
     // this stencil conveniently lands itself on the scalar grid,
     // so we won't have to worry about doing any averaging. I think.
     // zvort will have already been averaged back to the scalar grid.
-    float buf0 = zvort_stretch;
+    float *buf0 = zvort_stretch;
     float zv = BUF4D(i, j, k, t);
     float dudx = ( ( UA4D(i, j, k, t) - UA4D(i-1, j, k, t) )/grid->dx) * UF(i);
     float dvdy = ( ( VA4D(i, j, k, t) - VA4D(i, j-1, k, t) )/grid->dy) * VF(j);
