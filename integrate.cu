@@ -67,7 +67,6 @@ __device__ void calc_zvort(datagrid *grid, float *ustag, float *vstag, float *zv
     BUF4D(i, j, k, t) = dvdx - dudy;
 }
 
-
 /* Compute the X component of vorticity tendency due
    to tilting Y and Z components into the X direction */
 __device__ void calc_xvort_tilt(datagrid *grid, float *ustag, float *vstag, float *wstag, float *xvort_tilt, int *idx_4D, int NX, int NY, int NZ) {
@@ -120,6 +119,17 @@ __device__ void calc_zvort_stretch(datagrid *grid, float *ustag, float *vstag, f
     int j = idx_4D[1];
     int k = idx_4D[2];
     int t = idx_4D[3];
+
+    // this stencil conveniently lands itself on the scalar grid,
+    // so we won't have to worry about doing any averaging. I think.
+    // zvort will have already been averaged back to the scalar grid.
+    float buf0 = zvort_stretch;
+    float zv = BUF4D(i, j, k, t);
+    float dudx = ( ( UA4D(i, j, k, t) - UA4D(i-1, j, k, t) )/grid->dx) * UF(i);
+    float dvdy = ( ( VA4D(i, j, k, t) - VA4D(i, j-1, k, t) )/grid->dy) * VF(j);
+
+    buf0 = zvort_stretch;
+    BUF4D(i, j, k, t) = -1.*zv*( dudx + dvdy);
 }
 
 /* When doing the parcel trajectory integration, George Bryan does
@@ -141,6 +151,10 @@ __global__ void applyMomentumBC(float *ustag, float *vstag, float *wstag, int NX
             // use the u stagger macro to handle the
             // proper indexing
             //UA4D(i, j, 0, tidx) = UA4D(i, j, 1, tidx);
+            // I commented these out because in George's 
+            // code, this index is actually for Z=0, but
+            // in these arrays, it's on the scalar mesh
+            // so doesn't quite work that way. 
         }
     }
     
