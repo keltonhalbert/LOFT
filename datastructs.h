@@ -91,6 +91,7 @@ struct integration_data {
 
     float *tem1_4d_chunk;
     float *tem2_4d_chunk;
+    float *tem3_4d_chunk;
 
     float *xvort_4d_chunk;
     float *yvort_4d_chunk;
