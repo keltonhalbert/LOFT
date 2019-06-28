@@ -245,6 +245,8 @@ integration_data* allocate_integration_managed(long bufsize) {
     cudaMallocManaged(&(data->th_4d_chunk),  bufsize*sizeof(float));
     cudaMallocManaged(&(data->rho_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->khh_4d_chunk), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->tem1_4d_chunk), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->tem2_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->xvort_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->yvort_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->zvort_4d_chunk), bufsize*sizeof(float));
@@ -266,6 +268,8 @@ void deallocate_integration_managed(integration_data *data) {
     cudaFree(data->th_4d_chunk);
     cudaFree(data->rho_4d_chunk);
     cudaFree(data->khh_4d_chunk);
+    cudaFree(data->tem1_4d_chunk);
+    cudaFree(data->tem2_4d_chunk);
     cudaFree(data->xvort_4d_chunk);
     cudaFree(data->yvort_4d_chunk);
     cudaFree(data->zvort_4d_chunk);
