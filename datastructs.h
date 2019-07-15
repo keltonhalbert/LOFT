@@ -92,10 +92,19 @@ struct integration_data {
     float *tem1_4d_chunk;
     float *tem2_4d_chunk;
     float *tem3_4d_chunk;
+    float *tem4_4d_chunk;
 
     float *xvort_4d_chunk;
     float *yvort_4d_chunk;
     float *zvort_4d_chunk;
+
+    float *xvtilt_4d_chunk;
+    float *yvtilt_4d_chunk;
+    float *zvtilt_4d_chunk;
+
+    float *xvstretch_4d_chunk;
+    float *yvstretch_4d_chunk;
+    float *zvstretch_4d_chunk;
 };
 
 
