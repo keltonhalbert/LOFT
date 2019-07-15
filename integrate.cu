@@ -33,12 +33,12 @@ __device__ void calc_xvort(datagrid *grid, integration_data *data, int *idx_4D, 
 
     float *vstag = data->v_4d_chunk;
     float *wstag = data->w_4d_chunk;
-    float *xvort = data->xvort_4d_chunk;
+    float *xvort = data->tem1_4d_chunk;
 
-    float *buf0 = xvort;
+    float *dum0 = xvort;
     float dwdy = ( ( WA4D(i, j, k, t) - WA4D(i, j-1, k, t) )/grid->dy ) * VF(j);
     float dvdz = ( ( VA4D(i, j, k, t) - VA4D(i, j, k-1, t) )/grid->dz ) * MF(k);
-    BUF4D(i, j, k, t) = dwdy - dvdz; 
+    TEM4D(i, j, k, t) = dwdy - dvdz; 
 }
 
 /* Compute the y component of vorticity. After this is called by the calvort kernel, you must also run 
@@ -52,12 +52,12 @@ __device__ void calc_yvort(datagrid *grid, integration_data *data, int *idx_4D, 
 
     float *ustag = data->u_4d_chunk;
     float *wstag = data->w_4d_chunk;
-    float *yvort = data->yvort_4d_chunk;
+    float *yvort = data->tem2_4d_chunk;
 
-    float *buf0 = yvort;
+    float *dum0 = yvort;
     float dwdx = ( ( WA4D(i, j, k, t) - WA4D(i-1, j, k, t) )/grid->dx ) * UF(i);
     float dudz = ( ( UA4D(i, j, k, t) - UA4D(i, j, k-1, t) )/grid->dz ) * MF(k);
-    BUF4D(i, j, k, t) = dudz - dwdx;
+    TEM4D(i, j, k, t) = dudz - dwdx;
 }
 
 /* Compute the z component of vorticity. After this is called by the calvort kernel, you must also run 
@@ -71,12 +71,12 @@ __device__ void calc_zvort(datagrid *grid, integration_data *data, int *idx_4D, 
 
     float *ustag = data->u_4d_chunk;
     float *vstag = data->v_4d_chunk;
-    float *zvort = data->zvort_4d_chunk;
+    float *zvort = data->tem3_4d_chunk;
 
-    float *buf0 = zvort;
+    float *dum0 = zvort;
     float dvdx = ( ( VA4D(i, j, k, t) - VA4D(i-1, j, k, t) )/grid->dx) * UF(i);
     float dudy = ( ( UA4D(i, j, k, t) - UA4D(i, j-1, k, t) )/grid->dy) * VF(j);
-    BUF4D(i, j, k, t) = dvdx - dudy;
+    TEM4D(i, j, k, t) = dvdx - dudy;
 }
 
 /* Compute the X component of vorticity tendency due
@@ -273,7 +273,7 @@ __global__ void applyVortBC(datagrid *grid, integration_data *data, int tStart, 
     int NX = grid->NX;
     int NY = grid->NY;
     int NZ = grid->NZ;
-    float *buf0;
+    float *dum0;
 
     // NOTE: Not sure if need to use BUF4D or TEM4D. The size of the array
     // will for sure be respected by BUF4D but unsure if it even matters here.
@@ -281,9 +281,10 @@ __global__ void applyVortBC(datagrid *grid, integration_data *data, int tStart, 
     // This is a lower boundary condition, so only when k is 0.
     // Start with xvort. 
     if (( i < NX) && ( j < NY+1) && ( k == 0)) {
-        buf0 = data->xvort_4d_chunk;
+        // at this stage, xvort is in the tem1 array
+        dum0 = data->tem1_4d_chunk;
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            BUF4D(i, j, 0, tidx) = BUF4D(i, j, 1, tidx);
+            TEM4D(i, j, 0, tidx) = TEM4D(i, j, 1, tidx);
             // I'm technically ignoring an upper boundary condition
             // here, but we never really guarantee that we're at
             // the top of the model domain because we do a lot of subsetting.
@@ -293,11 +294,12 @@ __global__ void applyVortBC(datagrid *grid, integration_data *data, int tStart, 
     
     // Do the same but now on the yvort array 
     if (( j < NY) && ( i < NX+1) && ( k == 0)) {
-        buf0 = data->yvort_4d_chunk;
+        // at this stage, yvort is in the tem2 array
+        dum0 = data->tem2_4d_chunk;
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             // use the v stagger macro to handle the
             // proper indexing
-            BUF4D(i, j, 0, tidx) = BUF4D(i, j, 1, tidx);
+            TEM4D(i, j, 0, tidx) = TEM4D(i, j, 1, tidx);
             // Same note about ignoring upper boundary condition. 
         }
     }
@@ -324,22 +326,21 @@ __global__ void doVortAvg(datagrid *grid, integration_data *data, int tStart, in
     if ((i < NX) && (j < NY) && (k < NZ)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            // we're going to average into the tem1 array and then
-            // replace the pointer later
+            // average the temporary arrays into the result arrays
             dum0 = data->tem1_4d_chunk;
             buf0 = data->xvort_4d_chunk;
-            TEM4D(i, j, k, tidx) = 0.25 * ( BUF4D(i, j, k, tidx) + BUF4D(i, j+1, k, tidx) +\
-                                            BUF4D(i, j, k+1, tidx) + BUF4D(i, j+1, k+1, tidx) );
+            BUF4D(i, j, k, tidx) = 0.25 * ( TEM4D(i, j, k, tidx) + TEM4D(i, j+1, k, tidx) +\
+                                            TEM4D(i, j, k+1, tidx) + TEM4D(i, j+1, k+1, tidx) );
 
             dum0 = data->tem2_4d_chunk;
             buf0 = data->yvort_4d_chunk;
-            TEM4D(i, j, k, tidx) = 0.25 * ( BUF4D(i, j, k, tidx) + BUF4D(i+1, j, k, tidx) +\
-                                            BUF4D(i, j, k+1, tidx) + BUF4D(i+1, j, k+1, tidx) );
+            BUF4D(i, j, k, tidx) = 0.25 * ( TEM4D(i, j, k, tidx) + TEM4D(i+1, j, k, tidx) +\
+                                            TEM4D(i, j, k+1, tidx) + TEM4D(i+1, j, k+1, tidx) );
 
             dum0 = data->tem3_4d_chunk;
             buf0 = data->zvort_4d_chunk;
-            TEM4D(i, j, k, tidx) = 0.25 * ( BUF4D(i, j, k, tidx) + BUF4D(i+1, j, k, tidx) +\
-                                            BUF4D(i, j+1, k, tidx) + BUF4D(i+1, j+1, k, tidx) );
+            BUF4D(i, j, k, tidx) = 0.25 * ( TEM4D(i, j, k, tidx) + TEM4D(i+1, j, k, tidx) +\
+                                            TEM4D(i, j+1, k, tidx) + TEM4D(i+1, j+1, k, tidx) );
         }
     }
 }
@@ -369,21 +370,6 @@ void doCalcVort(datagrid *grid, integration_data *data, int tStart, int tEnd, di
     // yvort, and zvort, and set the old x/y/zvort arrays as the new
     // temporary arrays. Note: may have to zero those out in the future...
     doVortAvg<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
-    gpuErrchk(cudaDeviceSynchronize());
-    gpuErrchk( cudaPeekAtLastError() );
-
-    // swap the pointers as a nice, elegant way of doing this instead
-    // of making copies and iterating again
-    float *temptr1, *temptr2, *temptr3;
-    temptr1 = data->tem1_4d_chunk;
-    temptr2 = data->tem2_4d_chunk;
-    temptr3 = data->tem3_4d_chunk;
-    data->tem1_4d_chunk = data->xvort_4d_chunk;
-    data->tem2_4d_chunk = data->yvort_4d_chunk;
-    data->tem3_4d_chunk = data->zvort_4d_chunk;
-    data->xvort_4d_chunk = temptr1;
-    data->yvort_4d_chunk = temptr2;
-    data->zvort_4d_chunk = temptr3;
     gpuErrchk(cudaDeviceSynchronize());
     gpuErrchk( cudaPeekAtLastError() );
 } 
