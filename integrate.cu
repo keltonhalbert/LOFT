@@ -278,31 +278,41 @@ __global__ void applyVortBC(datagrid *grid, integration_data *data, int tStart, 
 
 
 /* Average our vorticity values back to the scalar grid for interpolation
-   to the parcel paths. */
-void doVortAvg(datagrid *grid, integration_data *data, int tStart, int tEnd) {
+   to the parcel paths. We're able to do this in parallel by making use of
+   the three temporary arrays allocated on our grid, which means that the
+   xvort/yvort/zvort arrays will be averaged into tem1/tem2/tem3. After
+   calling this kernel, you MUST set the new pointers appropriately. */
+__global__ void doVortAvg(datagrid *grid, integration_data *data, int tStart, int tEnd) {
+
+    // get our grid indices based on our block and thread info
+    int i = blockIdx.x*blockDim.x + threadIdx.x;
+    int j = blockIdx.y*blockDim.y + threadIdx.y;
+    int k = blockIdx.z*blockDim.z + threadIdx.z;
 
     int NX = grid->NX;
     int NY = grid->NY;
     int NZ = grid->NZ;
-    float *buf0;
+    float *buf0, *dum0;
 
-    for (int i = 0; i < NX; ++i) {
-        for (int j = 0; j < NY; ++j) {
-            for (int k = 0; k < NZ; ++k) {
-                for (int tidx = tStart; tidx < tEnd; ++tidx) {
-                    buf0 = data->xvort_4d_chunk;
-                    BUF4D(i, j, k, tidx) = 0.25 * ( BUF4D(i, j, k, tidx) + BUF4D(i, j+1, k, tidx) +\
-                                                    BUF4D(i, j, k+1, tidx) + BUF4D(i, j+1, k+1, tidx) );
+    if ((i < NX) && (j < NY) && (k < NZ)) {
+        // loop over the number of time steps we have in memory
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            // we're going to average into the tem1 array and then
+            // replace the pointer later
+            dum0 = data->tem1_4d_chunk;
+            buf0 = data->xvort_4d_chunk;
+            TEM4D(i, j, k, tidx) = 0.25 * ( BUF4D(i, j, k, tidx) + BUF4D(i, j+1, k, tidx) +\
+                                            BUF4D(i, j, k+1, tidx) + BUF4D(i, j+1, k+1, tidx) );
 
-                    buf0 = data->yvort_4d_chunk;
-                    BUF4D(i, j, k, tidx) = 0.25 * ( BUF4D(i, j, k, tidx) + BUF4D(i+1, j, k, tidx) +\
-                                                    BUF4D(i, j, k+1, tidx) + BUF4D(i+1, j, k+1, tidx) );
+            dum0 = data->tem2_4d_chunk;
+            buf0 = data->yvort_4d_chunk;
+            TEM4D(i, j, k, tidx) = 0.25 * ( BUF4D(i, j, k, tidx) + BUF4D(i+1, j, k, tidx) +\
+                                            BUF4D(i, j, k+1, tidx) + BUF4D(i+1, j, k+1, tidx) );
 
-                    buf0 = data->zvort_4d_chunk;
-                    BUF4D(i, j, k, tidx) = 0.25 * ( BUF4D(i, j, k, tidx) + BUF4D(i+1, j, k, tidx) +\
-                                                    BUF4D(i, j+1, k, tidx) + BUF4D(i+1, j+1, k, tidx) );
-                }
-            }
+            dum0 = data->tem3_4d_chunk;
+            buf0 = data->zvort_4d_chunk;
+            TEM4D(i, j, k, tidx) = 0.25 * ( BUF4D(i, j, k, tidx) + BUF4D(i+1, j, k, tidx) +\
+                                            BUF4D(i, j+1, k, tidx) + BUF4D(i+1, j+1, k, tidx) );
         }
     }
 }
@@ -425,13 +435,26 @@ void cudaIntegrateParcels(datagrid *grid, integration_data *data, parcel_pos *pa
     gpuErrchk(cudaDeviceSynchronize() );
     gpuErrchk( cudaPeekAtLastError() );
 
-    // average the vorticity to the scalar grid
-    // - we have to do this in serial because
-    // i'm too stupid to know how to do it in
-    // parallel without carrying around array copies
-    doVortAvg(grid, data, tStart, tEnd);
+    // Average the vorticity to the scalar grid using the temporary
+    // arrays we allocated. After doing the averaging, we have to 
+    // set the pointers to the temporary arrays as the new xvort,
+    // yvort, and zvort, and set the old x/y/zvort arrays as the new
+    // temporary arrays. Note: may have to zero those out in the future...
+    doVortAvg<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize());
     gpuErrchk( cudaPeekAtLastError() );
+    // swap the pointers as a nice, elegant way of doing this instead
+    // of making copies and iterating again
+    float *temptr1, *temptr2, *temptr3;
+    temptr1 = data->tem1_4d_chunk;
+    temptr2 = data->tem2_4d_chunk;
+    temptr3 = data->tem3_4d_chunk;
+    data->tem1_4d_chunk = data->xvort_4d_chunk;
+    data->tem2_4d_chunk = data->yvort_4d_chunk;
+    data->tem3_4d_chunk = data->zvort_4d_chunk;
+    data->xvort_4d_chunk = temptr1;
+    data->yvort_4d_chunk = temptr2;
+    data->zvort_4d_chunk = temptr3;
 
     // Before integrating the trajectories, George Bryan sets some below-grid/surface conditions 
     // that we need to consider. This handles applying those boundary conditions. 
