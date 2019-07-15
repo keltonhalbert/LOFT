@@ -25,11 +25,15 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 /* Compute the x component of vorticity. After this is called by the calvort kernel, you must also run 
    the kernel for applying the lower boundary condition and then the kernel for averaging to the
    scalar grid. */
-__device__ void calc_xvort(datagrid *grid, float *wstag, float *vstag, float *xvort, int *idx_4D, int NX, int NY, int NZ) {
+__device__ void calc_xvort(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
     int i = idx_4D[0];
     int j = idx_4D[1];
     int k = idx_4D[2];
     int t = idx_4D[3];
+
+    float *vstag = data->v_4d_chunk;
+    float *wstag = data->w_4d_chunk;
+    float *xvort = data->xvort_4d_chunk;
 
     float *buf0 = xvort;
     float dwdy = ( ( WA4D(i, j, k, t) - WA4D(i, j-1, k, t) )/grid->dy ) * VF(j);
@@ -40,11 +44,15 @@ __device__ void calc_xvort(datagrid *grid, float *wstag, float *vstag, float *xv
 /* Compute the y component of vorticity. After this is called by the calvort kernel, you must also run 
    the kernel for applying the lower boundary condition and then the kernel for averaging to the
    scalar grid. */
-__device__ void calc_yvort(datagrid *grid, float *ustag, float *wstag, float *yvort, int *idx_4D, int NX, int NY, int NZ) {
+__device__ void calc_yvort(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
     int i = idx_4D[0];
     int j = idx_4D[1];
     int k = idx_4D[2];
     int t = idx_4D[3];
+
+    float *ustag = data->u_4d_chunk;
+    float *wstag = data->w_4d_chunk;
+    float *yvort = data->yvort_4d_chunk;
 
     float *buf0 = yvort;
     float dwdx = ( ( WA4D(i, j, k, t) - WA4D(i-1, j, k, t) )/grid->dx ) * UF(i);
@@ -55,11 +63,15 @@ __device__ void calc_yvort(datagrid *grid, float *ustag, float *wstag, float *yv
 /* Compute the z component of vorticity. After this is called by the calvort kernel, you must also run 
    the kernel for applying the lower boundary condition and then the kernel for averaging to the
    scalar grid. */
-__device__ void calc_zvort(datagrid *grid, float *ustag, float *vstag, float *zvort, int *idx_4D, int NX, int NY, int NZ) {
+__device__ void calc_zvort(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
     int i = idx_4D[0];
     int j = idx_4D[1];
     int k = idx_4D[2];
     int t = idx_4D[3];
+
+    float *ustag = data->u_4d_chunk;
+    float *vstag = data->v_4d_chunk;
+    float *zvort = data->zvort_4d_chunk;
 
     float *buf0 = zvort;
     float dvdx = ( ( VA4D(i, j, k, t) - VA4D(i-1, j, k, t) )/grid->dx) * UF(i);
@@ -69,7 +81,7 @@ __device__ void calc_zvort(datagrid *grid, float *ustag, float *vstag, float *zv
 
 /* Compute the X component of vorticity tendency due
    to tilting Y and Z components into the X direction */
-__device__ void calc_xvort_tilt(datagrid *grid, float *ustag, float *vstag, float *wstag, float *xvort_tilt, int *idx_4D, int NX, int NY, int NZ) {
+__device__ void calc_xvort_tilt(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
     int i = idx_4D[0];
     int j = idx_4D[1];
     int k = idx_4D[2];
@@ -78,7 +90,7 @@ __device__ void calc_xvort_tilt(datagrid *grid, float *ustag, float *vstag, floa
 
 /* Compute the Y component of vorticity tendency due
    to tilting X and Z components into the X direction */
-__device__ void calc_yvort_tilt(datagrid *grid, float *ustag, float *vstag, float *wstag,  float *yvort_tilt, int *idx_4D, int NX, int NY, int NZ) {
+__device__ void calc_yvort_tilt(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
     int i = idx_4D[0];
     int j = idx_4D[1];
     int k = idx_4D[2];
@@ -87,7 +99,7 @@ __device__ void calc_yvort_tilt(datagrid *grid, float *ustag, float *vstag, floa
 
 /* Compute the Z component of vorticity tendency due
    to tilting X and Y components into the X direction */
-__device__ void calc_zvort_tilt(datagrid *grid, float *ustag, float *vstag, float *wstag, float *zvort_tilt, int *idx_4D, int NX, int NY, int NZ) {
+__device__ void calc_zvort_tilt(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
     int i = idx_4D[0];
     int j = idx_4D[1];
     int k = idx_4D[2];
@@ -96,11 +108,16 @@ __device__ void calc_zvort_tilt(datagrid *grid, float *ustag, float *vstag, floa
 
 /* Compute the X component of vorticity tendency due
    to stretching of the vorticity along the X axis. */
-__device__ void calc_xvort_stretch(datagrid *grid, float *xvort, float *vstag, float *wstag, float *xvort_stretch, int *idx_4D, int NX, int NY, int NZ) {
+__device__ void calc_xvort_stretch(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
     int i = idx_4D[0];
     int j = idx_4D[1];
     int k = idx_4D[2];
     int t = idx_4D[3];
+
+    float *vstag = data->v_4d_chunk;
+    float *wstag = data->w_4d_chunk;
+    float *xvort = data->xvort_4d_chunk;
+    float *xvort_stretch = data->xvstretch_4d_chunk;
 
     // this stencil conveniently lands itself on the scalar grid,
     // so we won't have to worry about doing any averaging. I think.
@@ -116,11 +133,16 @@ __device__ void calc_xvort_stretch(datagrid *grid, float *xvort, float *vstag, f
 
 /* Compute the Y component of vorticity tendency due
    to stretching of the vorticity along the Y axis. */
-__device__ void calc_yvort_stretch(datagrid *grid, float *yvort, float *ustag, float *wstag, float *yvort_stretch, int *idx_4D, int NX, int NY, int NZ) {
+__device__ void calc_yvort_stretch(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
     int i = idx_4D[0];
     int j = idx_4D[1];
     int k = idx_4D[2];
     int t = idx_4D[3];
+
+    float *ustag = data->u_4d_chunk;
+    float *wstag = data->w_4d_chunk;
+    float *yvort = data->yvort_4d_chunk;
+    float *yvort_stretch = data->yvstretch_4d_chunk;
 
     // this stencil conveniently lands itself on the scalar grid,
     // so we won't have to worry about doing any averaging. I think.
@@ -135,11 +157,16 @@ __device__ void calc_yvort_stretch(datagrid *grid, float *yvort, float *ustag, f
 
 /* Compute the Z component of vorticity tendency due
    to stretching of the vorticity along the Z axis. */
-__device__ void calc_zvort_stretch(datagrid *grid, float *zvort, float *ustag, float *vstag, float *zvort_stretch, int *idx_4D, int NX, int NY, int NZ) {
+__device__ void calc_zvort_stretch(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
     int i = idx_4D[0];
     int j = idx_4D[1];
     int k = idx_4D[2];
     int t = idx_4D[3];
+
+    float *ustag = data->u_4d_chunk;
+    float *vstag = data->v_4d_chunk;
+    float *zvort = data->zvort_4d_chunk;
+    float *zvort_stretch = data->zvstretch_4d_chunk;
 
     // this stencil conveniently lands itself on the scalar grid,
     // so we won't have to worry about doing any averaging. I think.
@@ -215,7 +242,7 @@ __global__ void calcvort(datagrid *grid, integration_data *data, int tStart, int
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
-            calc_xvort(grid, data->w_4d_chunk, data->v_4d_chunk, data->xvort_4d_chunk, idx_4D, NX, NY, NZ);
+            calc_xvort(grid, data, idx_4D, NX, NY, NZ);
         }
     }
 
@@ -223,14 +250,14 @@ __global__ void calcvort(datagrid *grid, integration_data *data, int tStart, int
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
-            calc_yvort(grid, data->u_4d_chunk, data->w_4d_chunk, data->yvort_4d_chunk, idx_4D, NX, NY, NZ);
+            calc_yvort(grid, data, idx_4D, NX, NY, NZ);
         }
     }
     if ((i < NX+1) && (j < NY+1) && (k < NZ)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
-            calc_zvort(grid, data->u_4d_chunk, data->v_4d_chunk, data->zvort_4d_chunk, idx_4D, NX, NY, NZ);
+            calc_zvort(grid, data, idx_4D, NX, NY, NZ);
         }
     }
 }
