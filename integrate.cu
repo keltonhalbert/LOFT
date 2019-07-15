@@ -318,6 +318,50 @@ __global__ void doVortAvg(datagrid *grid, integration_data *data, int tStart, in
 }
 
 
+/*  Execute all of the required kernels on the GPU that are necessary for computing the 3
+    components of vorticity. The idea here is that we're building wrappers on wrappers to
+    simplify the process for the end user that just wants to calculate vorticity. This is
+    also a necessary adjustment because the tendency calculations will require multiple
+    steps, so transitioning this block of code as a proof of concept for how the programming
+    model should work. */
+void doCalcVort(datagrid *grid, integration_data *data, int tStart, int tEnd, dim3 numBlocks, dim3 threadsPerBlock) {
+    // calculate the three compionents of vorticity
+    calcvort<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize() );
+    gpuErrchk( cudaPeekAtLastError() );
+
+    // apply the lower boundary condition to the horizontal
+    // components of vorticity
+    applyVortBC<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize() );
+    gpuErrchk( cudaPeekAtLastError() );
+
+    // Average the vorticity to the scalar grid using the temporary
+    // arrays we allocated. After doing the averaging, we have to 
+    // set the pointers to the temporary arrays as the new xvort,
+    // yvort, and zvort, and set the old x/y/zvort arrays as the new
+    // temporary arrays. Note: may have to zero those out in the future...
+    doVortAvg<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize());
+    gpuErrchk( cudaPeekAtLastError() );
+
+    // swap the pointers as a nice, elegant way of doing this instead
+    // of making copies and iterating again
+    float *temptr1, *temptr2, *temptr3;
+    temptr1 = data->tem1_4d_chunk;
+    temptr2 = data->tem2_4d_chunk;
+    temptr3 = data->tem3_4d_chunk;
+    data->tem1_4d_chunk = data->xvort_4d_chunk;
+    data->tem2_4d_chunk = data->yvort_4d_chunk;
+    data->tem3_4d_chunk = data->zvort_4d_chunk;
+    data->xvort_4d_chunk = temptr1;
+    data->yvort_4d_chunk = temptr2;
+    data->zvort_4d_chunk = temptr3;
+    gpuErrchk(cudaDeviceSynchronize());
+    gpuErrchk( cudaPeekAtLastError() );
+} 
+
+
 __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data *data, \
                           int tStart, int tEnd, int totTime, int direct) {
 
@@ -424,37 +468,11 @@ void cudaIntegrateParcels(datagrid *grid, integration_data *data, parcel_pos *pa
     gpuErrchk( cudaDeviceSynchronize() );
     gpuErrchk( cudaPeekAtLastError() );
 
-    // calculate the three compionents of vorticity
-    calcvort<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
-    gpuErrchk(cudaDeviceSynchronize() );
-    gpuErrchk( cudaPeekAtLastError() );
-
-    // apply the lower boundary condition to the horizontal
-    // components of vorticity
-    applyVortBC<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
-    gpuErrchk(cudaDeviceSynchronize() );
-    gpuErrchk( cudaPeekAtLastError() );
-
-    // Average the vorticity to the scalar grid using the temporary
-    // arrays we allocated. After doing the averaging, we have to 
-    // set the pointers to the temporary arrays as the new xvort,
-    // yvort, and zvort, and set the old x/y/zvort arrays as the new
-    // temporary arrays. Note: may have to zero those out in the future...
-    doVortAvg<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
-    gpuErrchk(cudaDeviceSynchronize());
-    gpuErrchk( cudaPeekAtLastError() );
-    // swap the pointers as a nice, elegant way of doing this instead
-    // of making copies and iterating again
-    float *temptr1, *temptr2, *temptr3;
-    temptr1 = data->tem1_4d_chunk;
-    temptr2 = data->tem2_4d_chunk;
-    temptr3 = data->tem3_4d_chunk;
-    data->tem1_4d_chunk = data->xvort_4d_chunk;
-    data->tem2_4d_chunk = data->yvort_4d_chunk;
-    data->tem3_4d_chunk = data->zvort_4d_chunk;
-    data->xvort_4d_chunk = temptr1;
-    data->yvort_4d_chunk = temptr2;
-    data->zvort_4d_chunk = temptr3;
+    // Calculate the three compionents of vorticity
+    // and do the necessary averaging. This is a wrapper that
+    // calls the necessary kernels and assigns the pointers
+    // appropriately such that the "user" only has to call this method.
+    doCalcVort(grid, data, tStart, tEnd, numBlocks, threadsPerBlock);
 
     // Before integrating the trajectories, George Bryan sets some below-grid/surface conditions 
     // that we need to consider. This handles applying those boundary conditions. 
