@@ -33,9 +33,8 @@ __device__ void calc_xvort(datagrid *grid, integration_data *data, int *idx_4D, 
 
     float *vstag = data->v_4d_chunk;
     float *wstag = data->w_4d_chunk;
-    float *xvort = data->tem1_4d_chunk;
+    float *dum0 = data->tem1_4d_chunk;
 
-    float *dum0 = xvort;
     float dwdy = ( ( WA4D(i, j, k, t) - WA4D(i, j-1, k, t) )/grid->dy ) * VF(j);
     float dvdz = ( ( VA4D(i, j, k, t) - VA4D(i, j, k-1, t) )/grid->dz ) * MF(k);
     TEM4D(i, j, k, t) = dwdy - dvdz; 
@@ -52,9 +51,8 @@ __device__ void calc_yvort(datagrid *grid, integration_data *data, int *idx_4D, 
 
     float *ustag = data->u_4d_chunk;
     float *wstag = data->w_4d_chunk;
-    float *yvort = data->tem2_4d_chunk;
+    float *dum0 = data->tem2_4d_chunk;
 
-    float *dum0 = yvort;
     float dwdx = ( ( WA4D(i, j, k, t) - WA4D(i-1, j, k, t) )/grid->dx ) * UF(i);
     float dudz = ( ( UA4D(i, j, k, t) - UA4D(i, j, k-1, t) )/grid->dz ) * MF(k);
     TEM4D(i, j, k, t) = dudz - dwdx;
@@ -71,9 +69,8 @@ __device__ void calc_zvort(datagrid *grid, integration_data *data, int *idx_4D, 
 
     float *ustag = data->u_4d_chunk;
     float *vstag = data->v_4d_chunk;
-    float *zvort = data->tem3_4d_chunk;
+    float *dum0 = data->tem3_4d_chunk;
 
-    float *dum0 = zvort;
     float dvdx = ( ( VA4D(i, j, k, t) - VA4D(i-1, j, k, t) )/grid->dx) * UF(i);
     float dudy = ( ( UA4D(i, j, k, t) - UA4D(i, j-1, k, t) )/grid->dy) * VF(j);
     TEM4D(i, j, k, t) = dvdx - dudy;
