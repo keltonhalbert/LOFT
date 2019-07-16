@@ -294,7 +294,7 @@ __global__ void calcvortstretch(datagrid *grid, integration_data *data, int tSta
     //printf("%i, %i, %i\n", i, j, k);
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX) && (j < NY+1) && (k < NZ)) {
+    if ((i < NX) && (j < NY+1) && (k > 0) && (k < NZ)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -302,14 +302,14 @@ __global__ void calcvortstretch(datagrid *grid, integration_data *data, int tSta
         }
     }
 
-    if ((i < NX+1) && (j < NY) && (k < NZ)) {
+    if ((i < NX+1) && (j < NY) && (k > 0) && (k < NZ)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calc_yvort_stretch(grid, data, idx_4D, NX, NY, NZ);
         }
     }
-    if ((i < NX+1) && (j < NY+1) && (k < NZ+1)) {
+    if ((i < NX+1) && (j < NY+1) && (k < NZ)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -331,7 +331,7 @@ __global__ void calczvorttilt(datagrid *grid, integration_data *data, int tStart
     //printf("%i, %i, %i\n", i, j, k);
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX+1) && (j < NY+1) && (k < NZ+1)) {
+    if ((i < NX+1) && (j < NY+1) && (k > 0) && (k < NZ)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -559,6 +559,10 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             float pclxvort = interp3D(grid, data->xvort_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             float pclyvort = interp3D(grid, data->yvort_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             float pclzvort = interp3D(grid, data->zvort_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclzvorttilt = interp3D(grid, data->zvtilt_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclxvortstretch = interp3D(grid, data->xvstretch_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclyvortstretch = interp3D(grid, data->yvstretch_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclzvortstretch = interp3D(grid, data->zvstretch_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             
             // integrate X position forward by the U wind
             point[0] += pcl_u * (1.0f/6.0f) * direct;
@@ -580,10 +584,14 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             parcels->pclv[PCL(tidx,   parcel_id, totTime)] = pcl_v;
             parcels->pclw[PCL(tidx,   parcel_id, totTime)] = pcl_w;
 
-            // Store the vorticity aint the parcel
+            // Store the vorticity in the parcel
             parcels->pclxvort[PCL(tidx, parcel_id, totTime)] = pclxvort;
             parcels->pclyvort[PCL(tidx, parcel_id, totTime)] = pclyvort;
             parcels->pclzvort[PCL(tidx, parcel_id, totTime)] = pclzvort;
+            parcels->pclzvorttilt[PCL(tidx, parcel_id, totTime)] = pclzvorttilt;
+            parcels->pclxvortstretch[PCL(tidx, parcel_id, totTime)] = pclxvortstretch;
+            parcels->pclyvortstretch[PCL(tidx, parcel_id, totTime)] = pclyvortstretch;
+            parcels->pclzvortstretch[PCL(tidx, parcel_id, totTime)] = pclzvortstretch;
         }
     }
 }
