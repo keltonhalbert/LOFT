@@ -297,7 +297,7 @@ __global__ void calcvort(datagrid *grid, integration_data *data, int tStart, int
     //printf("%i, %i, %i\n", i, j, k);
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX+1) && (j < NY+1) && (k > 0) && (k < NZ+1)) {
+    if ((i < NX) && (j < NY+1) && (k > 0) && (k < NZ)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -305,14 +305,14 @@ __global__ void calcvort(datagrid *grid, integration_data *data, int tStart, int
         }
     }
 
-    if ((i < NX+1) && (j < NY+1) && (k > 0) && (k < NZ+1)) {
+    if ((i < NX+1) && (j < NY) && (k > 0) && (k < NZ)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calc_yvort(grid, data, idx_4D, NX, NY, NZ);
         }
     }
-    if ((i < NX+1) && (j < NY+1) && (k < NZ+1)) {
+    if ((i < NX+1) && (j < NY+1) && (k < NZ)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -334,7 +334,7 @@ __global__ void calcvortstretch(datagrid *grid, integration_data *data, int tSta
     //printf("%i, %i, %i\n", i, j, k);
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX+1) && (j < NY+1) && (k > 0) && (k < NZ+1)) {
+    if ((i < NX+1) && (j < NY+1) && (k > 0) && (k < NZ)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -342,14 +342,14 @@ __global__ void calcvortstretch(datagrid *grid, integration_data *data, int tSta
         }
     }
 
-    if ((i < NX+1) && (j < NY+1) && (k > 0) && (k < NZ+1)) {
+    if ((i < NX+1) && (j < NY+1) && (k > 0) && (k < NZ)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calc_yvort_stretch(grid, data, idx_4D, NX, NY, NZ);
         }
     }
-    if ((i < NX+1) && (j < NY+1) && (k < NZ+1)) {
+    if ((i < NX+1) && (j < NY+1) && (k < NZ)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -371,7 +371,7 @@ __global__ void calcxvorttilt(datagrid *grid, integration_data *data, int tStart
     //printf("%i, %i, %i\n", i, j, k);
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX+1) && (j < NY+1) && (k > 0) && (k < NZ+1)) {
+    if ((i < NX+1) && (j < NY+1) && (k > 0) && (k < NZ)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -392,7 +392,7 @@ __global__ void calcyvorttilt(datagrid *grid, integration_data *data, int tStart
     //printf("%i, %i, %i\n", i, j, k);
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX+1) && (j < NY+1) && (k > 0) && (k < NZ+1)) {
+    if ((i < NX+1) && (j < NY+1) && (k > 0) && (k < NZ)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -413,7 +413,7 @@ __global__ void calczvorttilt(datagrid *grid, integration_data *data, int tStart
     //printf("%i, %i, %i\n", i, j, k);
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX+1) && (j < NY+1) && (k > 0) && (k < NZ+1)) {
+    if ((i < NX+1) && (j < NY+1) && (k > 0) && (k < NZ)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -432,7 +432,7 @@ __global__ void zeroTemArrays(datagrid *grid, integration_data *data, int tStart
     int NY = grid->NY;
     int NZ = grid->NZ;
     float *dum0;
-    if (( i < NX+2) && ( j < NY+2) && ( k < NZ+1)) {
+    if (( i < NX+2) && ( j < NY+2) && ( k < NZ)) {
         dum0 = data->tem1_4d_chunk;
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             TEM4D(i, j, k, tidx) = 0.0;
