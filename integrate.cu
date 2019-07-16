@@ -626,6 +626,11 @@ void cudaIntegrateParcels(datagrid *grid, integration_data *data, parcel_pos *pa
     // appropriately such that the "user" only has to call this method.
     doCalcVort(grid, data, tStart, tEnd, numBlocks, threadsPerBlock);
 
+    // Calculate the vorticity forcing terms for each of the 3 components.
+    // This is a wrapper that calls the necessary kernels to compute the
+    // derivatives and average them back to the scalar grid where necessary. 
+    doCalcVortTend(grid, data, tStart, tEnd, numBlocks, threadsPerBlock);
+
     // Before integrating the trajectories, George Bryan sets some below-grid/surface conditions 
     // that we need to consider. This handles applying those boundary conditions. 
     applyMomentumBC<<<numBlocks, threadsPerBlock>>>(data->u_4d_chunk, data->v_4d_chunk, data->w_4d_chunk, NX, NY, NZ, tStart, tEnd);
