@@ -66,6 +66,12 @@ struct parcel_pos {
     float *pclxvort;
     float *pclyvort;
     float *pclzvort;
+    float *pclxvorttilt;
+    float *pclyvorttilt;
+    float *pclzvorttilt;
+    float *pclxvortstretch;
+    float *pclyvortstretch;
+    float *pclzvortstretch;
     int nParcels;
     int nTimes;
 };

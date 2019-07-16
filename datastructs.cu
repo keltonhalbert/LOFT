@@ -164,6 +164,12 @@ parcel_pos* allocate_parcels_managed(int NX, int NY, int NZ, int nTotTimes) {
     cudaMallocManaged(&(parcels->pclxvort), nParcels*nTotTimes*sizeof(float)); 
     cudaMallocManaged(&(parcels->pclyvort), nParcels*nTotTimes*sizeof(float)); 
     cudaMallocManaged(&(parcels->pclzvort), nParcels*nTotTimes*sizeof(float)); 
+    cudaMallocManaged(&(parcels->pclxvorttilt), nParcels*nTotTimes*sizeof(float)); 
+    cudaMallocManaged(&(parcels->pclyvorttilt), nParcels*nTotTimes*sizeof(float)); 
+    cudaMallocManaged(&(parcels->pclzvorttilt), nParcels*nTotTimes*sizeof(float)); 
+    cudaMallocManaged(&(parcels->pclxvortstretch), nParcels*nTotTimes*sizeof(float)); 
+    cudaMallocManaged(&(parcels->pclyvortstretch), nParcels*nTotTimes*sizeof(float)); 
+    cudaMallocManaged(&(parcels->pclzvortstretch), nParcels*nTotTimes*sizeof(float)); 
     // set the static variables
     parcels->nParcels = nParcels;
     parcels->nTimes = nTotTimes;
@@ -191,6 +197,12 @@ parcel_pos* allocate_parcels_cpu(int NX, int NY, int NZ, int nTotTimes) {
     parcels->pclxvort = new float[nParcels*nTotTimes]; 
     parcels->pclyvort = new float[nParcels*nTotTimes]; 
     parcels->pclzvort = new float[nParcels*nTotTimes]; 
+    parcels->pclxvorttilt = new float[nParcels*nTotTimes]; 
+    parcels->pclyvorttilt = new float[nParcels*nTotTimes]; 
+    parcels->pclzvorttilt = new float[nParcels*nTotTimes]; 
+    parcels->pclxvortstretch = new float[nParcels*nTotTimes]; 
+    parcels->pclyvortstretch = new float[nParcels*nTotTimes]; 
+    parcels->pclzvortstretch = new float[nParcels*nTotTimes]; 
     // set the static variables
     parcels->nParcels = nParcels;
     parcels->nTimes = nTotTimes;
@@ -210,6 +222,12 @@ void deallocate_parcels_managed(parcel_pos *parcels) {
     cudaFree(parcels->pclxvort);
     cudaFree(parcels->pclyvort);
     cudaFree(parcels->pclzvort);
+    cudaFree(parcels->pclxvorttilt);
+    cudaFree(parcels->pclyvorttilt);
+    cudaFree(parcels->pclzvorttilt);
+    cudaFree(parcels->pclxvortstretch);
+    cudaFree(parcels->pclyvortstretch);
+    cudaFree(parcels->pclzvortstretch);
     cudaFree(parcels);
     cudaDeviceSynchronize();
 }
@@ -225,6 +243,12 @@ void deallocate_parcels_cpu(parcel_pos *parcels) {
     delete[] parcels->pclxvort;
     delete[] parcels->pclyvort;
     delete[] parcels->pclzvort;
+    delete[] parcels->pclxvorttilt;
+    delete[] parcels->pclyvorttilt;
+    delete[] parcels->pclzvorttilt;
+    delete[] parcels->pclxvortstretch;
+    delete[] parcels->pclyvortstretch;
+    delete[] parcels->pclzvortstretch;
     delete[] parcels;
 }
 
