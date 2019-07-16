@@ -83,6 +83,26 @@ __device__ void calc_xvort_tilt(datagrid *grid, integration_data *data, int *idx
     int j = idx_4D[1];
     int k = idx_4D[2];
     int t = idx_4D[3];
+
+    float *ustag = data->u_4d_chunk;
+    float *vstag = data->v_4d_chunk;
+    float *wstag = data->w_4d_chunk;
+
+    // dudy in tem1
+    float *dum0 = data->tem1_4d_chunk;
+    TEM4D(i, j, k, t) = ( ( UA4D(i, j, k, t) - UA4D(i, j-1, k, t) ) / grid->dy ) * VF(j);
+
+    // dwdx in tem2
+    dum0 = data->tem2_4d_chunk;
+    TEM4D(i, j, k, t) = ( ( WA4D(i, j, k, t) - WA4D(i-1, j, k, t) ) / grid->dx ) * UF(i);
+
+    // dudz in tem3
+    dum0 = data->tem3_4d_chunk;
+    TEM4D(i, j, k, t) = ( ( UA4D(i, j, k, t) - UA4D(i, j, k-1, t) ) / grid->dz ) * MF(k);
+
+    // dvdx in tem4
+    dum0 = data->tem4_4d_chunk;
+    TEM4D(i, j, k, t) = ( ( VA4D(i, j, k, t) - VA4D(i-1, j, k, t) ) / grid->dx ) * UF(i);
 }
 
 /* Compute the Y component of vorticity tendency due
@@ -92,6 +112,26 @@ __device__ void calc_yvort_tilt(datagrid *grid, integration_data *data, int *idx
     int j = idx_4D[1];
     int k = idx_4D[2];
     int t = idx_4D[3];
+
+    float *ustag = data->u_4d_chunk;
+    float *vstag = data->v_4d_chunk;
+    float *wstag = data->w_4d_chunk;
+    
+    // dvdx in tem1
+    float *dum0 = data->tem1_4d_chunk;
+    TEM4D(i, j, k, t) = ( ( VA4D(i, j, k, t) - VA4D(i-1, j, k, t) ) / grid->dx ) * UF(i);
+
+    // dwdy in tem2
+    dum0 = data->tem2_4d_chunk;
+    TEM4D(i, j, k, t) = ( ( WA4D(i, j, k, t) - WA4D(i, j-1, k, t) ) / grid->dy ) * VF(j);
+
+    // dvdz in tem3
+    dum0 = data->tem3_4d_chunk;
+    TEM4D(i, j, k, t) = ( ( VA4D(i, j, k, t) - VA4D(i, k, k-1, t) ) / grid->dz ) * MF(k);
+
+    // dudy in tem4
+    dum0 = data->tem4_4d_chunk;
+    TEM4D(i, j, k, t) = ( ( UA4D(i, j, k, t) - UA4D(i, j-1, k, t) ) / grid->dy ) * VF(j);
 }
 
 /* Compute the Z component of vorticity tendency due
@@ -146,7 +186,7 @@ __device__ void calc_xvort_stretch(datagrid *grid, integration_data *data, int *
     float dwdz = ( ( WA4D(i, j, k, t) - WA4D(i, j, k-1, t) )/grid->dz) * MF(k);
 
     buf0 = xvort_stretch;
-    BUF4D(i, j, k, t) = -1.*xv*( dvdy + dwdz);
+    BUF4D(i, j, k, t) = -1.0*xv*( dvdy + dwdz);
 
 }
 
@@ -171,7 +211,7 @@ __device__ void calc_yvort_stretch(datagrid *grid, integration_data *data, int *
     float dwdz = ( ( WA4D(i, j, k, t) - WA4D(i, j, k-1, t) )/grid->dz) * MF(k);
 
     buf0 = yvort_stretch;
-    BUF4D(i, j, k, t) = -1.*yv*( dudx + dwdz);
+    BUF4D(i, j, k, t) = -1.0*yv*( dudx + dwdz);
 }
 
 /* Compute the Z component of vorticity tendency due
@@ -195,7 +235,7 @@ __device__ void calc_zvort_stretch(datagrid *grid, integration_data *data, int *
     float dvdy = ( ( VA4D(i, j, k, t) - VA4D(i, j-1, k, t) )/grid->dy) * VF(j);
 
     buf0 = zvort_stretch;
-    BUF4D(i, j, k, t) = -1.*zv*( dudx + dvdy);
+    BUF4D(i, j, k, t) = -1.0*zv*( dudx + dvdy);
 }
 
 /* When doing the parcel trajectory integration, George Bryan does
@@ -257,7 +297,7 @@ __global__ void calcvort(datagrid *grid, integration_data *data, int tStart, int
     //printf("%i, %i, %i\n", i, j, k);
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX) && (j < NY+1) && (k > 0) && (k < NZ)) {
+    if ((i < NX+1) && (j < NY+1) && (k > 0) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -265,14 +305,14 @@ __global__ void calcvort(datagrid *grid, integration_data *data, int tStart, int
         }
     }
 
-    if ((i < NX+1) && (j < NY) && (k > 0) && (k < NZ)) {
+    if ((i < NX+1) && (j < NY+1) && (k > 0) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calc_yvort(grid, data, idx_4D, NX, NY, NZ);
         }
     }
-    if ((i < NX+1) && (j < NY+1) && (k < NZ)) {
+    if ((i < NX+1) && (j < NY+1) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -294,7 +334,7 @@ __global__ void calcvortstretch(datagrid *grid, integration_data *data, int tSta
     //printf("%i, %i, %i\n", i, j, k);
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX) && (j < NY+1) && (k > 0) && (k < NZ)) {
+    if ((i < NX+1) && (j < NY+1) && (k > 0) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -302,14 +342,14 @@ __global__ void calcvortstretch(datagrid *grid, integration_data *data, int tSta
         }
     }
 
-    if ((i < NX+1) && (j < NY) && (k > 0) && (k < NZ)) {
+    if ((i < NX+1) && (j < NY+1) && (k > 0) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calc_yvort_stretch(grid, data, idx_4D, NX, NY, NZ);
         }
     }
-    if ((i < NX+1) && (j < NY+1) && (k < NZ)) {
+    if ((i < NX+1) && (j < NY+1) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -318,6 +358,48 @@ __global__ void calcvortstretch(datagrid *grid, integration_data *data, int tSta
     }
 }
 
+/* Compute the forcing tendencies from the Vorticity Equation */
+__global__ void calcxvorttilt(datagrid *grid, integration_data *data, int tStart, int tEnd) {
+    // get our 3D index based on our blocks/threads
+    int i = (blockIdx.x*blockDim.x) + threadIdx.x;
+    int j = (blockIdx.y*blockDim.y) + threadIdx.y;
+    int k = (blockIdx.z*blockDim.z) + threadIdx.z;
+    int idx_4D[4];
+    int NX = grid->NX;
+    int NY = grid->NY;
+    int NZ = grid->NZ;
+    //printf("%i, %i, %i\n", i, j, k);
+
+    idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
+    if ((i < NX+1) && (j < NY+1) && (k > 0) && (k < NZ+1)) {
+        // loop over the number of time steps we have in memory
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            idx_4D[3] = tidx;
+            calc_xvort_tilt(grid, data, idx_4D, NX, NY, NZ);
+        }
+    }
+}
+/* Compute the forcing tendencies from the Vorticity Equation */
+__global__ void calcyvorttilt(datagrid *grid, integration_data *data, int tStart, int tEnd) {
+    // get our 3D index based on our blocks/threads
+    int i = (blockIdx.x*blockDim.x) + threadIdx.x;
+    int j = (blockIdx.y*blockDim.y) + threadIdx.y;
+    int k = (blockIdx.z*blockDim.z) + threadIdx.z;
+    int idx_4D[4];
+    int NX = grid->NX;
+    int NY = grid->NY;
+    int NZ = grid->NZ;
+    //printf("%i, %i, %i\n", i, j, k);
+
+    idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
+    if ((i < NX+1) && (j < NY+1) && (k > 0) && (k < NZ+1)) {
+        // loop over the number of time steps we have in memory
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            idx_4D[3] = tidx;
+            calc_yvort_tilt(grid, data, idx_4D, NX, NY, NZ);
+        }
+    }
+}
 /* Compute the forcing tendencies from the Vorticity Equation */
 __global__ void calczvorttilt(datagrid *grid, integration_data *data, int tStart, int tEnd) {
     // get our 3D index based on our blocks/threads
@@ -331,11 +413,41 @@ __global__ void calczvorttilt(datagrid *grid, integration_data *data, int tStart
     //printf("%i, %i, %i\n", i, j, k);
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX+1) && (j < NY+1) && (k > 0) && (k < NZ)) {
+    if ((i < NX+1) && (j < NY+1) && (k > 0) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calc_zvort_tilt(grid, data, idx_4D, NX, NY, NZ);
+        }
+    }
+}
+
+/* Zero out the temporary arrays */
+__global__ void zeroTemArrays(datagrid *grid, integration_data *data, int tStart, int tEnd) {
+    int i = blockIdx.x*blockDim.x + threadIdx.x;
+    int j = blockIdx.y*blockDim.y + threadIdx.y;
+    int k = blockIdx.z*blockDim.z + threadIdx.z;
+
+    int NX = grid->NX;
+    int NY = grid->NY;
+    int NZ = grid->NZ;
+    float *dum0;
+    if (( i < NX+2) && ( j < NY+2) && ( k < NZ+1)) {
+        dum0 = data->tem1_4d_chunk;
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            TEM4D(i, j, k, tidx) = 0.0;
+        }
+        dum0 = data->tem2_4d_chunk;
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            TEM4D(i, j, k, tidx) = 0.0;
+        }
+        dum0 = data->tem3_4d_chunk;
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            TEM4D(i, j, k, tidx) = 0.0;
+        }
+        dum0 = data->tem4_4d_chunk;
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            TEM4D(i, j, k, tidx) = 0.0;
         }
     }
 }
@@ -358,7 +470,7 @@ __global__ void applyVortBC(datagrid *grid, integration_data *data, int tStart, 
 
     // This is a lower boundary condition, so only when k is 0.
     // Start with xvort. 
-    if (( i < NX) && ( j < NY+1) && ( k == 0)) {
+    if (( i < NX+1) && ( j < NY+1) && ( k == 0)) {
         // at this stage, xvort is in the tem1 array
         dum0 = data->tem1_4d_chunk;
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
@@ -371,7 +483,7 @@ __global__ void applyVortBC(datagrid *grid, integration_data *data, int tStart, 
     }
     
     // Do the same but now on the yvort array 
-    if (( j < NY) && ( i < NX+1) && ( k == 0)) {
+    if (( j < NY+1) && ( i < NX+1) && ( k == 0)) {
         // at this stage, yvort is in the tem2 array
         dum0 = data->tem2_4d_chunk;
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
@@ -424,6 +536,90 @@ __global__ void doVortAvg(datagrid *grid, integration_data *data, int tStart, in
 }
 
 /* Average the derivatives within the temporary arrays used to compute
+   the tilting rate and then combine the terms into the final xvtilt
+   array. It is assumed that the derivatives have been precomputed into
+   the temporary arrays. */
+__global__ void doXVortTiltAvg(datagrid *grid, integration_data *data, int tStart, int tEnd) {
+    // get our grid indices based on our block and thread info
+    int i = blockIdx.x*blockDim.x + threadIdx.x;
+    int j = blockIdx.y*blockDim.y + threadIdx.y;
+    int k = blockIdx.z*blockDim.z + threadIdx.z;
+
+    int NX = grid->NX;
+    int NY = grid->NY;
+    int NZ = grid->NZ;
+    float *buf0, *dum0;
+    float dudy, dwdx, dudz, dvdx;
+
+    // We do the average for each array at a given point
+    // and then finish the computation for the zvort tilt
+    if ((i < NX) && (j < NY) && (k < NZ)) {
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            dum0 = data->tem1_4d_chunk;
+            dudy = 0.25 * ( TEM4D(i, j, k, tidx) + TEM4D(i+1, j, k, tidx) + \
+                            TEM4D(i, j+1, k, tidx) + TEM4D(i+1, j+1, k, tidx) );
+
+            dum0 = data->tem2_4d_chunk;
+            dwdx = 0.25 * ( TEM4D(i, j, k, tidx) + TEM4D(i+1, j, k, tidx) + \
+                            TEM4D(i, j, k+1, tidx) + TEM4D(i+1, j, k+1, tidx) );
+
+            dum0 = data->tem3_4d_chunk;
+            dudz = 0.25 * ( TEM4D(i, j, k, tidx) + TEM4D(i+1, j, k, tidx) + \
+                            TEM4D(i, k, k+1, tidx) + TEM4D(i+1, j, k+1, tidx) );
+
+            dum0 = data->tem4_4d_chunk;
+            dvdx = 0.25 * ( TEM4D(i, j, k, tidx) + TEM4D(i+1, j, k, tidx) + \
+                            TEM4D(i, j+1, k, tidx) + TEM4D(i+1, j+1, k, tidx) );
+
+            buf0 = data->xvtilt_4d_chunk;
+            BUF4D(i, j, k, tidx) = -1.0*((dudy*dwdx) - (dudz*dvdx));
+        }
+    }
+}
+
+/* Average the derivatives within the temporary arrays used to compute
+   the tilting rate and then combine the terms into the final yvtilt
+   array. It is assumed that the derivatives have been precomputed into
+   the temporary arrays. */
+__global__ void doYVortTiltAvg(datagrid *grid, integration_data *data, int tStart, int tEnd) {
+    // get our grid indices based on our block and thread info
+    int i = blockIdx.x*blockDim.x + threadIdx.x;
+    int j = blockIdx.y*blockDim.y + threadIdx.y;
+    int k = blockIdx.z*blockDim.z + threadIdx.z;
+
+    int NX = grid->NX;
+    int NY = grid->NY;
+    int NZ = grid->NZ;
+    float *buf0, *dum0;
+    float dvdx, dwdy, dvdz, dudy;
+
+    // We do the average for each array at a given point
+    // and then finish the computation for the zvort tilt
+    if ((i < NX) && (j < NY) && (k < NZ)) {
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            dum0 = data->tem1_4d_chunk;
+            dvdx = 0.25 * ( TEM4D(i, j, k, tidx) + TEM4D(i+1, j, k, tidx) + \
+                            TEM4D(i, j+1, k, tidx) + TEM4D(i+1, j+1, k, tidx) );
+
+            dum0 = data->tem2_4d_chunk;
+            dwdy = 0.25 * ( TEM4D(i, j, k, tidx) + TEM4D(i, j+1, k, tidx) + \
+                            TEM4D(i, k, k+1, tidx) + TEM4D(i, j+1, k+1, tidx) );
+
+            dum0 = data->tem3_4d_chunk;
+            dvdz = 0.25 * ( TEM4D(i, j, k, tidx) + TEM4D(i, j+1, k, tidx) + \
+                            TEM4D(i, j, k+1, tidx) + TEM4D(i, j+1, k+1, tidx) );
+
+            dum0 = data->tem4_4d_chunk;
+            dudy = 0.25 * ( TEM4D(i, j, k, tidx) + TEM4D(i+1, j, k, tidx) + \
+                            TEM4D(i, j+1, k, tidx) + TEM4D(i+1, j+1, k, tidx) );
+
+            buf0 = data->yvtilt_4d_chunk;
+            BUF4D(i, j, k, tidx) = -1.0*((dvdx*dwdy) - (dvdz*dudy));
+        }
+    }
+}
+
+/* Average the derivatives within the temporary arrays used to compute
    the tilting rate and then combine the terms into the final zvtilt
    array. It is assumed that the derivatives have been precomputed into
    the temporary arrays. */
@@ -460,7 +656,7 @@ __global__ void doZVortTiltAvg(datagrid *grid, integration_data *data, int tStar
                             TEM4D(i, j, k+1, tidx) + TEM4D(i+1, j, k+1, tidx) );
 
             buf0 = data->zvtilt_4d_chunk;
-            BUF4D(i, j, k, tidx) = -1*(dwdx*dvdz - dwdy*dudz);
+            BUF4D(i, j, k, tidx) = -1.0*((dwdx*dvdz) - (dwdy*dudz));
         }
     }
 }
@@ -492,6 +688,9 @@ void doCalcVort(datagrid *grid, integration_data *data, int tStart, int tEnd, di
     doVortAvg<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize());
     gpuErrchk( cudaPeekAtLastError() );
+    zeroTemArrays<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize());
+    gpuErrchk( cudaPeekAtLastError() );
 } 
 
 void doCalcVortTend(datagrid *grid, integration_data *data, int tStart, int tEnd, dim3 numBlocks, dim3 threadsPerBlock) {
@@ -506,10 +705,33 @@ void doCalcVortTend(datagrid *grid, integration_data *data, int tStart, int tEnd
     // Compute the vertical vorticity tendency due to tilting. We have to do 
     // each component individually because we have to average the arrays back
     // to the scalar grid. It's a mess. 
+    calcxvorttilt<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize());
+    gpuErrchk( cudaPeekAtLastError() );
+    doXVortTiltAvg<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize());
+    gpuErrchk( cudaPeekAtLastError() );
+    zeroTemArrays<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize());
+    gpuErrchk( cudaPeekAtLastError() );
+
+    calcyvorttilt<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize());
+    gpuErrchk( cudaPeekAtLastError() );
+    doYVortTiltAvg<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize());
+    gpuErrchk( cudaPeekAtLastError() );
+    zeroTemArrays<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize());
+    gpuErrchk( cudaPeekAtLastError() );
+
     calczvorttilt<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize());
     gpuErrchk( cudaPeekAtLastError() );
     doZVortTiltAvg<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize());
+    gpuErrchk( cudaPeekAtLastError() );
+    zeroTemArrays<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize());
     gpuErrchk( cudaPeekAtLastError() );
 }
@@ -559,6 +781,8 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             float pclxvort = interp3D(grid, data->xvort_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             float pclyvort = interp3D(grid, data->yvort_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             float pclzvort = interp3D(grid, data->zvort_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclxvorttilt = interp3D(grid, data->xvtilt_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclyvorttilt = interp3D(grid, data->yvtilt_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             float pclzvorttilt = interp3D(grid, data->zvtilt_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             float pclxvortstretch = interp3D(grid, data->xvstretch_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             float pclyvortstretch = interp3D(grid, data->yvstretch_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
@@ -588,6 +812,8 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             parcels->pclxvort[PCL(tidx, parcel_id, totTime)] = pclxvort;
             parcels->pclyvort[PCL(tidx, parcel_id, totTime)] = pclyvort;
             parcels->pclzvort[PCL(tidx, parcel_id, totTime)] = pclzvort;
+            parcels->pclxvorttilt[PCL(tidx, parcel_id, totTime)] = pclxvorttilt;
+            parcels->pclyvorttilt[PCL(tidx, parcel_id, totTime)] = pclyvorttilt;
             parcels->pclzvorttilt[PCL(tidx, parcel_id, totTime)] = pclzvorttilt;
             parcels->pclxvortstretch[PCL(tidx, parcel_id, totTime)] = pclxvortstretch;
             parcels->pclyvortstretch[PCL(tidx, parcel_id, totTime)] = pclyvortstretch;
