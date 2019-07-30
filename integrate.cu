@@ -127,7 +127,7 @@ __device__ void calc_yvort_tilt(datagrid *grid, integration_data *data, int *idx
 
     // dvdz in tem3
     dum0 = data->tem3_4d_chunk;
-    TEM4D(i, j, k, t) = ( ( VA4D(i, j, k, t) - VA4D(i, k, k-1, t) ) / grid->dz ) * MF(k);
+    TEM4D(i, j, k, t) = ( ( VA4D(i, j, k, t) - VA4D(i, j, k-1, t) ) / grid->dz ) * MF(k);
 
     // dudy in tem4
     dum0 = data->tem4_4d_chunk;
@@ -154,7 +154,7 @@ __device__ void calc_zvort_tilt(datagrid *grid, integration_data *data, int *idx
 
     // put dv/dz in tem2
     dum0 = data->tem2_4d_chunk;
-    TEM4D(i, j, k, t) = ( ( VA4D(i, j, k, t) - VA4D(i, k, k-1, t) ) / grid->dz ) * MF(k);
+    TEM4D(i, j, k, t) = ( ( VA4D(i, j, k, t) - VA4D(i, j, k-1, t) ) / grid->dz ) * MF(k);
 
     // put dw/dy in tem3
     dum0 = data->tem3_4d_chunk;
@@ -471,9 +471,12 @@ __global__ void applyVortBC(datagrid *grid, integration_data *data, int tStart, 
     // This is a lower boundary condition, so only when k is 0.
     // Start with xvort. 
     if (( i < NX+1) && ( j < NY+1) && ( k == 0)) {
-        // at this stage, xvort is in the tem1 array
-        dum0 = data->tem1_4d_chunk;
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            // at this stage, xvort is in the tem1 array
+            dum0 = data->tem1_4d_chunk;
+            TEM4D(i, j, 0, tidx) = TEM4D(i, j, 1, tidx);
+            // at this stage, yvort is in the tem2 array
+            dum0 = data->tem2_4d_chunk;
             TEM4D(i, j, 0, tidx) = TEM4D(i, j, 1, tidx);
             // I'm technically ignoring an upper boundary condition
             // here, but we never really guarantee that we're at
@@ -481,16 +484,39 @@ __global__ void applyVortBC(datagrid *grid, integration_data *data, int tStart, 
             // So, for now, we assume we're nowehere near the top. 
         }
     }
-    
-    // Do the same but now on the yvort array 
-    if (( j < NY+1) && ( i < NX+1) && ( k == 0)) {
-        // at this stage, yvort is in the tem2 array
-        dum0 = data->tem2_4d_chunk;
+}
+
+/* Apply the free-slip lower boundary condition to the vorticity field. */
+__global__ void applyVortTendBC(datagrid *grid, integration_data *data, int tStart, int tEnd) {
+    // get our grid indices based on our block and thread info
+    int i = blockIdx.x*blockDim.x + threadIdx.x;
+    int j = blockIdx.y*blockDim.y + threadIdx.y;
+    int k = blockIdx.z*blockDim.z + threadIdx.z;
+
+    int NX = grid->NX;
+    int NY = grid->NY;
+    int NZ = grid->NZ;
+    float *dum0;
+
+    // NOTE: Not sure if need to use BUF4D or TEM4D. The size of the array
+    // will for sure be respected by BUF4D but unsure if it even matters here.
+
+    // This is a lower boundary condition, so only when k is 0.
+    // Start with xvort. 
+    if (( i < NX+1) && ( j < NY+1) && ( k == 0)) {
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            // use the v stagger macro to handle the
-            // proper indexing
+            dum0 = data->tem1_4d_chunk;
             TEM4D(i, j, 0, tidx) = TEM4D(i, j, 1, tidx);
-            // Same note about ignoring upper boundary condition. 
+            dum0 = data->tem2_4d_chunk;
+            TEM4D(i, j, 0, tidx) = TEM4D(i, j, 1, tidx);
+            dum0 = data->tem3_4d_chunk;
+            TEM4D(i, j, 0, tidx) = TEM4D(i, j, 1, tidx);
+            dum0 = data->tem4_4d_chunk;
+            TEM4D(i, j, 0, tidx) = TEM4D(i, j, 1, tidx);
+            // I'm technically ignoring an upper boundary condition
+            // here, but we never really guarantee that we're at
+            // the top of the model domain because we do a lot of subsetting.
+            // So, for now, we assume we're nowehere near the top. 
         }
     }
 }
@@ -565,7 +591,7 @@ __global__ void doXVortTiltAvg(datagrid *grid, integration_data *data, int tStar
 
             dum0 = data->tem3_4d_chunk;
             dudz = 0.25 * ( TEM4D(i, j, k, tidx) + TEM4D(i+1, j, k, tidx) + \
-                            TEM4D(i, k, k+1, tidx) + TEM4D(i+1, j, k+1, tidx) );
+                            TEM4D(i, j, k+1, tidx) + TEM4D(i+1, j, k+1, tidx) );
 
             dum0 = data->tem4_4d_chunk;
             dvdx = 0.25 * ( TEM4D(i, j, k, tidx) + TEM4D(i+1, j, k, tidx) + \
@@ -603,7 +629,7 @@ __global__ void doYVortTiltAvg(datagrid *grid, integration_data *data, int tStar
 
             dum0 = data->tem2_4d_chunk;
             dwdy = 0.25 * ( TEM4D(i, j, k, tidx) + TEM4D(i, j+1, k, tidx) + \
-                            TEM4D(i, k, k+1, tidx) + TEM4D(i, j+1, k+1, tidx) );
+                            TEM4D(i, j, k+1, tidx) + TEM4D(i, j+1, k+1, tidx) );
 
             dum0 = data->tem3_4d_chunk;
             dvdz = 0.25 * ( TEM4D(i, j, k, tidx) + TEM4D(i, j+1, k, tidx) + \
@@ -649,14 +675,14 @@ __global__ void doZVortTiltAvg(datagrid *grid, integration_data *data, int tStar
 
             dum0 = data->tem3_4d_chunk;
             dwdy = 0.25 * ( TEM4D(i, j, k, tidx) + TEM4D(i, j+1, k, tidx) + \
-                            TEM4D(i, k, k+1, tidx) + TEM4D(i, j+1, k+1, tidx) );
+                            TEM4D(i, j, k+1, tidx) + TEM4D(i, j+1, k+1, tidx) );
 
             dum0 = data->tem4_4d_chunk;
             dudz = 0.25 * ( TEM4D(i, j, k, tidx) + TEM4D(i+1, j, k, tidx) + \
                             TEM4D(i, j, k+1, tidx) + TEM4D(i+1, j, k+1, tidx) );
 
             buf0 = data->zvtilt_4d_chunk;
-            BUF4D(i, j, k, tidx) = -1.0*((dwdx*dvdz) - (dwdy*dudz));
+            BUF4D(i, j, k, tidx) = (dwdy*dudz)-(dwdx*dvdz);
         }
     }
 }
@@ -701,12 +727,18 @@ void doCalcVortTend(datagrid *grid, integration_data *data, int tStart, int tEnd
     calcvortstretch<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize());
     gpuErrchk( cudaPeekAtLastError() );
+    applyVortBC<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize() );
+    gpuErrchk( cudaPeekAtLastError() );
 
     // Compute the vertical vorticity tendency due to tilting. We have to do 
     // each component individually because we have to average the arrays back
     // to the scalar grid. It's a mess. 
     calcxvorttilt<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize());
+    gpuErrchk( cudaPeekAtLastError() );
+    applyVortBC<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize() );
     gpuErrchk( cudaPeekAtLastError() );
     doXVortTiltAvg<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize());
@@ -718,6 +750,9 @@ void doCalcVortTend(datagrid *grid, integration_data *data, int tStart, int tEnd
     calcyvorttilt<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize());
     gpuErrchk( cudaPeekAtLastError() );
+    applyVortBC<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize() );
+    gpuErrchk( cudaPeekAtLastError() );
     doYVortTiltAvg<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize());
     gpuErrchk( cudaPeekAtLastError() );
@@ -727,6 +762,9 @@ void doCalcVortTend(datagrid *grid, integration_data *data, int tStart, int tEnd
 
     calczvorttilt<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize());
+    gpuErrchk( cudaPeekAtLastError() );
+    applyVortBC<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize() );
     gpuErrchk( cudaPeekAtLastError() );
     doZVortTiltAvg<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize());
