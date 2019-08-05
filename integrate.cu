@@ -238,6 +238,29 @@ __device__ void calc_zvort_stretch(datagrid *grid, integration_data *data, int *
     BUF4D(i, j, k, t) = -1.0*zv*( dudx + dvdy);
 }
 
+__device__ void calc_zvort_solenoid(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
+    int i = idx_4D[0];
+    int j = idx_4D[1];
+    int k = idx_4D[2];
+    int t = idx_4D[3];
+
+    float *buf0 = data->pres_4d_chunk;
+    float *dum0 = data->tem1_4d_chunk;
+    TEM4D(i, j, k, t) = ( (BUF4D(i, j, k, t) - BUF4D(i-1, j, k, t)) / grid->dx ) * UH(i);
+    dum0 = data->tem2_4d_chunk;
+    TEM4D(i, j, k, t) = ( (BUF4D(i, j, k, t) - BUF4D(i, j-1, k, t)) / grid->dy ) * VH(j);
+
+    // This is rho prime, need to add in rho bar 
+    // next time I revisit this code
+    buf0 = data->rho_4d_chunk;
+    dum0 = data->tem3_4d_chunk;
+    TEM4D(i, j, k, t) = ( ( (1./BUF4D(i, j, k, t)) - (1./BUF4D(i, j-1, k, t)) ) / grid->dy ) * VH(j);
+    dum0 = data->tem4_4d_chunk;
+    TEM4D(i, j, k, t) = ( ( (1./BUF4D(i, j, k, t)) - (1./BUF4D(i-1, j, k, t)) ) / grid->dy ) * VH(j);
+
+
+}
+
 /* When doing the parcel trajectory integration, George Bryan does
    some fun stuff with the lower boundaries of the arrays, presumably
    to prevent the parcels from exiting out the bottom of the domain
