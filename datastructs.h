@@ -72,6 +72,7 @@ struct parcel_pos {
     float *pclxvortstretch;
     float *pclyvortstretch;
     float *pclzvortstretch;
+    float *pclzvortsolenoid;
     int nParcels;
     int nTimes;
 };
@@ -90,6 +91,7 @@ struct integration_data {
     float *u_4d_chunk;
     float *v_4d_chunk;
     float *w_4d_chunk;
+    float *pi_4d_chunk;
     float *pres_4d_chunk;
     float *th_4d_chunk;
     float *rho_4d_chunk;
@@ -111,6 +113,8 @@ struct integration_data {
     float *xvstretch_4d_chunk;
     float *yvstretch_4d_chunk;
     float *zvstretch_4d_chunk;
+ 
+    float *zvort_solenoid_4d_chunk; 
 };
 
 

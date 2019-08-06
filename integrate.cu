@@ -21,6 +21,20 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 }
 
 
+/* Compute the Exner function / nondimensionalized pressure */
+__device__ void calc_pi(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
+    int i = idx_4D[0];
+    int j = idx_4D[1];
+    int k = idx_4D[2];
+    int t = idx_4D[3];
+
+    // This is p'
+    float *buf0 = data->pres_4d_chunk;
+    float pi = powf( BUF4D(i, j, k, t) / 1000., 0.28571426);
+    buf0 = data->pi_4d_chunk;
+    BUF4D(i, j, k, t) = pi;
+}
+
 
 /* Compute the x component of vorticity. After this is called by the calvort kernel, you must also run 
    the kernel for applying the lower boundary condition and then the kernel for averaging to the
@@ -244,21 +258,27 @@ __device__ void calc_zvort_solenoid(datagrid *grid, integration_data *data, int 
     int k = idx_4D[2];
     int t = idx_4D[3];
 
-    float *buf0 = data->pres_4d_chunk;
-    float *dum0 = data->tem1_4d_chunk;
-    TEM4D(i, j, k, t) = ( (BUF4D(i, j, k, t) - BUF4D(i-1, j, k, t)) / grid->dx ) * UH(i);
-    dum0 = data->tem2_4d_chunk;
-    TEM4D(i, j, k, t) = ( (BUF4D(i, j, k, t) - BUF4D(i, j-1, k, t)) / grid->dy ) * VH(j);
+    // We can use p' here with no problems
+    float *dum0 = data->pres_4d_chunk;
+    // dP/dx
+    float dpdx = ( (TEM4D(i+1, j, k, t) - TEM4D(i-1, j, k, t)) / ( 2*grid->dx ) ) * UH(i);
+    // dP/dy
+    float dpdy = ( (TEM4D(i, j+1, k, t) - TEM4D(i, j-1, k, t)) / ( 2*grid->dy ) ) * VH(j);
 
-    // This is rho prime, need to add in rho bar 
-    // next time I revisit this code
-    buf0 = data->rho_4d_chunk;
-    dum0 = data->tem3_4d_chunk;
-    TEM4D(i, j, k, t) = ( ( (1./BUF4D(i, j, k, t)) - (1./BUF4D(i, j-1, k, t)) ) / grid->dy ) * VH(j);
-    dum0 = data->tem4_4d_chunk;
-    TEM4D(i, j, k, t) = ( ( (1./BUF4D(i, j, k, t)) - (1./BUF4D(i-1, j, k, t)) ) / grid->dy ) * VH(j);
+    dum0 = data->rho_4d_chunk;
+    // dRho/dy
+    float rho2 = TEM4D(i, j+1, k, t) + grid->rho0[k];
+    float rho1 = TEM4D(i, j-1, k, t) + grid->rho0[k];
+    float dalphady = ( ( (1./rho2) - (1./rho1) ) / ( 2*grid->dy ) ) * VH(j);
 
+    // dRho/dx
+    rho2 = TEM4D(i+1, j, k, t) + grid->rho0[k];
+    rho1 = TEM4D(i-1, j, k, t) + grid->rho0[k];
+    float dalphadx = ( ( (1./rho2) - (1./rho1) ) / ( 2*grid->dx ) ) * UH(i);
 
+    // compute and save to the array
+    float *buf0 = data->zvort_solenoid_4d_chunk; 
+    BUF4D(i, j, k, t) = (dpdx*dalphady) - (dpdy*dalphadx);
 }
 
 /* When doing the parcel trajectory integration, George Bryan does
@@ -402,6 +422,7 @@ __global__ void calcxvorttilt(datagrid *grid, integration_data *data, int tStart
         }
     }
 }
+
 /* Compute the forcing tendencies from the Vorticity Equation */
 __global__ void calcyvorttilt(datagrid *grid, integration_data *data, int tStart, int tEnd) {
     // get our 3D index based on our blocks/threads
@@ -423,6 +444,7 @@ __global__ void calcyvorttilt(datagrid *grid, integration_data *data, int tStart
         }
     }
 }
+
 /* Compute the forcing tendencies from the Vorticity Equation */
 __global__ void calczvorttilt(datagrid *grid, integration_data *data, int tStart, int tEnd) {
     // get our 3D index based on our blocks/threads
@@ -441,6 +463,30 @@ __global__ void calczvorttilt(datagrid *grid, integration_data *data, int tStart
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calc_zvort_tilt(grid, data, idx_4D, NX, NY, NZ);
+        }
+    }
+}
+
+/* Compute the forcing tendencies from the pressure-volume solenoid term */
+__global__ void calczvortsolenoid(datagrid *grid, integration_data *data, int tStart, int tEnd) {
+    // get our 3D index based on our blocks/threads
+    int i = (blockIdx.x*blockDim.x) + threadIdx.x;
+    int j = (blockIdx.y*blockDim.y) + threadIdx.y;
+    int k = (blockIdx.z*blockDim.z) + threadIdx.z;
+    int idx_4D[4];
+    int NX = grid->NX;
+    int NY = grid->NY;
+    int NZ = grid->NZ;
+    //printf("%i, %i, %i\n", i, j, k);
+
+    idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
+    // Even though there are NZ points, it's a center difference
+    // and we reach out NZ+1 points to get the derivatives
+    if ((i < NX) && (j < NY) && (k < NZ) && ( i > 0 ) && (j > 0)) {
+        // loop over the number of time steps we have in memory
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            idx_4D[3] = tidx;
+            calc_zvort_solenoid(grid, data, idx_4D, NX, NY, NZ);
         }
     }
 }
@@ -750,7 +796,7 @@ void doCalcVortTend(datagrid *grid, integration_data *data, int tStart, int tEnd
     calcvortstretch<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize());
     gpuErrchk( cudaPeekAtLastError() );
-    applyVortBC<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    applyVortTendBC<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize() );
     gpuErrchk( cudaPeekAtLastError() );
 
@@ -760,7 +806,7 @@ void doCalcVortTend(datagrid *grid, integration_data *data, int tStart, int tEnd
     calcxvorttilt<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize());
     gpuErrchk( cudaPeekAtLastError() );
-    applyVortBC<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    applyVortTendBC<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize() );
     gpuErrchk( cudaPeekAtLastError() );
     doXVortTiltAvg<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
@@ -773,7 +819,7 @@ void doCalcVortTend(datagrid *grid, integration_data *data, int tStart, int tEnd
     calcyvorttilt<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize());
     gpuErrchk( cudaPeekAtLastError() );
-    applyVortBC<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    applyVortTendBC<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize() );
     gpuErrchk( cudaPeekAtLastError() );
     doYVortTiltAvg<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
@@ -786,7 +832,7 @@ void doCalcVortTend(datagrid *grid, integration_data *data, int tStart, int tEnd
     calczvorttilt<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize());
     gpuErrchk( cudaPeekAtLastError() );
-    applyVortBC<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    applyVortTendBC<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize() );
     gpuErrchk( cudaPeekAtLastError() );
     doZVortTiltAvg<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
@@ -795,6 +841,11 @@ void doCalcVortTend(datagrid *grid, integration_data *data, int tStart, int tEnd
     zeroTemArrays<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize());
     gpuErrchk( cudaPeekAtLastError() );
+
+
+    calczvortsolenoid<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize());
+    gpuErrchk(cudaPeekAtLastError());
 }
 
 __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data *data, \
@@ -848,6 +899,7 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             float pclxvortstretch = interp3D(grid, data->xvstretch_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             float pclyvortstretch = interp3D(grid, data->yvstretch_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             float pclzvortstretch = interp3D(grid, data->zvstretch_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclzvortsolenoid = interp3D(grid, data->zvort_solenoid_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             
             // integrate X position forward by the U wind
             point[0] += pcl_u * (1.0f/6.0f) * direct;
@@ -879,6 +931,7 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             parcels->pclxvortstretch[PCL(tidx, parcel_id, totTime)] = pclxvortstretch;
             parcels->pclyvortstretch[PCL(tidx, parcel_id, totTime)] = pclyvortstretch;
             parcels->pclzvortstretch[PCL(tidx, parcel_id, totTime)] = pclzvortstretch;
+            parcels->pclzvortsolenoid[PCL(tidx, parcel_id, totTime)] = pclzvortsolenoid;
         }
     }
 }

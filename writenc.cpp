@@ -40,6 +40,7 @@ void init_nc(string filename, parcel_pos *parcels) {
     NcVar xvortstretchVar = output.addVar("xvortstretch", ncFloat, gridDimVector);
     NcVar yvortstretchVar = output.addVar("yvortstretch", ncFloat, gridDimVector);
     NcVar zvortstretchVar = output.addVar("zvortstretch", ncFloat, gridDimVector);
+    NcVar zvortsolenoidVar = output.addVar("zvortsolenoid", ncFloat, gridDimVector);
     NcVar xvortbaroVar = output.addVar("xvortbaro", ncFloat, gridDimVector);
     NcVar yvortbaroVar = output.addVar("yvortbaro", ncFloat, gridDimVector);
     NcVar xvortturbVar = output.addVar("xvortturb", ncFloat, gridDimVector);
@@ -70,6 +71,7 @@ void init_nc(string filename, parcel_pos *parcels) {
     xvortstretchVar.putAtt("units", "s^-2");
     yvortstretchVar.putAtt("units", "s^-2");
     zvortstretchVar.putAtt("units", "s^-2");
+    zvortsolenoidVar.putAtt("units", "s^-2");
     xvortbaroVar.putAtt("units", "s^-2");
     yvortbaroVar.putAtt("units", "s^-2");
     xvortturbVar.putAtt("units", "s^-2");
@@ -104,6 +106,7 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
     NcVar xvortstretchVar = output.getVar("xvortstretch");
     NcVar yvortstretchVar = output.getVar("yvortstretch");
     NcVar zvortstretchVar = output.getVar("zvortstretch");
+    NcVar zvortsolenoidVar = output.getVar("zvortsolenoid");
     NcVar xvortbaroVar = output.getVar("xvortbaro");
     NcVar yvortbaroVar = output.getVar("yvortbaro");
     NcVar xvortturbVar = output.getVar("xvortturb");
@@ -139,6 +142,7 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
     xvortstretchVar.putVar(startp,countp,parcels->pclxvortstretch);
     yvortstretchVar.putVar(startp,countp,parcels->pclyvortstretch);
     zvortstretchVar.putVar(startp,countp,parcels->pclzvortstretch);
+    zvortsolenoidVar.putVar(startp,countp,parcels->pclzvortsolenoid);
     //xvortbaroVar.putVar(startp,countp,parcels->pclxvortbaro);
     //yvortbaroVar.putVar(startp,countp,parcels->pclyvortbaro);
     //xvortturbVar.putVar(startp,countp,parcels->pclxvortturb);
