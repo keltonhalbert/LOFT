@@ -265,9 +265,6 @@ __host__ __device__ float interp3D(datagrid *grid, float *data_grd, float *point
     // get the index of the nearest grid point to the
     // data we are requesting
     _nearest_grid_idx(point, grid, idx_4D);
-    if (idx_4D[2] == -1) {
-        printf("k = %d zf[0] = %f zh[0] = %f\n", idx_4D[2], grid->zf[0], grid->zh[0]);
-    }
 
     // get the interpolation weights
     _calc_weights(grid, weights, point, idx_4D, ugrd, vgrd, wgrd); 
