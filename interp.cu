@@ -34,10 +34,11 @@ __device__ __host__ void _nearest_grid_idx(float *point, datagrid *grid, int *id
 	}
 
 	// loop over the Z grid
-	for ( int k = 0; k < grid->NZ; k++ ) {
-		// find the nearest grid point index in the Y
-		if ( ( pt_z >= grid->zf[k] ) && ( pt_z <= grid->zf[k+1] ) ) { near_k = k; } 
-	}
+    int k = 1;
+    while (pt_z >= grid->zf[k+1]) {
+        k = k + 1;
+    }
+    near_k = k;
 
 	// if a nearest index was not found, set all indices to -1 to flag
 	// that the point is not in the domain
@@ -70,7 +71,7 @@ __host__ __device__ void _calc_weights(datagrid *grid, float *weights, \
 
 	// check to see if the requested point is within the grid domain.
 	// If any grid index is out of bounds, immediately return all weights
-	// as -1.
+	// as missing.
 	for (int i = 0; i < 3; i++) {
 		if (idx_4D[i] == -1) {
 			return;
@@ -264,16 +265,22 @@ __host__ __device__ float interp3D(datagrid *grid, float *data_grd, float *point
     // get the index of the nearest grid point to the
     // data we are requesting
     _nearest_grid_idx(point, grid, idx_4D);
+    if (idx_4D[2] == -1) {
+        printf("k = %d zf[0] = %f zh[0] = %f\n", idx_4D[2], grid->zf[0], grid->zh[0]);
+    }
 
     // get the interpolation weights
     _calc_weights(grid, weights, point, idx_4D, ugrd, vgrd, wgrd); 
     //printf("Weights: %f %f %f %f %f %f %f %f \t", weights[0], weights[1], weights[2], weights[3], weights[4], weights[5], weights[6], weights[7]);
+    if (idx_4D[2] == -1) {
+        printf("k = %d zf[0] = %f zh[0] = %f\n", idx_4D[2], grid->zf[0], grid->zh[0]);
+    }
 
     // interpolate the value
     output_val = _tri_interp(data_grd, weights, ugrd, vgrd, wgrd, idx_4D, grid->NX, grid->NY, grid->NZ);
 
     if (output_val == -999.0) {
-        printf("val = %f x = %f y = %f z = %f i = %d j = %d k = %d\n", output_val, point[0], point[1], point[2], idx_4D[0], idx_4D[1], idx_4D[2]);
+        //printf("val = %f x = %f y = %f z = %f i = %d j = %d k = %d\n", output_val, point[0], point[1], point[2], idx_4D[0], idx_4D[1], idx_4D[2]);
     }
 
     return output_val;
