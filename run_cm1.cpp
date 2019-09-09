@@ -28,11 +28,8 @@ int find_nearest_index(double *arr, double val, int N) {
     }
     return nearest;
 }
-// find the nearest grid index i, j, and k for a point contained inside of a cube.
-// i, j, and k are set to -1 if the point requested is out of the domain bounds
-// of the cube provided.
-void nearest_grid_idx(float *point, datagrid *grid, \
-                      int *idx_4D, int nX, int nY, int nZ) {
+
+void nearest_grid_idx(float *point, datagrid *grid, int *idx_4D) {
 
 	int near_i = -1;
 	int near_j = -1;
@@ -44,22 +41,21 @@ void nearest_grid_idx(float *point, datagrid *grid, \
 
 
 	// loop over the X grid
-	for ( int i = 0; i < nX-1; i++ ) {
+	for ( int i = 0; i < grid->NX; i++ ) {
 		// find the nearest grid point index at X
 		if ( ( pt_x >= grid->xf[i] ) && ( pt_x <= grid->xf[i+1] ) ) { near_i = i; } 
 	}
 
-
 	// loop over the Y grid
-	for ( int j = 0; j < nY-1; j++ ) {
+	for ( int j = 0; j < grid->NY; j++ ) {
 		// find the nearest grid point index in the Y
 		if ( ( pt_y >= grid->yf[j] ) && ( pt_y <= grid->yf[j+1] ) ) { near_j = j; } 
 	}
 
-
-    int k = 0;
+	// loop over the Z grid
+    int k = 1;
     while (pt_z >= grid->zf[k+1]) {
-        k += 1;
+        k = k + 1;
     }
     near_k = k;
 
@@ -295,7 +291,7 @@ datagrid* loadMetadataAndGrid(string base_dir, parcel_pos *parcels, int rank) {
         point[1] = parcels->ypos[PCL(0, pcl, parcels->nTimes)];
         point[2] = parcels->zpos[PCL(0, pcl, parcels->nTimes)];
         // find the nearest grid point!
-        nearest_grid_idx(point, temp_grid, idx_4D, temp_grid->NX, temp_grid->NY, temp_grid->NZ);
+        nearest_grid_idx(point, temp_grid, idx_4D);
         if ( (idx_4D[0] == -1) || (idx_4D[1] == -1) || (idx_4D[2] == -1) ) {
             cout << "INVALID POINT X " << point[0] << " Y " << point[1] << " Z " << point[2] << endl;
             cout << "Parcel X " << parcels->xpos[PCL(0, pcl, parcels->nTimes)];
@@ -415,10 +411,18 @@ void buffer_offset(datagrid *grid, float *ubufin, float *vbufin, float *wbufin, 
     int NZ = grid->NZ;
     for (int i = 0; i < NX+2; i++) {
         for (int j = 0; j < NY+2; j++) {
-            for (int k = NZ+1; k > 0; k--) {
-                ubufout[P3(i, j, k, NX, NY)] = ubufin[P3(i, j, k-1, NX, NY)];
-                vbufout[P3(i, j, k, NX, NY)] = vbufin[P3(i, j, k-1, NX, NY)];
-                wbufout[P3(i, j, k, NX, NY)] = wbufin[P3(i, j, k-1, NX, NY)];
+            for (int k = 0; k < NZ; ++k) {
+                if (k == 0) {
+                    // fill the lower ghost zone with zeroes. May consider
+                    // applying the boundary condition here, but makes more
+                    // sense to apply it in GPU land for clarity. 
+                    ubufout[P3(i, j, k, NX+2, NY+2)] = 0.0;
+                    vbufout[P3(i, j, k, NX+2, NY+2)] = 0.0;
+                    wbufout[P3(i, j, k, NX+2, NY+2)] = 0.0;
+                }
+                ubufout[P3(i, j, k+1, NX+2, NY+2)] = ubufin[P3(i, j, k, NX+2, NY+2)];
+                vbufout[P3(i, j, k+1, NX+2, NY+2)] = vbufin[P3(i, j, k, NX+2, NY+2)];
+                wbufout[P3(i, j, k+1, NX+2, NY+2)] = wbufin[P3(i, j, k, NX+2, NY+2)];
             }
         }
     }
@@ -499,7 +503,7 @@ int main(int argc, char **argv ) {
     delete[] histpath;
 
     int rank, size;
-    long N, N_scalar, MX, MY, MZ;
+    long N_stag, N_read, N_scalar, MX, MY, MZ;
     //int nTimeChunks = 120*2;
 
     // initialize a bunch of MPI stuff.
@@ -581,7 +585,8 @@ int main(int argc, char **argv ) {
         // There's some awkwardness here I have to figure out a better way around,
         // but MPI Scatter/Gather behaves weird if I use the generic large buffer,
         // so I use N_scalar for the MPI calls to non staggered/scalar fields. 
-        N = (requested_grid->NX+2)*(requested_grid->NY+2)*(requested_grid->NZ+1);
+        N_read = (requested_grid->NX+2)*(requested_grid->NY+2)*(requested_grid->NZ+1);
+        N_stag = (requested_grid->NX+2)*(requested_grid->NY+2)*(requested_grid->NZ+2);
         N_scalar = (requested_grid->NX+1)*(requested_grid->NY+1)*(requested_grid->NZ+1);
 
 
@@ -590,14 +595,14 @@ int main(int argc, char **argv ) {
         // LOFS will return it's data subset to
         float *ubuf_tem, *vbuf_tem, *wbuf_tem, *ubuf, *vbuf, *wbuf, *pbuf, *thbuf, *rhobuf, *khhbuf;
         // These temporary buffers are our un-offset arrays
-        ubuf_tem = new float[N];
-        vbuf_tem = new float[N];
-        wbuf_tem = new float[N];
+        ubuf_tem = new float[N_read];
+        vbuf_tem = new float[N_read];
+        wbuf_tem = new float[N_read];
         // These non temporary arrays are offset in the vertical by 1
         // to account for potential ghost zone
-        ubuf = new float[N];
-        vbuf = new float[N];
-        wbuf = new float[N];
+        ubuf = new float[N_stag];
+        vbuf = new float[N_stag];
+        wbuf = new float[N_stag];
         // As far as I'm aware, these do not need to be offset
         pbuf = new float[N_scalar];
         thbuf = new float[N_scalar];
@@ -614,7 +619,7 @@ int main(int argc, char **argv ) {
         // allocate space for it on Rank 0
         integration_data *data;
         if (rank == 0) {
-            data = allocate_integration_managed(N*size);
+            data = allocate_integration_managed(N_stag*size);
         }
         else {
             data = new integration_data();
@@ -630,15 +635,15 @@ int main(int argc, char **argv ) {
         }
         printf("TIMESTEP %d/%d %d %f\n", rank, size, rank + tChunk*size, alltimes[nearest_tidx + direct*( rank + tChunk*size)]);
         // load u, v, and w into memory
-        loadDataFromDisk(requested_grid, ubuf, vbuf, wbuf, pbuf, thbuf, rhobuf, khhbuf, alltimes[nearest_tidx + direct*(rank + tChunk*size)]);
-        //buffer_offset(requested_grid, ubuf_tem, vbuf_tem, wbuf_tem, ubuf, vbuf, wbuf);
+        loadDataFromDisk(requested_grid, ubuf_tem, vbuf_tem, wbuf_tem, pbuf, thbuf, rhobuf, khhbuf, alltimes[nearest_tidx + direct*(rank + tChunk*size)]);
+        buffer_offset(requested_grid, ubuf_tem, vbuf_tem, wbuf_tem, ubuf, vbuf, wbuf);
         
         // for MPI runs that load multiple time steps into memory,
         // communicate the data you've read into our 4D array
 
-        int senderr_u = MPI_Gather(ubuf, N, MPI_FLOAT, data->u_4d_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_v = MPI_Gather(vbuf, N, MPI_FLOAT, data->v_4d_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_w = MPI_Gather(wbuf, N, MPI_FLOAT, data->w_4d_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_u = MPI_Gather(ubuf, N_stag, MPI_FLOAT, data->u_4d_chunk, N_stag, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_v = MPI_Gather(vbuf, N_stag, MPI_FLOAT, data->v_4d_chunk, N_stag, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_w = MPI_Gather(wbuf, N_stag, MPI_FLOAT, data->w_4d_chunk, N_stag, MPI_FLOAT, 0, MPI_COMM_WORLD);
         // Use N_scalar here so that there aren't random zeroes throughout the middle of the array
         int senderr_p = MPI_Gather(pbuf, N_scalar, MPI_FLOAT, data->pres_4d_chunk, N_scalar, MPI_FLOAT, 0, MPI_COMM_WORLD);
         int senderr_th = MPI_Gather(thbuf, N_scalar, MPI_FLOAT, data->th_4d_chunk, N_scalar, MPI_FLOAT, 0, MPI_COMM_WORLD);

@@ -34,7 +34,7 @@ __device__ __host__ void _nearest_grid_idx(float *point, datagrid *grid, int *id
 	}
 
 	// loop over the Z grid
-    int k = 1;
+    int k = 0;
     while (pt_z >= grid->zf[k+1]) {
         k = k + 1;
     }

@@ -383,12 +383,7 @@ __global__ void applyMomentumBC(float *ustag, float *vstag, float *wstag, int NX
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             // use the u stagger macro to handle the
             // proper indexing
-            //UA4D(i, j, 0, tidx) = UA4D(i, j, 1, tidx);
-
-            // I commented these out because in George's 
-            // code, this index is actually for Z=0, but
-            // in these arrays, it's on the scalar mesh
-            // so doesn't quite work that way. 
+            UA4D(i, j, 0, tidx) = UA4D(i, j, 1, tidx);
         }
     }
     
@@ -397,7 +392,7 @@ __global__ void applyMomentumBC(float *ustag, float *vstag, float *wstag, int NX
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             // use the v stagger macro to handle the
             // proper indexing
-            //VA4D(i, j, 0, tidx) = VA4D(i, j, 1, tidx);
+            VA4D(i, j, 0, tidx) = VA4D(i, j, 1, tidx);
         }
     }
 
@@ -1066,7 +1061,7 @@ void cudaIntegrateParcels(datagrid *grid, integration_data *data, parcel_pos *pa
     */
     // Before integrating the trajectories, George Bryan sets some below-grid/surface conditions 
     // that we need to consider. This handles applying those boundary conditions. 
-    //applyMomentumBC<<<numBlocks, threadsPerBlock>>>(data->u_4d_chunk, data->v_4d_chunk, data->w_4d_chunk, NX, NY, NZ, tStart, tEnd);
+    applyMomentumBC<<<numBlocks, threadsPerBlock>>>(data->u_4d_chunk, data->v_4d_chunk, data->w_4d_chunk, NX, NY, NZ, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize() );
     gpuErrchk( cudaPeekAtLastError() );
 
