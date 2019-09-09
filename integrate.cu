@@ -366,9 +366,9 @@ __device__ void calc_zvort_solenoid(datagrid *grid, integration_data *data, int 
 }
 
 /* When doing the parcel trajectory integration, George Bryan does
-   some fun stuff with the lower boundaries of the arrays, presumably
+   some fun stuff with the lower boundaries/ghost zones of the arrays, presumably
    to prevent the parcels from exiting out the bottom of the domain
-   or experience artificial values */
+   or experience artificial values. This sets the ghost zone values. */
 __global__ void applyMomentumBC(float *ustag, float *vstag, float *wstag, int NX, int NY, int NZ, int tStart, int tEnd) {
     int i = blockIdx.x*blockDim.x + threadIdx.x;
     int j = blockIdx.y*blockDim.y + threadIdx.y;
@@ -419,7 +419,7 @@ __global__ void calcvort(datagrid *grid, integration_data *data, int tStart, int
     //printf("%i, %i, %i\n", i, j, k);
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX) && (j < NY+1) && (k > 0) && (k < NZ+1)) {
+    if ((i < NX) && (j < NY+1) && (k > 1) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -427,14 +427,14 @@ __global__ void calcvort(datagrid *grid, integration_data *data, int tStart, int
         }
     }
 
-    if ((i < NX+1) && (j < NY) && (k > 0) && (k < NZ+1)) {
+    if ((i < NX+1) && (j < NY) && (k > 1) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calc_yvort(grid, data, idx_4D, NX, NY, NZ);
         }
     }
-    if ((i <= NX+1) && (j <= NY+1) && (k < NZ+1)) {
+    if ((i <= NX+1) && (j <= NY+1) && (k > 0) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -456,7 +456,7 @@ __global__ void calcvortstretch(datagrid *grid, integration_data *data, int tSta
     //printf("%i, %i, %i\n", i, j, k);
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX) && (j < NY+1) && (k > 0) && (k < NZ+1)) {
+    if ((i < NX) && (j < NY+1) && (k > 1) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -464,14 +464,14 @@ __global__ void calcvortstretch(datagrid *grid, integration_data *data, int tSta
         }
     }
 
-    if ((i < NX+1) && (j < NY) && (k > 0) && (k < NZ+1)) {
+    if ((i < NX+1) && (j < NY) && (k > 1) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calc_yvort_stretch(grid, data, idx_4D, NX, NY, NZ);
         }
     }
-    if ((i < NX+1) && (j < NY+1) && (k < NZ+1)) {
+    if ((i < NX+1) && (j < NY+1) && (k > 0) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -493,7 +493,7 @@ __global__ void calcxvorttilt(datagrid *grid, integration_data *data, int tStart
     //printf("%i, %i, %i\n", i, j, k);
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX+1) && (j < NY+1) && (k > 0) && (k < NZ+1)) {
+    if ((i < NX+1) && (j < NY+1) && (k > 1) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -515,7 +515,7 @@ __global__ void calcyvorttilt(datagrid *grid, integration_data *data, int tStart
     //printf("%i, %i, %i\n", i, j, k);
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX+1) && (j < NY+1) && (k > 0) && (k < NZ+1)) {
+    if ((i < NX+1) && (j < NY+1) && (k > 1) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -537,7 +537,7 @@ __global__ void calczvorttilt(datagrid *grid, integration_data *data, int tStart
     //printf("%i, %i, %i\n", i, j, k);
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX+1) && (j < NY+1) && (k > 0) && (k < NZ+1)) {
+    if ((i < NX+1) && (j < NY+1) && (k > 1) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -561,7 +561,7 @@ __global__ void calczvortsolenoid(datagrid *grid, integration_data *data, int tS
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
     // Even though there are NZ points, it's a center difference
     // and we reach out NZ+1 points to get the derivatives
-    if ((i < NX) && (j < NY) && (k < NZ) && ( i > 0 ) && (j > 0)) {
+    if ((i < NX) && (j < NY) && (k < NZ) && ( i > 0 ) && (j > 0) && (k > 0)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -618,14 +618,14 @@ __global__ void applyVortBC(datagrid *grid, integration_data *data, int tStart, 
 
     // This is a lower boundary condition, so only when k is 0.
     // Start with xvort. 
-    if (( i < NX+1) && ( j < NY+1) && ( k == 0)) {
+    if (( i < NX+1) && ( j < NY+1) && ( k == 1)) {
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             // at this stage, xvort is in the tem1 array
             dum0 = data->tem1_4d_chunk;
-            TEM4D(i, j, 0, tidx) = TEM4D(i, j, 1, tidx);
+            TEM4D(i, j, 1, tidx) = TEM4D(i, j, 2, tidx);
             // at this stage, yvort is in the tem2 array
             dum0 = data->tem2_4d_chunk;
-            TEM4D(i, j, 0, tidx) = TEM4D(i, j, 1, tidx);
+            TEM4D(i, j, 1, tidx) = TEM4D(i, j, 2, tidx);
             // I'm technically ignoring an upper boundary condition
             // here, but we never really guarantee that we're at
             // the top of the model domain because we do a lot of subsetting.
@@ -651,16 +651,16 @@ __global__ void applyVortTendBC(datagrid *grid, integration_data *data, int tSta
 
     // This is a lower boundary condition, so only when k is 0.
     // Start with xvort. 
-    if (( i < NX+1) && ( j < NY+1) && ( k == 0)) {
+    if (( i < NX+1) && ( j < NY+1) && ( k == 1)) {
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             dum0 = data->tem1_4d_chunk;
-            TEM4D(i, j, 0, tidx) = TEM4D(i, j, 1, tidx);
+            TEM4D(i, j, 1, tidx) = TEM4D(i, j, 2, tidx);
             dum0 = data->tem2_4d_chunk;
-            TEM4D(i, j, 0, tidx) = TEM4D(i, j, 1, tidx);
+            TEM4D(i, j, 1, tidx) = TEM4D(i, j, 2, tidx);
             dum0 = data->tem3_4d_chunk;
-            TEM4D(i, j, 0, tidx) = TEM4D(i, j, 1, tidx);
+            TEM4D(i, j, 1, tidx) = TEM4D(i, j, 2, tidx);
             dum0 = data->tem4_4d_chunk;
-            TEM4D(i, j, 0, tidx) = TEM4D(i, j, 1, tidx);
+            TEM4D(i, j, 1, tidx) = TEM4D(i, j, 1, tidx);
             // I'm technically ignoring an upper boundary condition
             // here, but we never really guarantee that we're at
             // the top of the model domain because we do a lot of subsetting.
@@ -687,7 +687,7 @@ __global__ void doVortAvg(datagrid *grid, integration_data *data, int tStart, in
     int NZ = grid->NZ;
     float *buf0, *dum0;
 
-    if ((i < NX) && (j < NY) && (k < NZ)) {
+    if ((i < NX) && (j < NY) && (k < NZ) && (k > 0)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             // average the temporary arrays into the result arrays
@@ -727,7 +727,7 @@ __global__ void doXVortTiltAvg(datagrid *grid, integration_data *data, int tStar
 
     // We do the average for each array at a given point
     // and then finish the computation for the zvort tilt
-    if ((i < NX) && (j < NY) && (k < NZ)) {
+    if ((i < NX) && (j < NY) && (k < NZ) && (k > 0)) {
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             dum0 = data->tem1_4d_chunk;
             dudy = 0.25 * ( TEM4D(i, j, k, tidx) + TEM4D(i+1, j, k, tidx) + \
@@ -769,7 +769,7 @@ __global__ void doYVortTiltAvg(datagrid *grid, integration_data *data, int tStar
 
     // We do the average for each array at a given point
     // and then finish the computation for the zvort tilt
-    if ((i < NX) && (j < NY) && (k < NZ)) {
+    if ((i < NX) && (j < NY) && (k < NZ) && (k > 0)) {
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             dum0 = data->tem1_4d_chunk;
             dvdx = 0.25 * ( TEM4D(i, j, k, tidx) + TEM4D(i+1, j, k, tidx) + \
@@ -811,7 +811,7 @@ __global__ void doZVortTiltAvg(datagrid *grid, integration_data *data, int tStar
 
     // We do the average for each array at a given point
     // and then finish the computation for the zvort tilt
-    if ((i < NX) && (j < NY) && (k < NZ)) {
+    if ((i < NX) && (j < NY) && (k < NZ) && (k > 0)) {
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             dum0 = data->tem1_4d_chunk;
             dwdx = 0.25 * ( TEM4D(i, j, k, tidx) + TEM4D(i+1, j, k, tidx) + \
@@ -1047,18 +1047,17 @@ void cudaIntegrateParcels(datagrid *grid, integration_data *data, parcel_pos *pa
     gpuErrchk( cudaDeviceSynchronize() );
     gpuErrchk( cudaPeekAtLastError() );
 
-    /*
     // Calculate the three compionents of vorticity
     // and do the necessary averaging. This is a wrapper that
     // calls the necessary kernels and assigns the pointers
     // appropriately such that the "user" only has to call this method.
     doCalcVort(grid, data, tStart, tEnd, numBlocks, threadsPerBlock);
+    
 
     // Calculate the vorticity forcing terms for each of the 3 components.
     // This is a wrapper that calls the necessary kernels to compute the
     // derivatives and average them back to the scalar grid where necessary. 
     doCalcVortTend(grid, data, tStart, tEnd, numBlocks, threadsPerBlock);
-    */
     // Before integrating the trajectories, George Bryan sets some below-grid/surface conditions 
     // that we need to consider. This handles applying those boundary conditions. 
     applyMomentumBC<<<numBlocks, threadsPerBlock>>>(data->u_4d_chunk, data->v_4d_chunk, data->w_4d_chunk, NX, NY, NZ, tStart, tEnd);

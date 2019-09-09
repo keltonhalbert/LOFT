@@ -12,8 +12,8 @@ using namespace std;
 #define UF(ix) grid->uf[ix+1]
 #define VH(iy) grid->vh[iy+1]
 #define VF(iy) grid->vf[iy+1]
-#define MH(iz) grid->mh[iz+1]
-#define MF(iz) grid->mf[iz+1]
+#define MH(iz) grid->mh[iz]
+#define MF(iz) grid->mf[iz]
 
 // OK being a bit clever here ... fun with macros. This will make the
 // // code a lot easier to compare to native CM1 Fortran90 code that we are
