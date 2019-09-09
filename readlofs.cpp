@@ -131,7 +131,7 @@ void lofs_get_grid( datagrid *grid ) {
 
     float *zh_save = new float[nz];
     float *zf_save = new float[nz+1]; 
-    float *zh = new float[nz+2];
+    float *zh = new float[nz+1];
     float *zf = new float[nz+2];
     float dx, dy, dz;
     float rdx, rdy, rdz;
@@ -165,8 +165,8 @@ void lofs_get_grid( datagrid *grid ) {
     // going below the surface, the ghost zones are used as a 
     // reflective boundary. This attempts to recreate that. 
 
-    for (int iz = 0; iz <= grid->Z1; iz++) zh[iz+1] = zh_save[iz];
-    for (int iz = 0; iz <= grid->Z1+1; iz++) zf[iz+1] = zf_save[iz];
+    for (int iz = 0; iz < grid->Z1; iz++) zh[iz+1] = zh_save[iz];
+    for (int iz = 0; iz < grid->Z1+1; iz++) zf[iz+1] = zf_save[iz];
     // set the reflective ghost zone boundary here
     zf[0] = -zf[2]; //param.F
     zh[0] = -zh[1]; //param.F
@@ -198,8 +198,12 @@ void lofs_get_grid( datagrid *grid ) {
     for (int ix = grid->X0 - 1; ix <= grid->X1 + 1; ix++) UF(ix-grid->X0) = dx/(xhfull[ix]-xhfull[ix-1]);
     for (int iy = grid->Y0 - 1; iy <= grid->Y1 + 1; iy++) VH(iy-grid->Y0) = dy/(yffull[iy+1]-yffull[iy]);
     for (int iy = grid->Y0 - 1; iy <= grid->Y1 + 1; iy++) VF(iy-grid->Y0) = dy/(yhfull[iy]-yhfull[iy-1]);
-    for (int iz = grid->Z0; iz <= grid->Z1 + 1; iz++) MH(iz-grid->Z0) = dz/(zf[iz+1]-zf[iz]);
-    for (int iz = grid->Z0+1; iz < grid->Z1 + 1; iz++) MF(iz-grid->Z0) = dz/(zh[iz]-zf[iz-1]);
+
+    for (int iz = grid->Z0; iz < grid->Z1 + 1; iz++) MH(iz-grid->Z0) = dz/(zf[iz+1]-zf[iz]);
+    for (int iz = grid->Z0+1; iz < grid->Z1; iz++) MF(iz-grid->Z0) = dz/(zh[iz]-zf[iz-1]);
+    // param.F lower boundary
+    MF(0) = MF(1);
+
     
     for (int iz = grid->Z0; iz <= grid->Z1; iz++) grid->zh[iz-grid->Z0] = zh[iz];
 	for (int iy = grid->Y0; iy <= grid->Y1; iy++) grid->yh[iy-grid->Y0] = yhfull[iy];
