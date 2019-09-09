@@ -20,6 +20,90 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
    }
 }
 
+// rf is the rho field on the vertical staggered mesh. George does this for turbulence closure
+// since K terms and derivatives are all done on the W mesh. This is calculated by doing an extrapolation 
+// from the scalar mesh to the W staggered mesh. As described below, c1 and c2 are distances of the staggered mesh from
+// the scalar mesh normalized by the grid spacing dz, and since in an isotropic mesh the stagger is exactly half way
+// between scalar points, is 0.5. This is hard coded, but even in our stretch zone above 10km, it's really close
+// to 0.5. This is probably only violated for wildly stretched meshes, which we don't use because they're dumb.
+// Mostly just noting this for future reference, because this will need correcting for stretched meshes.
+__device__ void calcrf(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
+    int i = idx_4D[0];
+    int j = idx_4D[1];
+    int k = idx_4D[2];
+    int t = idx_4D[3];
+
+    // c1 and c2 are both 0.5 for isotropic staggered meshes. We are hard coding this to be the case here for our data,
+    // but is not necessarily true for all simulations.
+    float c1 = 0.5; float c2 = 0.5;
+    float *buf0;
+    if (k == 0) {
+        buf0 = data->rho_4d_chunk;
+        float rho1 = grid->rho0[k] + BUF4D(i, j, 0, t);
+        float rho2 = grid->rho0[k+1] + BUF4D(i, j, 1, t);
+        float rho3 = grid->rho0[k+2] + BUF4D(i, j, 2, t);
+        buf0 = data->rhof_4d_chunk;
+        BUF4D(i, j, k, t) = (1.75*rho1) - rho2 + (0.25*rho3);
+    }
+
+    else { 
+        buf0 = data->rho_4d_chunk;
+        float rho1 = grid->rho0[k-1] + BUF4D(i, j, k-1, t);
+        float rho2 = grid->rho0[k] + BUF4D(i, j, k, t);
+        buf0 = data->rhof_4d_chunk;
+        BUF4D(i, j, k, t) = ( c1*rho1 + c2*rho2);
+    }
+    // there's technically a top boundary condition in CM1, but we're ignoring because we hope to be far away from the upper boundary.
+}
+
+// calculate the deformation terms for the turbulence diagnostics. They get stored in the 
+// arrays later designated for tau stress tensors and variables are named according to
+// tensor notation
+__device__ void calcdef(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
+    int i = idx_4D[0];
+    int j = idx_4D[1];
+    int k = idx_4D[2];
+    int t = idx_4D[3];
+
+    float *dum0, *buf0;
+    float *ustag, *vstag, *wstag;
+    ustag = data->u_4d_chunk;
+    vstag = data->v_4d_chunk;
+    wstag = data->w_4d_chunk;
+
+    // tau 11. Derivative is du/dx and therefore the derivative on the staggered mesh results on the scalar point.
+    dum0 = data->tem1_4d_chunk;
+    TEM4D(i, j, k, t) = ( ( UA4D(i+1, j, k, t) - UA4D(i, j, k, t) ) / grid->dx ) * UH(i);
+
+    // tau 12. Derivatives are no longer on the staggered mesh since it's du/dy and dv/dx. Therefore, and
+    // averaging step must take place on the TEM array after calculation. 
+
+    dum0 = data->tem2_4d_chunk;
+    TEM4D(i, j, k, t) = ( ( ( UA4D(i, j, k, t) - UA4D(i, j-1, k, t) ) / grid->dy ) * VF(j) ) \
+                        + ( ( ( VA4D(i, j, k, t) - VA4D(i-1, j, k, t) ) / grid->dx ) * UF(i) );
+
+    // tau 22. Once again back on the scalar mesh. 
+    dum0 = data->tem3_4d_chunk;
+    TEM4D(i, j, k, t) = ( ( VA4D(i, j+1, k, t) - VA4D(i, j, k, t) ) / grid->dy ) * VH(j);
+
+    // tau 33. On the scalar mesh. 
+    dum0 = data->tem4_4d_chunk;
+    TEM4D(i, j, k, t) = ( ( WA4D(i, j, k+1, t) - WA4D(i, j, k, t) ) / grid->dz ) * MH(k);
+
+    if (k >= 1) {
+
+        // tau 13 is not on the scalar mesh
+        dum0 = data->tem6_4d_chunk;
+        TEM4D(i, j, k, t) = ( ( ( WA4D(i, j, k, t) - WA4D(i-1, j, k, t) ) / grid->dx ) * UF(i) ) \
+                           +( ( ( WA4D(i, j, k, t) - WA4D(i, j, k-1, t) ) / grid->dz ) * MF(k) );
+
+        // tau 23 is not on the scalar mesh
+        dum0 = data->tem6_4d_chunk;
+        TEM4D(i, j, k, t) = ( ( ( WA4D(i, j, k, t) - WA4D(i, j-1, k, t) ) / grid->dy ) * VF(j) ) \
+                           +( ( ( VA4D(i, j, k, t) - VA4D(i, j, k-1, t) ) / grid->dz ) * MF(k) );
+
+    }
+}
 
 /* Compute the Exner function / nondimensionalized pressure */
 __device__ void calc_pi(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
@@ -355,7 +439,7 @@ __global__ void calcvort(datagrid *grid, integration_data *data, int tStart, int
             calc_yvort(grid, data, idx_4D, NX, NY, NZ);
         }
     }
-    if ((i < NX+1) && (j < NY+1) && (k < NZ+1)) {
+    if ((i <= NX+1) && (j <= NY+1) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -902,11 +986,11 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             float pclzvortsolenoid = interp3D(grid, data->zvort_solenoid_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             
             // integrate X position forward by the U wind
-            point[0] += pcl_u * (1.0f/6.0f) * direct;
+            point[0] += pcl_u * (0.5) * direct;
             // integrate Y position forward by the V wind
-            point[1] += pcl_v * (1.0f/6.0f) * direct;
+            point[1] += pcl_v * (0.5) * direct;
             // integrate Z position forward by the W wind
-            point[2] += pcl_w * (1.0f/6.0f) * direct;
+            point[2] += pcl_w * (0.5) * direct;
             if ((pcl_u == -999.0) || (pcl_v == -999.0) || (pcl_w == -999.0)) {
                 printf("Warning: missing values detected at x: %f y:%f z:%f with ground bounds X0: %f Y0: %f Z0: %f X1: %f Y1: %f Z1: %f\n", \
                     point[0], point[1], point[2], grid->xh[0], grid->yh[0], grid->zh[0], grid->xh[grid->NX-1], grid->yh[grid->NY-1], grid->zh[grid->NZ-1]);
@@ -968,6 +1052,7 @@ void cudaIntegrateParcels(datagrid *grid, integration_data *data, parcel_pos *pa
     gpuErrchk( cudaDeviceSynchronize() );
     gpuErrchk( cudaPeekAtLastError() );
 
+    /*
     // Calculate the three compionents of vorticity
     // and do the necessary averaging. This is a wrapper that
     // calls the necessary kernels and assigns the pointers
@@ -978,10 +1063,10 @@ void cudaIntegrateParcels(datagrid *grid, integration_data *data, parcel_pos *pa
     // This is a wrapper that calls the necessary kernels to compute the
     // derivatives and average them back to the scalar grid where necessary. 
     doCalcVortTend(grid, data, tStart, tEnd, numBlocks, threadsPerBlock);
-
+    */
     // Before integrating the trajectories, George Bryan sets some below-grid/surface conditions 
     // that we need to consider. This handles applying those boundary conditions. 
-    applyMomentumBC<<<numBlocks, threadsPerBlock>>>(data->u_4d_chunk, data->v_4d_chunk, data->w_4d_chunk, NX, NY, NZ, tStart, tEnd);
+    //applyMomentumBC<<<numBlocks, threadsPerBlock>>>(data->u_4d_chunk, data->v_4d_chunk, data->w_4d_chunk, NX, NY, NZ, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize() );
     gpuErrchk( cudaPeekAtLastError() );
 

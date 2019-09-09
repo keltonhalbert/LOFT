@@ -106,6 +106,7 @@ void lofs_get_grid( datagrid *grid ) {
 	hid_t f_id;
 	int NX,NY,NZ;
     int nk, nj, ni;
+    int ngz = 1;
     // how many points are in our 
     // subset?
 	NX = grid->NX;
@@ -128,8 +129,10 @@ void lofs_get_grid( datagrid *grid ) {
     float *xffull = new float[nx+1];
     float *yffull = new float[ny+1];
 
+    //float *zh_save = new float[nz+2];
+    //float *zf_save = new float[nz+2]; 
+    float *zf = new float[nz+2];
     float *zh = new float[nz+2];
-    float *zf = new float[nz+2]; 
     float dx, dy, dz;
     float rdx, rdy, rdz;
     get0dfloat (f_id,(char *)"mesh/dx",&dx); rdx=1.0/dx;
@@ -156,7 +159,18 @@ void lofs_get_grid( datagrid *grid ) {
     get1dfloat(f_id, (char *)"basestate/rh0", rho0, 0, nz);
 
 
+    // We want to include the lower ghost zone in the vertical
+    // for dealing with the lower domain boundary (and potentially
+    // the upper domain boundary later). To prevent parcels from 
+    // going below the surface, the ghost zones are used as a 
+    // reflective boundary. This attempts to recreate that. 
 
+    /*
+    for (int iz = 1; iz <= grid->Z1+1; iz++) zh[iz] = zh_save[iz-1];
+    for (int iz = 1; iz <= grid->Z1+1; iz++) zf[iz] = zf_save[iz-1];
+    delete[] zf_save;
+    delete[] zh_save;
+    */
 
     // fill the z arrays with the subset portion
     // of the vertical dimension
@@ -164,7 +178,6 @@ void lofs_get_grid( datagrid *grid ) {
         grid->qv0[iz-grid->Z0] = qv0[iz];
         grid->th0[iz-grid->Z0] = th0[iz];
         grid->rho0[iz-grid->Z0] = rho0[iz];
-
     }
 
 
@@ -184,9 +197,11 @@ void lofs_get_grid( datagrid *grid ) {
     for (int ix = grid->X0 - 1; ix <= grid->X1 + 1; ix++) UF(ix-grid->X0) = dx/(xhfull[ix]-xhfull[ix-1]);
     for (int iy = grid->Y0 - 1; iy <= grid->Y1 + 1; iy++) VH(iy-grid->Y0) = dy/(yffull[iy+1]-yffull[iy]);
     for (int iy = grid->Y0 - 1; iy <= grid->Y1 + 1; iy++) VF(iy-grid->Y0) = dy/(yhfull[iy]-yhfull[iy-1]);
+    // set the reflective ghost zone boundary here
     //zf[0] = -zf[2]; //param.F
-    for (int iz = grid->Z0 - 1; iz <= grid->Z1 + 1; iz++) MH(iz-grid->Z0) = dz/(zf[iz+1]-zf[iz]);
-    for (int iz = grid->Z0 - 1; iz <= grid->Z1 + 1; iz++) MF(iz-grid->Z0) = dz/(zh[iz]-zf[iz-1]);
+    //zh[0] = -zh[1]; //param.F
+    for (int iz = grid->Z0; iz <= grid->Z1 + 1; iz++) MH(iz-grid->Z0) = dz/(zf[iz+1]-zf[iz]);
+    for (int iz = grid->Z0+1; iz <= grid->Z1 + 1; iz++) MF(iz-grid->Z0) = dz/(zh[iz]-zf[iz-1]);
     
     for (int iz = grid->Z0; iz <= grid->Z1; iz++) grid->zh[iz-grid->Z0] = zh[iz];
 	for (int iy = grid->Y0; iy <= grid->Y1; iy++) grid->yh[iy-grid->Y0] = yhfull[iy];

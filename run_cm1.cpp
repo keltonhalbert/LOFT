@@ -383,7 +383,7 @@ datagrid* loadMetadataAndGrid(string base_dir, parcel_pos *parcels, int rank) {
  * from the disk, provided previously allocated memory buffers
  * and the time requested in the dataset. 
  */
-void loadDataFromDisk(datagrid *requested_grid, float *ubuffer, float *vbuffer, float *wbuffer, \
+void loadDataFromDisk(datagrid *requested_grid, float *ustag, float *vstag, float *wstag, \
                         float *pbuffer, float *thbuffer, float *rhobuffer, float *khhbuffer, double t0) {
     // request 3D field!
     // u,v, and w are on their
@@ -394,9 +394,9 @@ void loadDataFromDisk(datagrid *requested_grid, float *ubuffer, float *vbuffer, 
     // grid bounds should be requested to accomodate the
     // data. 
     bool istag = true;
-    lofs_read_3dvar(requested_grid, ubuffer, (char *)"u", istag, t0);
-    lofs_read_3dvar(requested_grid, vbuffer, (char *)"v", istag, t0);
-    lofs_read_3dvar(requested_grid, wbuffer, (char *)"w", istag, t0);
+    lofs_read_3dvar(requested_grid, ustag, (char *)"u", istag, t0);
+    lofs_read_3dvar(requested_grid, vstag, (char *)"v", istag, t0);
+    lofs_read_3dvar(requested_grid, wstag, (char *)"w", istag, t0);
 
     // request additional fields for calculations
     istag = false;
@@ -405,6 +405,23 @@ void loadDataFromDisk(datagrid *requested_grid, float *ubuffer, float *vbuffer, 
     lofs_read_3dvar(requested_grid, rhobuffer, (char *)"rhopert", istag, t0);
     lofs_read_3dvar(requested_grid, khhbuffer, (char *)"khh", istag, t0);
 
+}
+
+/* This handles the vertical dimension offset so that we can
+ * include a lower ghost zone later on down the road*/
+void buffer_offset(datagrid *grid, float *ubufin, float *vbufin, float *wbufin, float *ubufout, float *vbufout, float *wbufout) {
+    int NX = grid->NX;
+    int NY = grid->NY;
+    int NZ = grid->NZ;
+    for (int i = 0; i < NX+2; i++) {
+        for (int j = 0; j < NY+2; j++) {
+            for (int k = NZ+1; k > 0; k--) {
+                ubufout[P3(i, j, k, NX, NY)] = ubufin[P3(i, j, k-1, NX, NY)];
+                vbufout[P3(i, j, k, NX, NY)] = vbufin[P3(i, j, k-1, NX, NY)];
+                wbufout[P3(i, j, k, NX, NY)] = wbufin[P3(i, j, k-1, NX, NY)];
+            }
+        }
+    }
 }
 
 /* Seed some parcels into the domain
@@ -571,10 +588,17 @@ int main(int argc, char **argv ) {
         // allocate space for U, V, and W arrays
         // for all ranks, because this is what
         // LOFS will return it's data subset to
-        float *ubuf, *vbuf, *wbuf, *pbuf, *thbuf, *rhobuf, *khhbuf;
+        float *ubuf_tem, *vbuf_tem, *wbuf_tem, *ubuf, *vbuf, *wbuf, *pbuf, *thbuf, *rhobuf, *khhbuf;
+        // These temporary buffers are our un-offset arrays
+        ubuf_tem = new float[N];
+        vbuf_tem = new float[N];
+        wbuf_tem = new float[N];
+        // These non temporary arrays are offset in the vertical by 1
+        // to account for potential ghost zone
         ubuf = new float[N];
         vbuf = new float[N];
         wbuf = new float[N];
+        // As far as I'm aware, these do not need to be offset
         pbuf = new float[N_scalar];
         thbuf = new float[N_scalar];
         rhobuf = new float[N_scalar];
@@ -591,11 +615,6 @@ int main(int argc, char **argv ) {
         integration_data *data;
         if (rank == 0) {
             data = allocate_integration_managed(N*size);
-            for (int i = 0; i < N*size; ++i) {
-                data->u_4d_chunk[i] = -9999.0;
-                data->v_4d_chunk[i] = -9999.0;
-                data->w_4d_chunk[i] = -9999.0;
-            }
         }
         else {
             data = new integration_data();
@@ -612,6 +631,7 @@ int main(int argc, char **argv ) {
         printf("TIMESTEP %d/%d %d %f\n", rank, size, rank + tChunk*size, alltimes[nearest_tidx + direct*( rank + tChunk*size)]);
         // load u, v, and w into memory
         loadDataFromDisk(requested_grid, ubuf, vbuf, wbuf, pbuf, thbuf, rhobuf, khhbuf, alltimes[nearest_tidx + direct*(rank + tChunk*size)]);
+        //buffer_offset(requested_grid, ubuf_tem, vbuf_tem, wbuf_tem, ubuf, vbuf, wbuf);
         
         // for MPI runs that load multiple time steps into memory,
         // communicate the data you've read into our 4D array
@@ -665,6 +685,9 @@ int main(int argc, char **argv ) {
             delete[] ubuf;
             delete[] vbuf;
             delete[] wbuf;
+            delete[] ubuf_tem;
+            delete[] vbuf_tem;
+            delete[] wbuf_tem;
             delete[] pbuf;
             delete[] thbuf;
             delete[] rhobuf;
@@ -682,6 +705,9 @@ int main(int argc, char **argv ) {
             delete[] ubuf;
             delete[] vbuf;
             delete[] wbuf;
+            delete[] ubuf_tem;
+            delete[] vbuf_tem;
+            delete[] wbuf_tem;
             delete[] pbuf;
             delete[] thbuf;
             delete[] rhobuf;

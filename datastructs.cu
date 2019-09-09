@@ -34,8 +34,9 @@ datagrid* allocate_grid_managed( int X0, int X1, int Y0, int Y1, int Z0, int Z1 
     cudaMallocManaged(&(grid->yf), (NY+1)*sizeof(float));
     cudaMallocManaged(&(grid->yh), NY*sizeof(float));
 
-    cudaMallocManaged(&(grid->zf), (NZ+1)*sizeof(float));
-    cudaMallocManaged(&(grid->zh), NZ*sizeof(float));
+    // +2 is +1 for stagger, +1 for potential bottom ghost zone
+    cudaMallocManaged(&(grid->zf), (NZ+2)*sizeof(float));
+    cudaMallocManaged(&(grid->zh), (NZ+2)*sizeof(float));
 
     cudaMallocManaged(&(grid->uf), (NX+2)*sizeof(float));
     cudaMallocManaged(&(grid->uh), (NX+2)*sizeof(float));
@@ -82,8 +83,8 @@ datagrid* allocate_grid_cpu( int X0, int X1, int Y0, int Y1, int Z0, int Z1 ) {
     grid->yf = new float[NY+1];
     grid->yh = new float[NY];
 
-    grid->zf = new float[NZ+1];
-    grid->zh = new float[NZ];
+    grid->zf = new float[NZ+2];
+    grid->zh = new float[NZ+2];
 
     grid->uf = new float[NX+2];
     grid->uh = new float[NX+2];

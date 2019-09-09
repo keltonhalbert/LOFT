@@ -95,12 +95,15 @@ struct integration_data {
     float *pres_4d_chunk;
     float *th_4d_chunk;
     float *rho_4d_chunk;
+    float *rhof_4d_chunk;
     float *khh_4d_chunk;
 
     float *tem1_4d_chunk;
     float *tem2_4d_chunk;
     float *tem3_4d_chunk;
     float *tem4_4d_chunk;
+    float *tem5_4d_chunk;
+    float *tem6_4d_chunk;
 
     float *xvort_4d_chunk;
     float *yvort_4d_chunk;

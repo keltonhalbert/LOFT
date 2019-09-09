@@ -52,8 +52,8 @@ __device__ __host__ void _nearest_grid_idx(float *point, datagrid *grid, int *id
 
 // calculate the 8 interpolation weights for a trilinear interpolation of a point inside of a cube.
 // Returns an array full of -1 if the requested poit is out of the domain bounds
-__host__ __device__ void _calc_weights(datagrid *grid, float *weights, \
-                                       float *point, int *idx_4D, bool ugrd, bool vgrd, bool wgrd) {
+__host__ __device__ void _calc_weights(datagrid *grid, float *weights, float *point, \
+                                       int *idx_4D, bool ugrd, bool vgrd, bool wgrd) {
 	int i, j, k;
 	float rx, ry, rz;
 	float w1, w2, w3, w4;
@@ -86,28 +86,29 @@ __host__ __device__ void _calc_weights(datagrid *grid, float *weights, \
         if (y_pt < grid->yh[idx_4D[1]]) {
             idx_4D[1] = idx_4D[1] - 1;
         }
-        if (z_pt < grid->zh[idx_4D[2]]) {
+        if ( (z_pt < grid->zh[idx_4D[2]]) && (idx_4D[2] != 0) ) {
             idx_4D[2] = idx_4D[2] - 1;
         }
         i = idx_4D[0]; j = idx_4D[1]; k = idx_4D[2];
 
-		rx = (x_pt - grid->xf[i]) / (grid->xf[i+1] - grid->xf[i]); 
-		ry = (y_pt - grid->yh[j]) / (grid->yh[j+1] - grid->yh[j]); 
+        rx = (x_pt - grid->xf[i]) / (grid->xf[i+1] - grid->xf[i]); 
+        ry = (y_pt - grid->yh[j]) / (grid->yh[j+1] - grid->yh[j]); 
         rz = (z_pt - grid->zh[k]) / (grid->zh[k+1] - grid->zh[k]); 
+        
 	}
 
     else if (vgrd) {
         if (x_pt < grid->xh[idx_4D[0]]) {
             idx_4D[0] = idx_4D[0] - 1;
         }
-        if (z_pt < grid->zh[idx_4D[2]]) {
+        if ( (z_pt < grid->zh[idx_4D[2]]) && (idx_4D[2] != 0) ) {
             idx_4D[2] = idx_4D[2] - 1;
         }
         i = idx_4D[0]; j = idx_4D[1]; k = idx_4D[2];
 
 
         rx = (x_pt - grid->xh[i]) / (grid->xh[i+1] - grid->xh[i]); 
-		ry = (y_pt - grid->yf[j]) / (grid->yf[j+1] - grid->yf[j]); 
+        ry = (y_pt - grid->yf[j]) / (grid->yf[j+1] - grid->yf[j]); 
         rz = (z_pt - grid->zh[k]) / (grid->zh[k+1] - grid->zh[k]); 
 
 	}
@@ -120,9 +121,9 @@ __host__ __device__ void _calc_weights(datagrid *grid, float *weights, \
             idx_4D[1] = idx_4D[1] - 1;
         }
         i = idx_4D[0]; j = idx_4D[1]; k = idx_4D[2];
-		rx = (x_pt - grid->xh[i]) / (grid->xh[i+1] - grid->xh[i]); 
-		ry = (y_pt - grid->yh[j]) / (grid->yh[j+1] - grid->yh[j]); 
-		rz = (z_pt - grid->zf[k]) / (grid->zf[k+1] - grid->zf[k]); 
+        rx = (x_pt - grid->xh[i]) / (grid->xh[i+1] - grid->xh[i]); 
+        ry = (y_pt - grid->yh[j]) / (grid->yh[j+1] - grid->yh[j]); 
+        rz = (z_pt - grid->zf[k]) / (grid->zf[k+1] - grid->zf[k]); 
 
 	}
 
@@ -134,14 +135,14 @@ __host__ __device__ void _calc_weights(datagrid *grid, float *weights, \
         if (y_pt < grid->yh[idx_4D[1]]) {
             idx_4D[1] = idx_4D[1] - 1;
         }
-        if (z_pt < grid->zh[idx_4D[2]]) {
+        if ( (z_pt < grid->zh[idx_4D[2]]) && (idx_4D[2] != 0) ) {
             idx_4D[2] = idx_4D[2] - 1;
         }
         i = idx_4D[0]; j = idx_4D[1]; k = idx_4D[2];
     
-		rx = (x_pt - grid->xh[i]) / (grid->xh[i+1] - grid->xh[i]); 
-		ry = (y_pt - grid->yh[j]) / (grid->yh[j+1] - grid->yh[j]); 
-		rz = (z_pt - grid->zh[k]) / (grid->zh[k+1] - grid->zh[k]); 
+        rx = (x_pt - grid->xh[i]) / (grid->xh[i+1] - grid->xh[i]); 
+        ry = (y_pt - grid->yh[j]) / (grid->yh[j+1] - grid->yh[j]); 
+        rz = (z_pt - grid->zh[k]) / (grid->zh[k+1] - grid->zh[k]); 
     }
 
 
@@ -268,16 +269,12 @@ __host__ __device__ float interp3D(datagrid *grid, float *data_grd, float *point
 
     // get the interpolation weights
     _calc_weights(grid, weights, point, idx_4D, ugrd, vgrd, wgrd); 
-    //printf("Weights: %f %f %f %f %f %f %f %f \t", weights[0], weights[1], weights[2], weights[3], weights[4], weights[5], weights[6], weights[7]);
-    if (idx_4D[2] == -1) {
-        printf("k = %d zf[0] = %f zh[0] = %f\n", idx_4D[2], grid->zf[0], grid->zh[0]);
-    }
 
     // interpolate the value
     output_val = _tri_interp(data_grd, weights, ugrd, vgrd, wgrd, idx_4D, grid->NX, grid->NY, grid->NZ);
 
     if (output_val == -999.0) {
-        //printf("val = %f x = %f y = %f z = %f i = %d j = %d k = %d\n", output_val, point[0], point[1], point[2], idx_4D[0], idx_4D[1], idx_4D[2]);
+        printf("val = %f x = %f y = %f z = %f i = %d j = %d k = %d\n", output_val, point[0], point[1], point[2], idx_4D[0], idx_4D[1], idx_4D[2]);
     }
 
     return output_val;
