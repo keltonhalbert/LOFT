@@ -120,7 +120,57 @@ __device__ void calcdef(datagrid *grid, integration_data *data, int *idx_4D, int
                            +( ( ( VA4D(i, j, k, t) - VA4D(i, j, k-1, t) ) / grid->dz ) * MF(k) );
 
     }
+}
 
+__device__ void gettau(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
+    int i = idx_4D[0];
+    int j = idx_4D[1];
+    int k = idx_4D[2];
+    int t = idx_4D[3];
+
+    float *dum0, *buf0, *wstag, *kmstag;
+
+    kmstag = data->kmh_4d_chunk;
+    buf0 = data->rho_4d_chunk;
+
+    // tau 11
+    dum0 = data->tem1_4d_chunk;
+    TEM4D(i, j, k, t) = TEM4D(i, j, k, t) * (KM4D(i, j, k, t) + KM4D(i, j, k+1, t))*BUF4D(i, j, k, t);
+    // tau 22
+    dum0 = data->tem3_4d_chunk;
+    TEM4D(i, j, k, t) = TEM4D(i, j, k, t) * (KM4D(i, j, k, t) + KM4D(i, j, k+1, t))*BUF4D(i, j, k, t);
+    // tau 33
+    dum0 = data->tem4_4d_chunk;
+    TEM4D(i, j, k, t) = TEM4D(i, j, k, t) * (KM4D(i, j, k, t) + KM4D(i, j, k+1, t))*BUF4D(i, j, k, t);
+
+    // tau 12
+    dum0 = data->tem2_4d_chunk;
+    TEM4D(i, j, k, t) = TEM4D(i, j, k, t) * 0.03125 * \
+                        ( ( ( KM4D(i-1, j-1, k, t) + KM4D(i, j, k, t) ) + ( KM4D(i-1, j, k, t) + KM4D(i, j-1, k, t) ) ) \
+                         +( ( KM4D(i-1, j-1, k+1, t) + KM4D(i, j, k+1, t) ) + ( KM4D(i-1, j, k+1, t) + KM4D(i, j-1, k+1, t) ) ) ) \
+                         *( ( BUF4D(i-1, j-1, k, t) + BUF4D(i, j, k, t) ) + (BUF4D(i-1, j, k, t) + BUF4D(i, j-1, k, t) ) );
+    // we'll go ahead and apply the zero strain condition on the lower boundary/ghost zone
+    // for tau 13 and tau 23
+    // tau 13 boundary
+    dum0 = data->tem5_4d_chunk;
+    TEM4D(i, j, 0, t) = 0.0;
+    // tau 23 boundary
+    dum0 = data->tem6_4d_chunk;
+    TEM4D(i, j, 0, t) = 0.0;
+
+    if ((k >= 2)) {
+        // tau 13
+        dum0 = data->tem5_4d_chunk;
+        wstag = data->rhof_4d_chunk; // rather than make a new maro, we'll just use the WA4D macro
+        TEM4D(i, j, k, t) = TEM4D(i, j, k, t) * 0.25 \
+                                *( KM4D(i-1, j, k, t) + KM4D(i, j, k, t) ) \
+                                *( WA4D(i-1, j, k, t) + WA4D(i, j, k, t) ); 
+        // tau 23
+        dum0 = data->tem6_4d_chunk;
+        TEM4D(i, j, k, t) = TEM4D(i, j, k, t) * 0.25 \
+                                *( KM4D(i, j-1, k, t) + KM4D(i, j, k, t) ) \
+                                *( WA4D(i, j-1, k, t) + WA4D(i, j, k, t) ); 
+    }
 }
 
 /* Compute the Exner function / nondimensionalized pressure */
@@ -458,6 +508,25 @@ __global__ void doCalcDef(datagrid *grid, integration_data *data, int tStart, in
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calcdef(grid, data, idx_4D, NX, NY, NZ);
+        }
+    }
+}
+
+__global__ void doGetTau(datagrid *grid, integration_data *data, int tStart, int tEnd) {
+    // get our 3D index based on our blocks/threads
+    int i = (blockIdx.x*blockDim.x) + threadIdx.x;
+    int j = (blockIdx.y*blockDim.y) + threadIdx.y;
+    int k = (blockIdx.z*blockDim.z) + threadIdx.z;
+    int idx_4D[4];
+    int NX = grid->NX;
+    int NY = grid->NY;
+    int NZ = grid->NZ;
+
+    idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
+    if ((i < NX+1) && (j < NY+1) && (k < NZ+1) && (i > 0) && (j > 0) && (k >=1)) {
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            idx_4D[3] = tidx;
+            gettau(grid, data, idx_4D, NX, NY, NZ);
         }
     }
 }
@@ -989,6 +1058,9 @@ void doCalcVortTend(datagrid *grid, integration_data *data, int tStart, int tEnd
     gpuErrchk(cudaDeviceSynchronize());
     gpuErrchk( cudaPeekAtLastError() );
     doCalcDef<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize());
+    gpuErrchk( cudaPeekAtLastError() );
+    doGetTau<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize());
     gpuErrchk( cudaPeekAtLastError() );
 

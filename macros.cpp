@@ -20,6 +20,7 @@ using namespace std;
 // // copying anyway. I adopt TEM for his tem array, UA for ua etc.
 //
 #define BUF4D(x,y,z,t) buf0[P4(x,y,z,t,NX,NY,NZ)]
+#define BUF24D(x,y,z,t) buf1[P4(x,y,z,t,NX,NY,NZ)]
 #define TEM4D(x,y,z,t) dum0[P4(x,y,z,t,NX+1,NY+1,NZ+1)]
 #define  UA4D(x,y,z,t) ustag[P4(x+1,y+1,z,t,NX+2,NY+2,NZ+2)]
 #define  VA4D(x,y,z,t) vstag[P4(x+1,y+1,z,t,NX+2,NY+2,NZ+2)]
