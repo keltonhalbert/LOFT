@@ -938,16 +938,26 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
         bool is_vgrd = false;
         bool is_wgrd = false;
 
+        float pcl_x, pcl_y, pcl_z;
         float pcl_u, pcl_v, pcl_w;
+        float uu1, vv1, ww1;
         float point[3];
 
         // loop over the number of time steps we are
         // integrating over
+        float dt = 0.5;
+        float dt2 = dt / 2.;
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
+
+            // get the current values of various fields interpolated
+            // to the parcel before we integrate using the RK2 step
             point[0] = parcels->xpos[PCL(tidx, parcel_id, totTime)];
             point[1] = parcels->ypos[PCL(tidx, parcel_id, totTime)];
             point[2] = parcels->zpos[PCL(tidx, parcel_id, totTime)];
-            //printf("My Point Is: X = %f Y = %f Z = %f t = %d nParcels = %d\n", point[0], point[1], point[2], tidx, parcels->nParcels);
+            pcl_x = point[0];
+            pcl_y = point[1];
+            pcl_z = point[2];
+
 
             is_ugrd = true;
             is_vgrd = false;
@@ -963,7 +973,6 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             is_vgrd = false;
             is_wgrd = true;
             pcl_w = interp3D(grid, data->w_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-            //printf("pcl u: %f pcl v: %f pcl w: %f\n", pcl_u, pcl_v, pcl_w);
 
             // interpolate scalar values to the parcel point
             is_ugrd = false;
@@ -979,23 +988,7 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             float pclyvortstretch = interp3D(grid, data->yvstretch_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             float pclzvortstretch = interp3D(grid, data->zvstretch_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             float pclzvortsolenoid = interp3D(grid, data->zvort_solenoid_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-            
-            // integrate X position forward by the U wind
-            point[0] += pcl_u * (0.5) * direct;
-            // integrate Y position forward by the V wind
-            point[1] += pcl_v * (0.5) * direct;
-            // integrate Z position forward by the W wind
-            point[2] += pcl_w * (0.5) * direct;
-            if ((pcl_u == -999.0) || (pcl_v == -999.0) || (pcl_w == -999.0)) {
-                printf("Warning: missing values detected at x: %f y:%f z:%f with ground bounds X0: %f Y0: %f Z0: %f X1: %f Y1: %f Z1: %f\n", \
-                    point[0], point[1], point[2], grid->xh[0], grid->yh[0], grid->zh[0], grid->xh[grid->NX-1], grid->yh[grid->NY-1], grid->zh[grid->NZ-1]);
-                return;
-            }
 
-
-            parcels->xpos[PCL(tidx+1, parcel_id, totTime)] = point[0]; 
-            parcels->ypos[PCL(tidx+1, parcel_id, totTime)] = point[1];
-            parcels->zpos[PCL(tidx+1, parcel_id, totTime)] = point[2];
             parcels->pclu[PCL(tidx,   parcel_id, totTime)] = pcl_u;
             parcels->pclv[PCL(tidx,   parcel_id, totTime)] = pcl_v;
             parcels->pclw[PCL(tidx,   parcel_id, totTime)] = pcl_w;
@@ -1011,8 +1004,62 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             parcels->pclyvortstretch[PCL(tidx, parcel_id, totTime)] = pclyvortstretch;
             parcels->pclzvortstretch[PCL(tidx, parcel_id, totTime)] = pclzvortstretch;
             parcels->pclzvortsolenoid[PCL(tidx, parcel_id, totTime)] = pclzvortsolenoid;
-        }
-    }
+
+            // Now we use an RK2 scheme to integrate forward
+            // in time. Values are interpolated to the parcel 
+            // at the beginning of the next data time step. 
+            for (int nkrp = 1; nkrp <= 2; ++nkrp) {
+                
+                if (nkrp == 1) {
+                    // integrate X position forward by the U wind
+                    point[0] = pcl_x + pcl_u * dt * direct;
+                    // integrate Y position forward by the V wind
+                    point[1] = pcl_y + pcl_v * dt * direct;
+                    // integrate Z position forward by the W wind
+                    point[2] = pcl_z + pcl_w * dt * direct;
+                    if ((pcl_u == -999.0) || (pcl_v == -999.0) || (pcl_w == -999.0)) {
+                        printf("Warning: missing values detected at x: %f y:%f z:%f with ground bounds X0: %f Y0: %f Z0: %f X1: %f Y1: %f Z1: %f\n", \
+                            point[0], point[1], point[2], grid->xh[0], grid->yh[0], grid->zh[0], grid->xh[grid->NX-1], grid->yh[grid->NY-1], grid->zh[grid->NZ-1]);
+                        return;
+                    }
+                    uu1 = pcl_u;
+                    vv1 = pcl_v;
+                    ww1 = pcl_w;
+                }
+                else {
+                    is_ugrd = true;
+                    is_vgrd = false;
+                    is_wgrd = false;
+                    pcl_u = interp3D(grid, data->u_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+
+                    is_ugrd = false;
+                    is_vgrd = true;
+                    is_wgrd = false;
+                    pcl_v = interp3D(grid, data->v_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+
+                    is_ugrd = false;
+                    is_vgrd = false;
+                    is_wgrd = true;
+                    pcl_w = interp3D(grid, data->w_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+
+                    // integrate X position forward by the U wind
+                    point[0] = pcl_x + (pcl_u + uu1) * dt2 * direct;
+                    // integrate Y position forward by the V wind
+                    point[1] = pcl_y + (pcl_v + vv1) * dt2 * direct;
+                    // integrate Z position forward by the W wind
+                    point[2] = pcl_z + (pcl_w + ww1) * dt2 * direct;
+                    if ((pcl_u == -999.0) || (pcl_v == -999.0) || (pcl_w == -999.0)) {
+                        printf("Warning: missing values detected at x: %f y:%f z:%f with ground bounds X0: %f Y0: %f Z0: %f X1: %f Y1: %f Z1: %f\n", \
+                            point[0], point[1], point[2], grid->xh[0], grid->yh[0], grid->zh[0], grid->xh[grid->NX-1], grid->yh[grid->NY-1], grid->zh[grid->NZ-1]);
+                        return;
+                    }
+                }
+            } // end RK loop
+            parcels->xpos[PCL(tidx+1, parcel_id, totTime)] = point[0]; 
+            parcels->ypos[PCL(tidx+1, parcel_id, totTime)] = point[1];
+            parcels->zpos[PCL(tidx+1, parcel_id, totTime)] = point[2];
+        } // end time loop
+    } // end index check
 }
 
 /*This function handles allocating memory on the GPU, transferring the CPU
