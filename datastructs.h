@@ -99,6 +99,13 @@ struct integration_data {
     float *khh_4d_chunk;
     float *kmh_4d_chunk;
 
+    float *tau11_4d_chunk;
+    float *tau22_4d_chunk;
+    float *tau33_4d_chunk;
+    float *tau12_4d_chunk;
+    float *tau13_4d_chunk;
+    float *tau23_4d_chunk;
+
     float *tem1_4d_chunk;
     float *tem2_4d_chunk;
     float *tem3_4d_chunk;
