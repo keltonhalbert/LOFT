@@ -37,19 +37,24 @@ __device__ void calcrf(datagrid *grid, integration_data *data, int *idx_4D, int 
     // but is not necessarily true for all simulations.
     float c1 = 0.5; float c2 = 0.5;
     float *buf0;
-    if (k == 0) {
+    if (k == 1) {
         buf0 = data->rho_4d_chunk;
-        float rho1 = grid->rho0[k] + BUF4D(i, j, 0, t);
-        float rho2 = grid->rho0[k+1] + BUF4D(i, j, 1, t);
-        float rho3 = grid->rho0[k+2] + BUF4D(i, j, 2, t);
+        // I know this is confusing, but the base state
+        // variables have no knowledge of the ghost zone
+        // in the data. So base state arrays are "zero indexed"
+        // while 3D/4D arrays sould be considered "one indexed"
+        float rho1 = grid->rho0[0] + BUF4D(i, j, 1, t);
+        float rho2 = grid->rho0[1] + BUF4D(i, j, 2, t);
+        float rho3 = grid->rho0[2] + BUF4D(i, j, 3, t);
         buf0 = data->rhof_4d_chunk;
         BUF4D(i, j, k, t) = (1.75*rho1) - rho2 + (0.25*rho3);
     }
 
     else { 
         buf0 = data->rho_4d_chunk;
-        float rho1 = grid->rho0[k-1] + BUF4D(i, j, k-1, t);
-        float rho2 = grid->rho0[k] + BUF4D(i, j, k, t);
+        // see above regarding base state arrays
+        float rho1 = grid->rho0[k-2] + BUF4D(i, j, k-1, t);
+        float rho2 = grid->rho0[k-1] + BUF4D(i, j, k, t);
         buf0 = data->rhof_4d_chunk;
         BUF4D(i, j, k, t) = ( c1*rho1 + c2*rho2);
     }
@@ -71,29 +76,41 @@ __device__ void calcdef(datagrid *grid, integration_data *data, int *idx_4D, int
     vstag = data->v_4d_chunk;
     wstag = data->w_4d_chunk;
 
-    // tau 11. Derivative is du/dx and therefore the derivative on the staggered mesh results on the scalar point.
-    dum0 = data->tem1_4d_chunk;
-    TEM4D(i, j, k, t) = ( ( UA4D(i+1, j, k, t) - UA4D(i, j, k, t) ) / grid->dx ) * UH(i);
+    // apply the zero strain condition for free slip to out subsurface/ghost zone
+    if (k == 1) {
+        // tau 11. Derivative is du/dx and therefore the derivative on the staggered mesh results on the scalar point.
+        dum0 = data->tem1_4d_chunk;
+        TEM4D(i, j, k, t) = ( ( UA4D(i+1, j, k, t) - UA4D(i, j, k, t) ) / grid->dx ) * UH(i);
 
-    // tau 12. Derivatives are no longer on the staggered mesh since it's du/dy and dv/dx. Therefore, and
-    // averaging step must take place on the TEM array after calculation. 
+        // tau 12. Derivatives are no longer on the staggered mesh since it's du/dy and dv/dx. Therefore, and
+        // averaging step must take place on the TEM array after calculation. 
 
-    dum0 = data->tem2_4d_chunk;
-    TEM4D(i, j, k, t) = ( ( ( UA4D(i, j, k, t) - UA4D(i, j-1, k, t) ) / grid->dy ) * VF(j) ) \
-                        + ( ( ( VA4D(i, j, k, t) - VA4D(i-1, j, k, t) ) / grid->dx ) * UF(i) );
+        dum0 = data->tem2_4d_chunk;
+        TEM4D(i, j, k, t) = ( ( ( UA4D(i, j, k, t) - UA4D(i, j-1, k, t) ) / grid->dy ) * VF(j) ) \
+                            + ( ( ( VA4D(i, j, k, t) - VA4D(i-1, j, k, t) ) / grid->dx ) * UF(i) );
 
-    // tau 22. Once again back on the scalar mesh. 
-    dum0 = data->tem3_4d_chunk;
-    TEM4D(i, j, k, t) = ( ( VA4D(i, j+1, k, t) - VA4D(i, j, k, t) ) / grid->dy ) * VH(j);
+        // tau 22. Once again back on the scalar mesh. 
+        dum0 = data->tem3_4d_chunk;
+        TEM4D(i, j, k, t) = ( ( VA4D(i, j+1, k, t) - VA4D(i, j, k, t) ) / grid->dy ) * VH(j);
 
-    // tau 33. On the scalar mesh. 
-    dum0 = data->tem4_4d_chunk;
-    TEM4D(i, j, k, t) = ( ( WA4D(i, j, k+1, t) - WA4D(i, j, k, t) ) / grid->dz ) * MH(k);
+        // tau 33. On the scalar mesh. 
+        dum0 = data->tem4_4d_chunk;
+        TEM4D(i, j, k, t) = ( ( WA4D(i, j, k+1, t) - WA4D(i, j, k, t) ) / grid->dz ) * MH(k);
 
-    if (k >= 1) {
+        // we'll go ahead and apply the zero strain condition on the lower boundary/ghost zone
+        // for tau 13 and tau 23
+        // tau 13 boundary
+        dum0 = data->tem5_4d_chunk;
+        TEM4D(i, j, 0, t) = 0.0
+        // tau 23 boundary
+        dum0 = data->tem6_4d_chunk;
+        TEM4D(i, j, 0, t) = 0.0
+    }
+
+    if (k > 1) {
 
         // tau 13 is not on the scalar mesh
-        dum0 = data->tem6_4d_chunk;
+        dum0 = data->tem5_4d_chunk;
         TEM4D(i, j, k, t) = ( ( ( WA4D(i, j, k, t) - WA4D(i-1, j, k, t) ) / grid->dx ) * UF(i) ) \
                            +( ( ( WA4D(i, j, k, t) - WA4D(i, j, k-1, t) ) / grid->dz ) * MF(k) );
 
@@ -103,6 +120,7 @@ __device__ void calcdef(datagrid *grid, integration_data *data, int *idx_4D, int
                            +( ( ( VA4D(i, j, k, t) - VA4D(i, j, k-1, t) ) / grid->dz ) * MF(k) );
 
     }
+
 }
 
 /* Compute the Exner function / nondimensionalized pressure */
@@ -406,6 +424,43 @@ __global__ void applyMomentumBC(float *ustag, float *vstag, float *wstag, int NX
     }
 }
 
+__global__ void doCalcrf(datagrid *grid, integration_data *data, int tStart, int tEnd) {
+    // get our 3D index based on our blocks/threads
+    int i = (blockIdx.x*blockDim.x) + threadIdx.x;
+    int j = (blockIdx.y*blockDim.y) + threadIdx.y;
+    int k = (blockIdx.z*blockDim.z) + threadIdx.z;
+    int idx_4D[4];
+    int NX = grid->NX;
+    int NY = grid->NY;
+    int NZ = grid->NZ;
+
+    idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
+    if ((i < NX+1) && (j < NY+1) && (k < NZ+1) && (k >=1)) {
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            idx_4D[3] = tidx;
+            calcrf(grid, data, idx_4D, NX, NY, NZ);
+        }
+    }
+}
+
+__global__ void doCalcDef(datagrid *grid, integration_data *data, int tStart, int tEnd) {
+    // get our 3D index based on our blocks/threads
+    int i = (blockIdx.x*blockDim.x) + threadIdx.x;
+    int j = (blockIdx.y*blockDim.y) + threadIdx.y;
+    int k = (blockIdx.z*blockDim.z) + threadIdx.z;
+    int idx_4D[4];
+    int NX = grid->NX;
+    int NY = grid->NY;
+    int NZ = grid->NZ;
+
+    idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
+    if ((i < NX+1) && (j < NY+1) && (k < NZ+1) && (k >=1)) {
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            idx_4D[3] = tidx;
+            calcdef(grid, data, idx_4D, NX, NY, NZ);
+        }
+    }
+}
 
 __global__ void calcvort(datagrid *grid, integration_data *data, int tStart, int tEnd) {
     // get our 3D index based on our blocks/threads
@@ -416,10 +471,9 @@ __global__ void calcvort(datagrid *grid, integration_data *data, int tStart, int
     int NX = grid->NX;
     int NY = grid->NY;
     int NZ = grid->NZ;
-    //printf("%i, %i, %i\n", i, j, k);
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX) && (j < NY+1) && (k > 1) && (k < NZ+1)) {
+    if ((i < NX+1) && (j < NY+1) && (k > 1) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -427,14 +481,14 @@ __global__ void calcvort(datagrid *grid, integration_data *data, int tStart, int
         }
     }
 
-    if ((i < NX+1) && (j < NY) && (k > 1) && (k < NZ+1)) {
+    if ((i < NX+1) && (j < NY+1) && (k > 1) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calc_yvort(grid, data, idx_4D, NX, NY, NZ);
         }
     }
-    if ((i <= NX+1) && (j <= NY+1) && (k > 0) && (k < NZ+1)) {
+    if ((i < NX+2) && (j < NY+2) && (k > 0) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -597,6 +651,14 @@ __global__ void zeroTemArrays(datagrid *grid, integration_data *data, int tStart
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             TEM4D(i, j, k, tidx) = 0.0;
         }
+        dum0 = data->tem5_4d_chunk;
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            TEM4D(i, j, k, tidx) = 0.0;
+        }
+        dum0 = data->tem6_4d_chunk;
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            TEM4D(i, j, k, tidx) = 0.0;
+        }
     }
 }
 
@@ -660,7 +722,7 @@ __global__ void applyVortTendBC(datagrid *grid, integration_data *data, int tSta
             dum0 = data->tem3_4d_chunk;
             TEM4D(i, j, 1, tidx) = TEM4D(i, j, 2, tidx);
             dum0 = data->tem4_4d_chunk;
-            TEM4D(i, j, 1, tidx) = TEM4D(i, j, 1, tidx);
+            TEM4D(i, j, 1, tidx) = TEM4D(i, j, 2, tidx);
             // I'm technically ignoring an upper boundary condition
             // here, but we never really guarantee that we're at
             // the top of the model domain because we do a lot of subsetting.
@@ -862,6 +924,7 @@ void doCalcVort(datagrid *grid, integration_data *data, int tStart, int tEnd, di
     doVortAvg<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize());
     gpuErrchk( cudaPeekAtLastError() );
+
     zeroTemArrays<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize());
     gpuErrchk( cudaPeekAtLastError() );
@@ -921,6 +984,13 @@ void doCalcVortTend(datagrid *grid, integration_data *data, int tStart, int tEnd
     gpuErrchk(cudaDeviceSynchronize());
     gpuErrchk( cudaPeekAtLastError() );
 
+    // Do the SGS turbulence closure calculations
+    doCalcrf<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize());
+    gpuErrchk( cudaPeekAtLastError() );
+    doCalcDef<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize());
+    gpuErrchk( cudaPeekAtLastError() );
 
     calczvortsolenoid<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize());
@@ -1008,8 +1078,7 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             // Now we use an RK2 scheme to integrate forward
             // in time. Values are interpolated to the parcel 
             // at the beginning of the next data time step. 
-            for (int nkrp = 1; nkrp <= 2; ++nkrp) {
-                
+            for (int nkrp = 1; nkrp <= 2; ++nkrp) {        
                 if (nkrp == 1) {
                     // integrate X position forward by the U wind
                     point[0] = pcl_x + pcl_u * dt * direct;
