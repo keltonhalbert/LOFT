@@ -24,6 +24,8 @@ using namespace std;
 #define  UA4D(x,y,z,t) ustag[P4(x+1,y+1,z,t,NX+2,NY+2,NZ+2)]
 #define  VA4D(x,y,z,t) vstag[P4(x+1,y+1,z,t,NX+2,NY+2,NZ+2)]
 #define  WA4D(x,y,z,t) wstag[P4(x+1,y+1,z,t,NX+2,NY+2,NZ+2)]
+#define  KH4D(x,y,z,t) khstag[P4(x+1,y+1,z,t,NX+2,NY+2,NZ+2)]
+#define  KM4D(x,y,z,t) kmstag[P4(x+1,y+1,z,t,NX+2,NY+2,NZ+2)]
 
 #define PCL(t,p,mt) (((p)*(mt))+(t))
 // stole this define from LOFS

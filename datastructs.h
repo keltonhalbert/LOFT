@@ -97,6 +97,7 @@ struct integration_data {
     float *rho_4d_chunk;
     float *rhof_4d_chunk;
     float *khh_4d_chunk;
+    float *kmh_4d_chunk;
 
     float *tem1_4d_chunk;
     float *tem2_4d_chunk;

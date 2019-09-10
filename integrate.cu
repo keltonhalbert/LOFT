@@ -101,10 +101,10 @@ __device__ void calcdef(datagrid *grid, integration_data *data, int *idx_4D, int
         // for tau 13 and tau 23
         // tau 13 boundary
         dum0 = data->tem5_4d_chunk;
-        TEM4D(i, j, 0, t) = 0.0
+        TEM4D(i, j, 0, t) = 0.0;
         // tau 23 boundary
         dum0 = data->tem6_4d_chunk;
-        TEM4D(i, j, 0, t) = 0.0
+        TEM4D(i, j, 0, t) = 0.0;
     }
 
     if (k > 1) {
