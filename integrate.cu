@@ -133,22 +133,27 @@ __device__ void gettau(datagrid *grid, integration_data *data, int *idx_4D, int 
     kmstag = data->kmh_4d_chunk;
     buf0 = data->rho_4d_chunk;
 
+    // NOTE: Base state arrays have a different grid index to them because there is no ghost zone.
+    // For example, rho0[0] corresponds to zh[1]. We need to be careful and make sure we offset 
+    // our indices appropriately
+
     // tau 11
     dum0 = data->tem1_4d_chunk;
-    TEM4D(i, j, k, t) = TEM4D(i, j, k, t) * (KM4D(i, j, k, t) + KM4D(i, j, k+1, t))*BUF4D(i, j, k, t);
+    TEM4D(i, j, k, t) = TEM4D(i, j, k, t) * (KM4D(i, j, k, t) + KM4D(i, j, k+1, t))*(BUF4D(i, j, k, t) + grid->rho0[k-1]);
     // tau 22
     dum0 = data->tem3_4d_chunk;
-    TEM4D(i, j, k, t) = TEM4D(i, j, k, t) * (KM4D(i, j, k, t) + KM4D(i, j, k+1, t))*BUF4D(i, j, k, t);
+    TEM4D(i, j, k, t) = TEM4D(i, j, k, t) * (KM4D(i, j, k, t) + KM4D(i, j, k+1, t))*(BUF4D(i, j, k, t) + grid->rho0[k-1]);
     // tau 33
     dum0 = data->tem4_4d_chunk;
-    TEM4D(i, j, k, t) = TEM4D(i, j, k, t) * (KM4D(i, j, k, t) + KM4D(i, j, k+1, t))*BUF4D(i, j, k, t);
+    TEM4D(i, j, k, t) = TEM4D(i, j, k, t) * (KM4D(i, j, k, t) + KM4D(i, j, k+1, t))*(BUF4D(i, j, k, t) + grid->rho0[k-1]);
 
     // tau 12
     dum0 = data->tem2_4d_chunk;
     TEM4D(i, j, k, t) = TEM4D(i, j, k, t) * 0.03125 * \
                         ( ( ( KM4D(i-1, j-1, k, t) + KM4D(i, j, k, t) ) + ( KM4D(i-1, j, k, t) + KM4D(i, j-1, k, t) ) ) \
                          +( ( KM4D(i-1, j-1, k+1, t) + KM4D(i, j, k+1, t) ) + ( KM4D(i-1, j, k+1, t) + KM4D(i, j-1, k+1, t) ) ) ) \
-                         *( ( BUF4D(i-1, j-1, k, t) + BUF4D(i, j, k, t) ) + (BUF4D(i-1, j, k, t) + BUF4D(i, j-1, k, t) ) );
+                         *( ( (BUF4D(i-1, j-1, k, t) + grid->rho0[k-1]) + (BUF4D(i, j, k, t) + grid->rho0[k-1]) ) \
+                           + ((BUF4D(i-1, j, k, t) + grid->rho0[k-1]) + (BUF4D(i, j-1, k, t) + grid->rho0[k-1]) ) );
     // we'll go ahead and apply the zero strain condition on the lower boundary/ghost zone
     // for tau 13 and tau 23
     // tau 13 boundary
@@ -164,12 +169,12 @@ __device__ void gettau(datagrid *grid, integration_data *data, int *idx_4D, int 
         wstag = data->rhof_4d_chunk; // rather than make a new maro, we'll just use the WA4D macro
         TEM4D(i, j, k, t) = TEM4D(i, j, k, t) * 0.25 \
                                 *( KM4D(i-1, j, k, t) + KM4D(i, j, k, t) ) \
-                                *( WA4D(i-1, j, k, t) + WA4D(i, j, k, t) ); 
+                                *( (WA4D(i-1, j, k, t) + grid->rho0[k-1]) + (WA4D(i, j, k, t) + grid->rho0[k-1]) ); 
         // tau 23
         dum0 = data->tem6_4d_chunk;
         TEM4D(i, j, k, t) = TEM4D(i, j, k, t) * 0.25 \
                                 *( KM4D(i, j-1, k, t) + KM4D(i, j, k, t) ) \
-                                *( WA4D(i, j-1, k, t) + WA4D(i, j, k, t) ); 
+                                *( (WA4D(i, j-1, k, t) + grid->rho0[k-1]) + (WA4D(i, j, k, t) + grid->rho0[k-1]) ); 
     }
 }
 
