@@ -178,6 +178,97 @@ __device__ void gettau(datagrid *grid, integration_data *data, int *idx_4D, int 
     }
 }
 
+__device__ void calc_turbu(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
+    int i = idx_4D[0];
+    int j = idx_4D[1];
+    int k = idx_4D[2];
+    int t = idx_4D[3];
+
+    // the momentum tendencies will lie on their staggered mesh counterparts,
+    // so we will use the stagger macros to store the data in order to maintain
+    // consistency
+    float *ustag, *buf0, *dum0;
+
+    // tau 11
+    dum0 = data->tem1_4d_chunk;
+    float turbx = ((TEM4D(i, j, k, t) - TEM4D(i-1, j, k, t)) / grid->dx)*UF(i);
+
+    // tau 12
+    dum0 = data->tem2_4d_chunk;
+    float turby = ((TEM4D(i, j+1, k, t) - TEM4D(i, j, k, t)) / grid->dy)*VH(j);
+
+    // tau 13
+    dum0 = data->tem5_4d_chunk;
+    float turbz = ((TEM4D(i, j, k+1, t) - TEM4D(i, j, k, t)) / grid->dz)*MH(k);
+
+    buf0 = data->rho_4d_chunk;
+    // calculate the momentum tendency now
+    float rru0 = 1.0 / (0.5 * ((BUF4D(i-1, j, k, t) + grid->rho0[k-1]) + (BUF4D(i, j, k, t) + grid->rho0[k-1])));
+    ustag = data->turbu_4d_chunk;
+    UA4D(i, j, k, t) = ( turbx + turby + turbz ) * rru0; 
+}
+
+__device__ void calc_turbv(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
+    int i = idx_4D[0];
+    int j = idx_4D[1];
+    int k = idx_4D[2];
+    int t = idx_4D[3];
+
+    // the momentum tendencies will lie on their staggered mesh counterparts,
+    // so we will use the stagger macros to store the data in order to maintain
+    // consistency
+    float *vstag, *buf0, *dum0;
+
+    // tau 12
+    dum0 = data->tem2_4d_chunk;
+    float turbx = ((TEM4D(i+1, j, k, t) - TEM4D(i, j, k, t)) / grid->dx)*UH(i);
+
+    // tau 22
+    dum0 = data->tem3_4d_chunk;
+    float turby = ((TEM4D(i, j, k, t) - TEM4D(i, j-1, k, t)) / grid->dy)*VF(j);
+
+    // tau 23
+    dum0 = data->tem6_4d_chunk;
+    float turbz = ((TEM4D(i, j, k+1, t) - TEM4D(i, j, k, t)) / grid->dz)*MH(k);
+
+    buf0 = data->rho_4d_chunk;
+    // calculate the momentum tendency now
+    float rrv0 = 1.0 / (0.5 * ((BUF4D(i, j-1, k, t) + grid->rho0[k-1]) + (BUF4D(i, j, k, t) + grid->rho0[k-1])));
+    vstag = data->turbv_4d_chunk;
+    VA4D(i, j, k, t) = ( turbx + turby + turbz ) * rrv0; 
+}
+
+__device__ void calc_turbw(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
+    int i = idx_4D[0];
+    int j = idx_4D[1];
+    int k = idx_4D[2];
+    int t = idx_4D[3];
+
+    // the momentum tendencies will lie on their staggered mesh counterparts,
+    // so we will use the stagger macros to store the data in order to maintain
+    // consistency
+    float *wstag, *buf0, *dum0;
+
+    // tau 13
+    dum0 = data->tem5_4d_chunk;
+    float turbx = ((TEM4D(i+1, j, k, t) - TEM4D(i, j, k, t)) / grid->dx)*UH(i);
+
+    // tau 23
+    dum0 = data->tem6_4d_chunk;
+    float turby = ((TEM4D(i, j+1, k, t) - TEM4D(i, j, k, t)) / grid->dy)*VH(j);
+
+    // tau 33
+    dum0 = data->tem4_4d_chunk;
+    float turbz = ((TEM4D(i, j, k, t) - TEM4D(i, j, k-1, t)) / grid->dz)*MF(k);
+
+    buf0 = data->rhof_4d_chunk;
+    // calculate the momentum tendency now
+    float rrf = 1.0 / (0.5 * (BUF4D(i, j, k-1, t) + BUF4D(i, j, k, t)));
+    wstag = data->turbw_4d_chunk;
+    WA4D(i, j, k, t) = ( turbx + turby + turbz ) * rrf; 
+}
+
+
 /* Compute the Exner function / nondimensionalized pressure */
 __device__ void calc_pi(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
     int i = idx_4D[0];
