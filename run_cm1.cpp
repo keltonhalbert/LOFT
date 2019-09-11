@@ -406,8 +406,8 @@ void loadDataFromDisk(datagrid *requested_grid, float *ustag, float *vstag, floa
 
 /* This handles the vertical dimension offset so that we can
  * include a lower ghost zone later on down the road*/
-void buffer_offset(datagrid *grid, float *ubufin, float *vbufin, float *wbufin, float *pbufin, float *thbufin, float *rhobufin, float *khhbufin, float *kmhbufin, \
-                   float *ubufout, float *vbufout, float *wbufout, float *pbufout, float *thbufout, float *rhobufout, float *khhbufout, float *kmhbufout) {
+void buffer_offset_stag(datagrid *grid, float *ubufin, float *vbufin, float *wbufin, float *khhbufin, float *kmhbufin, \
+                   float *ubufout, float *vbufout, float *wbufout, float *khhbufout, float *kmhbufout) {
     int NX = grid->NX;
     int NY = grid->NY;
     int NZ = grid->NZ;
@@ -418,31 +418,38 @@ void buffer_offset(datagrid *grid, float *ubufin, float *vbufin, float *wbufin, 
                     // fill the lower ghost zone with zeroes. May consider
                     // applying the boundary condition here, but makes more
                     // sense to apply it in GPU land for clarity. 
-                    ubufout[P3(i, j, k, NX+2, NY+2)] = 0.0;
-                    vbufout[P3(i, j, k, NX+2, NY+2)] = 0.0;
-                    wbufout[P3(i, j, k, NX+2, NY+2)] = 0.0;
-                    khhbufout[P3(i, j, k, NX+2, NY+2)] = 0.0;
-                    kmhbufout[P3(i, j, k, NX+2, NY+2)] = 0.0;
-                    // The scalar meshes have a different size so we do some index checking
-                    // rather than a second set of loops
-                    if ((i < NX+1) && (j < NY+1)) {
-                        pbufout[P3(i, j, k, NX+1, NY+1)] = 0.0;
-                        thbufout[P3(i, j, k, NX+1, NY+1)] = 0.0;
-                        rhobufout[P3(i, j, k, NX+1, NY+1)] = 0.0;
-                    }
+                    ubufout[P3(i, j, 0, NX+2, NY+2)] = 0.0;
+                    vbufout[P3(i, j, 0, NX+2, NY+2)] = 0.0;
+                    wbufout[P3(i, j, 0, NX+2, NY+2)] = 0.0;
+                    khhbufout[P3(i, j, 0, NX+2, NY+2)] = 0.0;
+                    kmhbufout[P3(i, j, 0, NX+2, NY+2)] = 0.0;
                 }
                 ubufout[P3(i, j, k+1, NX+2, NY+2)] = ubufin[P3(i, j, k, NX+2, NY+2)];
                 vbufout[P3(i, j, k+1, NX+2, NY+2)] = vbufin[P3(i, j, k, NX+2, NY+2)];
                 wbufout[P3(i, j, k+1, NX+2, NY+2)] = wbufin[P3(i, j, k, NX+2, NY+2)];
                 khhbufout[P3(i, j, k+1, NX+2, NY+2)] = khhbufin[P3(i, j, k, NX+2, NY+2)];
                 kmhbufout[P3(i, j, k+1, NX+2, NY+2)] = kmhbufin[P3(i, j, k, NX+2, NY+2)];
-                // The scalar meshes have a different size so we do some index checking
-                // rather than a second set of loops
-                if ((i < NX+1) && (j < NY+1)) {
-                    pbufout[P3(i, j, k+1, NX+1, NY+1)] = pbufin[P3(i, j, k, NX+1, NY+1)];
-                    thbufout[P3(i, j, k+1, NX+1, NY+1)] = thbufin[P3(i, j, k, NX+1, NY+1)];
-                    rhobufout[P3(i, j, k+1, NX+1, NY+1)] = rhobufin[P3(i, j, k, NX+1, NY+1)];
+            }
+        }
+    }
+}
+
+void buffer_offset_scal(datagrid *grid, float *pbufin, float *thbufin, float *rhobufin, \
+                        float *pbufout, float *thbufout, float *rhobufout) {
+    int NX = grid->NX;
+    int NY = grid->NY;
+    int NZ = grid->NZ;
+    for (int i = 0; i < NX+1; i++) {
+        for (int j = 0; j < NY+1; j++) {
+            for (int k = 0; k < NZ+1; ++k) {
+                if (k == 0) {
+                    pbufout[P3(i, j, 0, NX+1, NY+1)] = pbufin[P3(i, j, 0, NX+1, NY+1)];
+                    thbufout[P3(i, j, 0, NX+1, NY+1)] = thbufin[P3(i, j, 0, NX+1, NY+1)];
+                    rhobufout[P3(i, j, 0, NX+1, NY+1)] = rhobufin[P3(i, j, 0, NX+1, NY+1)];
                 }
+                pbufout[P3(i, j, k+1, NX+1, NY+1)] = pbufin[P3(i, j, k, NX+1, NY+1)];
+                thbufout[P3(i, j, k+1, NX+1, NY+1)] = thbufin[P3(i, j, k, NX+1, NY+1)];
+                rhobufout[P3(i, j, k+1, NX+1, NY+1)] = rhobufin[P3(i, j, k, NX+1, NY+1)];
             }
         }
     }
@@ -607,6 +614,7 @@ int main(int argc, char **argv ) {
         // so I use N_scalar for the MPI calls to non staggered/scalar fields. 
         N_stag_read = (requested_grid->NX+2)*(requested_grid->NY+2)*(requested_grid->NZ+1);
         N_stag_ghost = (requested_grid->NX+2)*(requested_grid->NY+2)*(requested_grid->NZ+2);
+
         N_scal_read = (requested_grid->NX+1)*(requested_grid->NY+1)*(requested_grid->NZ+1);
         N_scal_ghost = (requested_grid->NX+1)*(requested_grid->NY+1)*(requested_grid->NZ+2);
 
@@ -669,9 +677,11 @@ int main(int argc, char **argv ) {
         loadDataFromDisk(requested_grid, ubuf_tem, vbuf_tem, wbuf_tem, \
                          pbuf_tem, thbuf_tem, rhobuf_tem, khhbuf_tem, \
                          kmhbuf_tem, alltimes[nearest_tidx + direct*(rank + tChunk*size)]);
-        buffer_offset(requested_grid, ubuf_tem, vbuf_tem, wbuf_tem, \
-                      pbuf_tem, thbuf_tem, rhobuf_tem, khhbuf_tem, \
-                      kmhbuf_tem, ubuf, vbuf, wbuf, pbuf, thbuf, rhobuf, khhbuf, kmhbuf);
+
+        buffer_offset_stag(requested_grid, ubuf_tem, vbuf_tem, wbuf_tem, khhbuf_tem, \
+                           kmhbuf_tem, ubuf, vbuf, wbuf, khhbuf, kmhbuf);
+        buffer_offset_scal(requested_grid, pbuf_tem, thbuf_tem, rhobuf_tem, \
+                           pbuf, thbuf, rhobuf);
         
         // for MPI runs that load multiple time steps into memory,
         // communicate the data you've read into our 4D array
@@ -681,6 +691,7 @@ int main(int argc, char **argv ) {
         int senderr_w = MPI_Gather(wbuf, N_stag_ghost, MPI_FLOAT, data->w_4d_chunk, N_stag_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
         int senderr_khh = MPI_Gather(khhbuf, N_stag_ghost, MPI_FLOAT, data->khh_4d_chunk, N_stag_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
         int senderr_kmh = MPI_Gather(kmhbuf, N_stag_ghost, MPI_FLOAT, data->kmh_4d_chunk, N_stag_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
+
         // Use N_scalar here so that there aren't random zeroes throughout the middle of the array
         int senderr_p = MPI_Gather(pbuf, N_scal_ghost, MPI_FLOAT, data->pres_4d_chunk, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
         int senderr_th = MPI_Gather(thbuf, N_scal_ghost, MPI_FLOAT, data->th_4d_chunk, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);

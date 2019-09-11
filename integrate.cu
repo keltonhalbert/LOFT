@@ -47,7 +47,7 @@ __device__ void calcrf(datagrid *grid, integration_data *data, int *idx_4D, int 
         float rho2 = grid->rho0[1] + BUF4D(i, j, 2, t);
         float rho3 = grid->rho0[2] + BUF4D(i, j, 3, t);
         buf0 = data->rhof_4d_chunk;
-        BUF4D(i, j, k, t) = (1.75*rho1) - rho2 + (0.25*rho3);
+        BUF4D(i, j, 1, t) = (1.75*rho1) - rho2 + (0.25*rho3);
     }
 
     else { 
@@ -419,13 +419,16 @@ __device__ void calc_zvort_solenoid(datagrid *grid, integration_data *data, int 
 
     dum0 = data->rho_4d_chunk;
     // dRho/dy
-    float rho2 = TEM4D(i, j+1, k, t) + grid->rho0[k];
-    float rho1 = TEM4D(i, j-1, k, t) + grid->rho0[k];
+    // We use k-1 for the base state grid because it does not
+    // have a lower ghost zone, so 0 corresponds to the surface 
+    // instead of the ghost zone value
+    float rho2 = TEM4D(i, j+1, k, t) + grid->rho0[k-1];
+    float rho1 = TEM4D(i, j-1, k, t) + grid->rho0[k-1];
     float dalphady = ( ( (1./rho2) - (1./rho1) ) / ( 2*grid->dy ) ) * VH(j);
 
     // dRho/dx
-    rho2 = TEM4D(i+1, j, k, t) + grid->rho0[k];
-    rho1 = TEM4D(i-1, j, k, t) + grid->rho0[k];
+    rho2 = TEM4D(i+1, j, k, t) + grid->rho0[k-1];
+    rho1 = TEM4D(i-1, j, k, t) + grid->rho0[k-1];
     float dalphadx = ( ( (1./rho2) - (1./rho1) ) / ( 2*grid->dx ) ) * UH(i);
 
     // compute and save to the array
@@ -540,9 +543,15 @@ __global__ void calcvort(datagrid *grid, integration_data *data, int tStart, int
     int NX = grid->NX;
     int NY = grid->NY;
     int NZ = grid->NZ;
+    // KELTON. FOR THE LOVE OF ALL THAT IS GOOD.
+    // STOP CHANGING THE INDEX CHECK CONDITIONS. 
+    // YOU'VE DONE THIS LIKE 5 TIMES NOW AND
+    // CAUSE SEG FAULTS EVERY TIME. LEARN YOUR 
+    // LESSON ALREADY. THIS WORKS. DON'T BREAK.
+    // BAD.
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX+1) && (j < NY+1) && (k > 1) && (k < NZ+1)) {
+    if ((i < NX) && (j < NY+1) && (k > 1) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -550,14 +559,14 @@ __global__ void calcvort(datagrid *grid, integration_data *data, int tStart, int
         }
     }
 
-    if ((i < NX+1) && (j < NY+1) && (k > 1) && (k < NZ+1)) {
+    if ((i < NX+1) && (j < NY) && (k > 1) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calc_yvort(grid, data, idx_4D, NX, NY, NZ);
         }
     }
-    if ((i < NX+2) && (j < NY+2) && (k > 0) && (k < NZ+1)) {
+    if ((i <= NX+1) && (j <= NY+1) && (k > 0) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -684,7 +693,7 @@ __global__ void calczvortsolenoid(datagrid *grid, integration_data *data, int tS
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
     // Even though there are NZ points, it's a center difference
     // and we reach out NZ+1 points to get the derivatives
-    if ((i < NX) && (j < NY) && (k < NZ) && ( i > 0 ) && (j > 0) && (k > 0)) {
+    if ((i < NX) && (j < NY) && (k < NZ) && ( i > 0 ) && (j > 0) && (k >= 1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
