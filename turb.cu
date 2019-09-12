@@ -1,4 +1,10 @@
-
+#include <iostream>
+#include <stdio.h>
+#include "datastructs.cu"
+#include "macros.cpp"
+#include "interp.cu"
+#ifndef TURB_CU
+#define TURB_CU
 // calculate the deformation terms for the turbulence diagnostics. They get stored in the 
 // arrays later designated for tau stress tensors and variables are named according to
 // tensor notation
@@ -57,65 +63,6 @@ __device__ void calcdef(datagrid *grid, integration_data *data, int *idx_4D, int
         TEM4D(i, j, k, t) = ( ( ( WA4D(i, j, k, t) - WA4D(i, j-1, k, t) ) / grid->dy ) * VF(j) ) \
                            +( ( ( VA4D(i, j, k, t) - VA4D(i, j, k-1, t) ) / grid->dz ) * MF(k) );
 
-    }
-}
-
-
-__device__ void gettau(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
-    int i = idx_4D[0];
-    int j = idx_4D[1];
-    int k = idx_4D[2];
-    int t = idx_4D[3];
-
-    float *dum0, *buf0, *wstag, *kmstag;
-
-    kmstag = data->kmh_4d_chunk;
-    buf0 = data->rho_4d_chunk;
-
-    // NOTE: Base state arrays have a different grid index to them because there is no ghost zone.
-    // For example, rho0[0] corresponds to zh[1]. We need to be careful and make sure we offset 
-    // our indices appropriately
-
-    // tau 11
-    dum0 = data->tem1_4d_chunk;
-    TEM4D(i, j, k, t) = TEM4D(i, j, k, t) * (KM4D(i, j, k, t) + KM4D(i, j, k+1, t))*(BUF4D(i, j, k, t) + grid->rho0[k-1]);
-    // tau 22
-    dum0 = data->tem3_4d_chunk;
-    TEM4D(i, j, k, t) = TEM4D(i, j, k, t) * (KM4D(i, j, k, t) + KM4D(i, j, k+1, t))*(BUF4D(i, j, k, t) + grid->rho0[k-1]);
-    // tau 33
-    dum0 = data->tem4_4d_chunk;
-    TEM4D(i, j, k, t) = TEM4D(i, j, k, t) * (KM4D(i, j, k, t) + KM4D(i, j, k+1, t))*(BUF4D(i, j, k, t) + grid->rho0[k-1]);
-
-    // tau 12
-    dum0 = data->tem2_4d_chunk;
-    TEM4D(i, j, k, t) = TEM4D(i, j, k, t) * 0.03125 * \
-                        ( ( ( KM4D(i-1, j-1, k, t) + KM4D(i, j, k, t) ) + ( KM4D(i-1, j, k, t) + KM4D(i, j-1, k, t) ) ) \
-                         +( ( KM4D(i-1, j-1, k+1, t) + KM4D(i, j, k+1, t) ) + ( KM4D(i-1, j, k+1, t) + KM4D(i, j-1, k+1, t) ) ) ) \
-                         *( ( (BUF4D(i-1, j-1, k, t) + grid->rho0[k-1]) + (BUF4D(i, j, k, t) + grid->rho0[k-1]) ) \
-                           + ((BUF4D(i-1, j, k, t) + grid->rho0[k-1]) + (BUF4D(i, j-1, k, t) + grid->rho0[k-1]) ) );
-    if (k == 1) {
-        // we'll go ahead and apply the zero strain condition on the lower boundary/ghost zone
-        // for tau 13 and tau 23
-        // tau 13 boundary
-        dum0 = data->tem5_4d_chunk;
-        TEM4D(i, j, 0, t) = 0.0;
-        // tau 23 boundary
-        dum0 = data->tem6_4d_chunk;
-        TEM4D(i, j, 0, t) = 0.0;
-    }
-
-    if ((k >= 2)) {
-        // tau 13
-        dum0 = data->tem5_4d_chunk;
-        wstag = data->rhof_4d_chunk; // rather than make a new maro, we'll just use the WA4D macro
-        TEM4D(i, j, k, t) = TEM4D(i, j, k, t) * 0.25 \
-                                *( KM4D(i-1, j, k, t) + KM4D(i, j, k, t) ) \
-                                *( (WA4D(i-1, j, k, t) + grid->rho0[k-1]) + (WA4D(i, j, k, t) + grid->rho0[k-1]) ); 
-        // tau 23
-        dum0 = data->tem6_4d_chunk;
-        TEM4D(i, j, k, t) = TEM4D(i, j, k, t) * 0.25 \
-                                *( KM4D(i, j-1, k, t) + KM4D(i, j, k, t) ) \
-                                *( (WA4D(i, j-1, k, t) + grid->rho0[k-1]) + (WA4D(i, j, k, t) + grid->rho0[k-1]) ); 
     }
 }
 
@@ -335,3 +282,4 @@ __global__ void doCalcTurb(datagrid *grid, integration_data *data, int tStart, i
         }
     }
 }
+#endif
