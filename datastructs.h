@@ -63,6 +63,9 @@ struct parcel_pos {
     float *pclu;
     float *pclv;
     float *pclw;
+    float *pcluturb;
+    float *pclvturb;
+    float *pclwturb;
     float *pclxvort;
     float *pclyvort;
     float *pclzvort;
@@ -72,6 +75,9 @@ struct parcel_pos {
     float *pclxvortstretch;
     float *pclyvortstretch;
     float *pclzvortstretch;
+    float *pclxvortturb;
+    float *pclyvortturb;
+    float *pclzvortturb;
     float *pclzvortsolenoid;
     int nParcels;
     int nTimes;
@@ -99,9 +105,6 @@ struct integration_data {
     float *khh_4d_chunk;
     float *kmh_4d_chunk;
 
-    float *turbx_4d_chunk;
-    float *turby_4d_chunk;
-    float *turbz_4d_chunk;
     float *turbu_4d_chunk;
     float *turbv_4d_chunk;
     float *turbw_4d_chunk;
@@ -124,6 +127,9 @@ struct integration_data {
     float *xvstretch_4d_chunk;
     float *yvstretch_4d_chunk;
     float *zvstretch_4d_chunk;
+    float *turbxvort_4d_chunk;
+    float *turbyvort_4d_chunk;
+    float *turbzvort_4d_chunk;
  
     float *zvort_solenoid_4d_chunk; 
 };

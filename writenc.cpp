@@ -29,6 +29,9 @@ void init_nc(string filename, parcel_pos *parcels) {
     NcVar uVar = output.addVar("u", ncFloat, gridDimVector);
     NcVar vVar = output.addVar("v", ncFloat, gridDimVector);
     NcVar wVar = output.addVar("w", ncFloat, gridDimVector);
+    NcVar uturbVar = output.addVar("uturb", ncFloat, gridDimVector);
+    NcVar vturbVar = output.addVar("vturb", ncFloat, gridDimVector);
+    NcVar wturbVar = output.addVar("wturb", ncFloat, gridDimVector);
     NcVar khhVar = output.addVar("khh", ncFloat, gridDimVector);
 
     NcVar xvortVar = output.addVar("xvort", ncFloat, gridDimVector);
@@ -60,6 +63,9 @@ void init_nc(string filename, parcel_pos *parcels) {
     uVar.putAtt("units", "meters / second");
     vVar.putAtt("units", "meters / second");
     wVar.putAtt("units", "meters / second");
+    uturbVar.putAtt("units", "meters / second^2");
+    vturbVar.putAtt("units", "meters / second^2");
+    wturbVar.putAtt("units", "meters / second^2");
     khhVar.putAtt("units", "Unknown");
 
     xvortVar.putAtt("units", "s^-1");
@@ -92,6 +98,9 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
     NcVar uVar = output.getVar("u");
     NcVar vVar = output.getVar("v");
     NcVar wVar = output.getVar("w");
+    NcVar uturbVar = output.getVar("uturb");
+    NcVar vturbVar = output.getVar("vturb");
+    NcVar wturbVar = output.getVar("wturb");
     NcVar khhVar = output.getVar("khh");
 
     NcVar ppertVar = output.getVar("prespert");
@@ -128,6 +137,9 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
     uVar.putVar(startp,countp,parcels->pclu);
     vVar.putVar(startp,countp,parcels->pclv);
     wVar.putVar(startp,countp,parcels->pclw);
+    uturbVar.putVar(startp,countp,parcels->pcluturb);
+    vturbVar.putVar(startp,countp,parcels->pclvturb);
+    wturbVar.putVar(startp,countp,parcels->pclwturb);
     //khhVar.putVar(startp,countp,parcels->pclkhh);
 
     //ppertVar.putVar(startp,countp,parcels->pclppert);
@@ -145,9 +157,9 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
     zvortsolenoidVar.putVar(startp,countp,parcels->pclzvortsolenoid);
     //xvortbaroVar.putVar(startp,countp,parcels->pclxvortbaro);
     //yvortbaroVar.putVar(startp,countp,parcels->pclyvortbaro);
-    //xvortturbVar.putVar(startp,countp,parcels->pclxvortturb);
-    //yvortturbVar.putVar(startp,countp,parcels->pclyvortturb);
-    //zvortturbVar.putVar(startp,countp,parcels->pclzvortturb);
+    xvortturbVar.putVar(startp,countp,parcels->pclxvortturb);
+    yvortturbVar.putVar(startp,countp,parcels->pclyvortturb);
+    zvortturbVar.putVar(startp,countp,parcels->pclzvortturb);
     cout << "*** SUCCESS writing file " << filename << "!" << endl;
     return;
 }

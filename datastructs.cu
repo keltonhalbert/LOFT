@@ -162,6 +162,9 @@ parcel_pos* allocate_parcels_managed(int NX, int NY, int NZ, int nTotTimes) {
     cudaMallocManaged(&(parcels->pclu), nParcels*nTotTimes*sizeof(float)); 
     cudaMallocManaged(&(parcels->pclv), nParcels*nTotTimes*sizeof(float)); 
     cudaMallocManaged(&(parcels->pclw), nParcels*nTotTimes*sizeof(float)); 
+    cudaMallocManaged(&(parcels->pcluturb), nParcels*nTotTimes*sizeof(float)); 
+    cudaMallocManaged(&(parcels->pclvturb), nParcels*nTotTimes*sizeof(float)); 
+    cudaMallocManaged(&(parcels->pclwturb), nParcels*nTotTimes*sizeof(float)); 
     cudaMallocManaged(&(parcels->pclxvort), nParcels*nTotTimes*sizeof(float)); 
     cudaMallocManaged(&(parcels->pclyvort), nParcels*nTotTimes*sizeof(float)); 
     cudaMallocManaged(&(parcels->pclzvort), nParcels*nTotTimes*sizeof(float)); 
@@ -171,6 +174,9 @@ parcel_pos* allocate_parcels_managed(int NX, int NY, int NZ, int nTotTimes) {
     cudaMallocManaged(&(parcels->pclxvortstretch), nParcels*nTotTimes*sizeof(float)); 
     cudaMallocManaged(&(parcels->pclyvortstretch), nParcels*nTotTimes*sizeof(float)); 
     cudaMallocManaged(&(parcels->pclzvortstretch), nParcels*nTotTimes*sizeof(float)); 
+    cudaMallocManaged(&(parcels->pclxvortturb), nParcels*nTotTimes*sizeof(float)); 
+    cudaMallocManaged(&(parcels->pclyvortturb), nParcels*nTotTimes*sizeof(float)); 
+    cudaMallocManaged(&(parcels->pclzvortturb), nParcels*nTotTimes*sizeof(float)); 
     cudaMallocManaged(&(parcels->pclzvortsolenoid), nParcels*nTotTimes*sizeof(float));
     // set the static variables
     parcels->nParcels = nParcels;
@@ -196,6 +202,9 @@ parcel_pos* allocate_parcels_cpu(int NX, int NY, int NZ, int nTotTimes) {
     parcels->pclu = new float[nParcels*nTotTimes]; 
     parcels->pclv = new float[nParcels*nTotTimes]; 
     parcels->pclw = new float[nParcels*nTotTimes]; 
+    parcels->pcluturb = new float[nParcels*nTotTimes]; 
+    parcels->pclvturb = new float[nParcels*nTotTimes]; 
+    parcels->pclwturb = new float[nParcels*nTotTimes]; 
     parcels->pclxvort = new float[nParcels*nTotTimes]; 
     parcels->pclyvort = new float[nParcels*nTotTimes]; 
     parcels->pclzvort = new float[nParcels*nTotTimes]; 
@@ -205,6 +214,9 @@ parcel_pos* allocate_parcels_cpu(int NX, int NY, int NZ, int nTotTimes) {
     parcels->pclxvortstretch = new float[nParcels*nTotTimes]; 
     parcels->pclyvortstretch = new float[nParcels*nTotTimes]; 
     parcels->pclzvortstretch = new float[nParcels*nTotTimes]; 
+    parcels->pclxvortturb = new float[nParcels*nTotTimes]; 
+    parcels->pclyvortturb = new float[nParcels*nTotTimes]; 
+    parcels->pclzvortturb = new float[nParcels*nTotTimes]; 
     parcels->pclzvortsolenoid = new float[nParcels*nTotTimes];
     // set the static variables
     parcels->nParcels = nParcels;
@@ -222,6 +234,9 @@ void deallocate_parcels_managed(parcel_pos *parcels) {
     cudaFree(parcels->pclu);
     cudaFree(parcels->pclv);
     cudaFree(parcels->pclw);
+    cudaFree(parcels->pcluturb);
+    cudaFree(parcels->pclvturb);
+    cudaFree(parcels->pclwturb);
     cudaFree(parcels->pclxvort);
     cudaFree(parcels->pclyvort);
     cudaFree(parcels->pclzvort);
@@ -231,6 +246,9 @@ void deallocate_parcels_managed(parcel_pos *parcels) {
     cudaFree(parcels->pclxvortstretch);
     cudaFree(parcels->pclyvortstretch);
     cudaFree(parcels->pclzvortstretch);
+    cudaFree(parcels->pclxvortturb);
+    cudaFree(parcels->pclyvortturb);
+    cudaFree(parcels->pclzvortturb);
     cudaFree(parcels->pclzvortsolenoid);
     cudaFree(parcels);
     cudaDeviceSynchronize();
@@ -244,6 +262,9 @@ void deallocate_parcels_cpu(parcel_pos *parcels) {
     delete[] parcels->pclu;
     delete[] parcels->pclv;
     delete[] parcels->pclw;
+    delete[] parcels->pcluturb;
+    delete[] parcels->pclvturb;
+    delete[] parcels->pclwturb;
     delete[] parcels->pclxvort;
     delete[] parcels->pclyvort;
     delete[] parcels->pclzvort;
@@ -253,6 +274,9 @@ void deallocate_parcels_cpu(parcel_pos *parcels) {
     delete[] parcels->pclxvortstretch;
     delete[] parcels->pclyvortstretch;
     delete[] parcels->pclzvortstretch;
+    delete[] parcels->pclxvortturb;
+    delete[] parcels->pclyvortturb;
+    delete[] parcels->pclzvortturb;
     delete[] parcels->pclzvortsolenoid;
     delete[] parcels;
 }
@@ -277,9 +301,6 @@ integration_data* allocate_integration_managed(long bufsize) {
     cudaMallocManaged(&(data->rhof_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->khh_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->kmh_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->turbx_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->turby_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->turbz_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->turbu_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->turbv_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->turbw_4d_chunk), bufsize*sizeof(float));
@@ -298,6 +319,9 @@ integration_data* allocate_integration_managed(long bufsize) {
     cudaMallocManaged(&(data->xvstretch_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->yvstretch_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->zvstretch_4d_chunk), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->turbxvort_4d_chunk), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->turbyvort_4d_chunk), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->turbzvort_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->zvort_solenoid_4d_chunk), bufsize*sizeof(float)); 
     cudaDeviceSynchronize();
 
@@ -320,9 +344,6 @@ void deallocate_integration_managed(integration_data *data) {
     cudaFree(data->rhof_4d_chunk);
     cudaFree(data->khh_4d_chunk);
     cudaFree(data->kmh_4d_chunk);
-    cudaFree(data->turbx_4d_chunk);
-    cudaFree(data->turby_4d_chunk);
-    cudaFree(data->turbz_4d_chunk);
     cudaFree(data->turbu_4d_chunk);
     cudaFree(data->turbv_4d_chunk);
     cudaFree(data->turbw_4d_chunk);
@@ -341,7 +362,10 @@ void deallocate_integration_managed(integration_data *data) {
     cudaFree(data->xvstretch_4d_chunk);
     cudaFree(data->yvstretch_4d_chunk);
     cudaFree(data->zvstretch_4d_chunk);
+    cudaFree(data->turbxvort_4d_chunk);
+    cudaFree(data->turbyvort_4d_chunk);
+    cudaFree(data->turbzvort_4d_chunk);
     cudaFree(data->zvort_solenoid_4d_chunk); 
-    cudaDeviceSynchronize();
 }
 #endif
+
