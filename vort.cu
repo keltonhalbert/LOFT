@@ -284,6 +284,24 @@ __device__ void calc_zvortturb_ten(datagrid *grid, integration_data *data, int *
     TEM4D(i, j, k, t) = dvdx - dudy;
 }
 
+/* Compute the vorticity tendency due to baroclinic generation in the X direction */
+__device__ void calc_xvortbaro(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
+    int i = idx_4D[0];
+    int j = idx_4D[1];
+    int k = idx_4D[2];
+    int t = idx_4D[3];
+
+}
+
+/* Compute the vorticity tendency due to baroclinic generation in the Y direction */
+__device__ void calc_yvortbaro(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
+    int i = idx_4D[0];
+    int j = idx_4D[1];
+    int k = idx_4D[2];
+    int t = idx_4D[3];
+
+}
+
 __device__ void calc_zvort_solenoid(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
     int i = idx_4D[0];
     int j = idx_4D[1];
