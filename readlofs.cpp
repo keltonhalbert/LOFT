@@ -1,7 +1,12 @@
-#include "datastructs.cpp"
 #include <iostream>
+#include <fstream>
+#include <string>
+
+#include "mpi.h"
 #include <stdio.h>
 #include <string>
+#include "macros.cpp"
+#include "datastructs.h"
 extern "C" {
 #include <lofs-read.h>
 }
@@ -101,18 +106,13 @@ void lofs_get_grid( datagrid *grid ) {
 	hid_t f_id;
 	int NX,NY,NZ;
     int nk, nj, ni;
+    int ngz = 1;
     // how many points are in our 
     // subset?
-	NX = grid->X1 - grid->X0 + 1;
-	NY = grid->Y1 - grid->Y0 + 1;
-	NZ = grid->Z1 - grid->Z0 + 1;
+	NX = grid->NX;
+	NY = grid->NY;
+	NZ = grid->NZ;
     nk = NZ; nj = NY; ni = NX;
-
-    // set the grid attributes
-    grid->NX = NX;
-    grid->NY = NY;
-    grid->NZ = NZ;
-    grid->nz = nz;
 
     // open the first found HDF5 files and use it to
     // construct our grid in memory. Since it's a self-describing
@@ -128,9 +128,11 @@ void lofs_get_grid( datagrid *grid ) {
     // respective dimension
     float *xffull = new float[nx+1];
     float *yffull = new float[ny+1];
-    float *zh = new float[nz+2];
-    float *zf = new float[nz+2]; 
 
+    float *zh_save = new float[nz];
+    float *zf_save = new float[nz+1]; 
+    float *zh = new float[nz+1];
+    float *zf = new float[nz+2];
     float dx, dy, dz;
     float rdx, rdy, rdz;
     get0dfloat (f_id,(char *)"mesh/dx",&dx); rdx=1.0/dx;
@@ -147,8 +149,8 @@ void lofs_get_grid( datagrid *grid ) {
     get1dfloat( f_id, (char *)"mesh/yhfull", yhfull, 0, ny );
     get1dfloat( f_id, (char *)"mesh/xffull", xffull, 0, nx+1 );
     get1dfloat( f_id, (char *)"mesh/yffull", yffull, 0, ny+1 );
-    get1dfloat( f_id, (char *)"mesh/zh", zh, 0, nz );
-    get1dfloat( f_id, (char *)"mesh/zf", zf, 0, nz );
+    get1dfloat( f_id, (char *)"mesh/zh", zh_save, 0, nz );
+    get1dfloat( f_id, (char *)"mesh/zf", zf_save, 0, nz+1 );
     float *qv0 = new float[nz];
     float *th0 = new float[nz];
     float *rho0 = new float[nz];
@@ -157,15 +159,28 @@ void lofs_get_grid( datagrid *grid ) {
     get1dfloat(f_id, (char *)"basestate/rh0", rho0, 0, nz);
 
 
-    // take the full grid and put it into
-    // the array representation of the volume
-    // subset we are looking at
-    float *xhout = new float[NX];
-    float *yhout = new float[NY];
-    float *zhout = new float[NZ];
-    float *xfout = new float[NX];
-    float *yfout = new float[NY]; // +1 when we do this right
-    float *zfout = new float[NZ]; // +1 when we do this right
+    // We want to include the lower ghost zone in the vertical
+    // for dealing with the lower domain boundary (and potentially
+    // the upper domain boundary later). To prevent parcels from 
+    // going below the surface, the ghost zones are used as a 
+    // reflective boundary. This attempts to recreate that. 
+
+    for (int iz = 0; iz < grid->Z1; iz++) zh[iz+1] = zh_save[iz];
+    for (int iz = 0; iz < grid->Z1+1; iz++) zf[iz+1] = zf_save[iz];
+    // set the reflective ghost zone boundary here
+    zf[0] = -zf[2]; //param.F
+    zh[0] = -zh[1]; //param.F
+    delete[] zf_save;
+    delete[] zh_save;
+
+    // fill the z arrays with the subset portion
+    // of the vertical dimension
+	for (int iz = grid->Z0; iz <= grid->Z1; iz++) {
+        grid->qv0[iz-grid->Z0] = qv0[iz];
+        grid->th0[iz-grid->Z0] = th0[iz];
+        grid->rho0[iz-grid->Z0] = rho0[iz];
+    }
+
 
     // We recreate George's mesh/derivative calculation paradigm even though
     // // we are usually isotropic. We need to have our code here match what
@@ -177,73 +192,55 @@ void lofs_get_grid( datagrid *grid ) {
     // // offset by the correct amount on each side. The macros take care of
     // // the offsetting.
 
-    float *uh = new float[NX+2];
-    float *uf = new float[NX+2];
-    float *vh = new float[NY+2];
-    float *vf = new float[NY+2];
-    float *mh = new float[NZ+2];
-    float *mf = new float[NZ+2];
-
-
-    // fill the z arrays with the subset portion
-    // of the vertical dimension
-	for (int iz = grid->Z0; iz <= grid->Z1; iz++) {
-        zhout[iz-grid->Z0] = zh[iz];
-	    zfout[iz-grid->Z0] = zf[iz];
-    }
-
     // fill the x and y arrays with the subset
     // portion of the horizontal dimensions
     for (int ix = grid->X0 - 1; ix <= grid->X1 + 1; ix++) UH(ix-grid->X0) = dx/(xffull[ix+1]-xffull[ix]);
     for (int ix = grid->X0 - 1; ix <= grid->X1 + 1; ix++) UF(ix-grid->X0) = dx/(xhfull[ix]-xhfull[ix-1]);
     for (int iy = grid->Y0 - 1; iy <= grid->Y1 + 1; iy++) VH(iy-grid->Y0) = dy/(yffull[iy+1]-yffull[iy]);
     for (int iy = grid->Y0 - 1; iy <= grid->Y1 + 1; iy++) VF(iy-grid->Y0) = dy/(yhfull[iy]-yhfull[iy-1]);
-    zf[0] = -zf[2]; //param.F
-    for (int iz = grid->Z0 - 1; iz <= grid->Z1 + 1; iz++) MH(iz-grid->Z0) = dz/(zf[iz+1]-zf[iz]);
-    for (int iz = grid->Z0 - 1; iz <= grid->Z1 + 1; iz++) MF(iz-grid->Z0) = dz/(zh[iz]-zf[iz-1]);
+
+    for (int iz = grid->Z0; iz < grid->Z1 + 1; iz++) MH(iz-grid->Z0) = dz/(zf[iz+1]-zf[iz]);
+    for (int iz = grid->Z0+1; iz < grid->Z1; iz++) MF(iz-grid->Z0) = dz/(zh[iz]-zf[iz-1]);
+    // param.F lower boundary
+    MF(0) = MF(1);
+
     
-    for (int iy = grid->Y0; iy <= grid->Y1; iy++) yfout[iy-grid->Y0] = yffull[iy];
-    for (int ix = grid->X0; ix <= grid->X1; ix++) xfout[ix-grid->X0] = xffull[ix];
-	for (int iy = grid->Y0; iy <= grid->Y1; iy++) yhout[iy-grid->Y0] = yhfull[iy];
-	for (int ix = grid->X0; ix <= grid->X1; ix++) xhout[ix-grid->X0] = xhfull[ix];
+    for (int iz = grid->Z0; iz <= grid->Z1; iz++) grid->zh[iz-grid->Z0] = zh[iz];
+	for (int iy = grid->Y0; iy <= grid->Y1; iy++) grid->yh[iy-grid->Y0] = yhfull[iy];
+	for (int ix = grid->X0; ix <= grid->X1; ix++) grid->xh[ix-grid->X0] = xhfull[ix];
 
+    for (int iz = grid->Z0; iz <= grid->Z1+1; iz++) grid->zf[iz-grid->Z0] = zf[iz];
+    for (int iy = grid->Y0; iy <= grid->Y1+1; iy++) grid->yf[iy-grid->Y0] = yffull[iy];
+    for (int ix = grid->X0; ix <= grid->X1+1; ix++) grid->xf[ix-grid->X0] = xffull[ix];
 
-    // set the struct pointers to the
-    // array pointers we allocated and
-    // then we're done!
-    grid->xh = xhout;
-    grid->xf = xfout;
-    grid->yh = yhout;
-    grid->yf = yfout;
-    grid->zh = zhout;
-    grid->zf = zfout;
-
-    grid->uh = uh;
-    grid->uf = uf;
-    grid->vh = vh;
-    grid->vf = vf;
-    grid->mh = mh;
-    grid->mf = mf;
-
-    grid->th0 = th0;
-    grid->qv0 = qv0;
-    grid->rho0 = rho0;
 
     delete[] xffull;
     delete[] yffull;
     delete[] xhfull;
     delete[] yhfull;
+    delete[] zh;
+    delete[] zf;
+    delete[] rho0;
+    delete[] qv0;
+    delete[] th0;
 }
 
-void lofs_read_3dvar(datagrid *grid, float *buffer, char *varname, double t0) {
+void lofs_read_3dvar(datagrid *grid, float *buffer, char *varname, bool istag, double t0) {
 
     // lifted from LOFS hdf2.c
     // topdir, timedir, nodedir, ntimedirs, dn, dirtimes, alltimes, ntottimes,
     // nodex, nodey all from lofs_get_dataset_structure
     //
     // X0, Y0, X1, Y1, Z0, Y1, nx, ny, nz all from lofs_get_grid
-    read_hdf_mult_md(buffer,topdir,timedir,nodedir,ntimedirs,dn,dirtimes,alltimes,ntottimes,t0,varname, \
-            grid->X0,grid->Y0,grid->X1,grid->Y1,grid->Z0,grid->Z1,nx,ny,nz,nodex,nodey);
+    if (istag) {
+        //X0-1,Y0-1,X1+1,Y1+1,Z0,Z1,
+        read_hdf_mult_md(buffer,topdir,timedir,nodedir,ntimedirs,dn,dirtimes,alltimes,ntottimes,t0,varname, \
+                grid->X0-1,grid->Y0-1,grid->X1+1,grid->Y1+1,grid->Z0,grid->Z1+1,nx,ny,nz,nodex,nodey);
+    }
+    else {
+        read_hdf_mult_md(buffer,topdir,timedir,nodedir,ntimedirs,dn,dirtimes,alltimes,ntottimes,t0,varname, \
+                grid->X0,grid->Y0,grid->X1,grid->Y1,grid->Z0,grid->Z1,nx,ny,nz,nodex,nodey);
+    }
 }
 
 #endif

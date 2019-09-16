@@ -1,1 +1,2 @@
-./run --histpath=/apollo/orfstore/khalbert/24May2011-every-time-step/3D --base=testrun --x0=-3000 --y0=-3000 --z0=0 --nx=10 --ny=10 --nz=10 --dx=30 --dy=30 --dz=30 --time=4200 --ntimes=100
+
+mpirun -np 4 ./run --histpath=/apollo/orfstore/khalbert/history.24May_r16-100-uncompressed-smag/3D/ --base=100m_uncompressed_smag --x0=0 --y0=0 --z0=50 --nx=10 --ny=10 --nz=10 --dx=100 --dy=100 --dz=100 --time=4200 --ntimes=900

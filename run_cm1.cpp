@@ -1,8 +1,9 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+
 #include "mpi.h"
-#include "datastructs.cpp"
+#include "datastructs.h"
 #include "macros.cpp"
 #include "readlofs.cpp"
 #include "integrate.h"
@@ -26,6 +27,46 @@ int find_nearest_index(double *arr, double val, int N) {
         }
     }
     return nearest;
+}
+
+void nearest_grid_idx(float *point, datagrid *grid, int *idx_4D) {
+
+	int near_i = -1;
+	int near_j = -1;
+	int near_k = -1;
+
+    float pt_x = point[0];
+    float pt_y = point[1];
+    float pt_z = point[2];
+
+
+	// loop over the X grid
+	for ( int i = 0; i < grid->NX; i++ ) {
+		// find the nearest grid point index at X
+		if ( ( pt_x >= grid->xf[i] ) && ( pt_x <= grid->xf[i+1] ) ) { near_i = i; } 
+	}
+
+	// loop over the Y grid
+	for ( int j = 0; j < grid->NY; j++ ) {
+		// find the nearest grid point index in the Y
+		if ( ( pt_y >= grid->yf[j] ) && ( pt_y <= grid->yf[j+1] ) ) { near_j = j; } 
+	}
+
+	// loop over the Z grid
+    int k = 1;
+    while (pt_z >= grid->zf[k+1]) {
+        k = k + 1;
+    }
+    near_k = k;
+
+	// if a nearest index was not found, set all indices to -1 to flag
+	// that the point is not in the domain
+	if ((near_i == -1) || (near_j == -1) || (near_k == -1)) {
+		near_i = -1; near_j = -1; near_k = -1;
+	}
+
+	idx_4D[0] = near_i; idx_4D[1] = near_j; idx_4D[2] = near_k;
+	return;
 }
 
 // this was stolen from LOFS/cm1tools-3.0 hdf2.c
@@ -208,46 +249,54 @@ void parse_cmdline(int argc, char **argv, \
  * When the next chunk of time is read in, check and see where the parcels
  * are currently and request a subset that is relevent to those parcels.   
  */
-void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *parcels) {
-    // get the HDF metadata - return the first filename
+datagrid* loadMetadataAndGrid(string base_dir, parcel_pos *parcels, int rank) {
+    // get the HDF metadata from LOFS - return the first filename
+    cout << "Retrieving HDF Metadata" << endl;
     get_hdf_metadata(firstfilename,&nx,&ny,&nz,&nodex,&nodey);
 
-    datagrid temp_grid;
+    // Create a temporary full grid that we will then subset. We will
+    // only do this in CPU memory because this will get deleted
+    datagrid *temp_grid;
+    // this is the grid we will return
+    datagrid *requested_grid;
+        
 
     // load the saved grid dimmensions into 
     // the temporary grid, then we will find
-    // a smaller subset to load into memory
-    temp_grid.X0 = saved_X0; temp_grid.Y0 = saved_Y0;
-    temp_grid.X1 = saved_X1; temp_grid.Y1 = saved_Y1;
-    temp_grid.Z0 = 0; temp_grid.Z1 = nz-1; // nz comes from readlofs
+    // a smaller subset to load into memory.
+    //  nz comes from readlofs
+    cout << "Allocating temporary grid" << endl;
+    temp_grid = allocate_grid_cpu( saved_X0, saved_X1, saved_Y0, saved_Y1, 0, nz-1);
 
     // request the full grid so that we can find the indices
     // of where our parcels are, and then request a smaller
     // subset from there.
-    lofs_get_grid(&temp_grid);
+    cout << "Calling LOFS on temporary grid" << endl;
+    lofs_get_grid(temp_grid);
 
     // find the min/max index bounds of 
     // our parcels
     float point[3];
     int idx_4D[4];
-    int min_i = temp_grid.NX+1;
-    int min_j = temp_grid.NY+1;
-    int min_k = temp_grid.NZ+1;
+    int min_i = temp_grid->NX+1;
+    int min_j = temp_grid->NY+1;
+    int min_k = temp_grid->NZ+1;
     int max_i = -1;
     int max_j = -1;
     int max_k = -1;
     int invalidCount = 0;
+    cout << "Searching the parcel bounds" << endl;
     for (int pcl = 0; pcl < parcels->nParcels; ++pcl) {
-        point[0] = parcels->xpos[P2(0, pcl, parcels->nTimes)];
-        point[1] = parcels->ypos[P2(0, pcl, parcels->nTimes)];
-        point[2] = parcels->zpos[P2(0, pcl, parcels->nTimes)];
+        point[0] = parcels->xpos[PCL(0, pcl, parcels->nTimes)];
+        point[1] = parcels->ypos[PCL(0, pcl, parcels->nTimes)];
+        point[2] = parcels->zpos[PCL(0, pcl, parcels->nTimes)];
         // find the nearest grid point!
-        _nearest_grid_idx(point, temp_grid, idx_4D, temp_grid.NX, temp_grid.NY, temp_grid.NZ);
+        nearest_grid_idx(point, temp_grid, idx_4D);
         if ( (idx_4D[0] == -1) || (idx_4D[1] == -1) || (idx_4D[2] == -1) ) {
             cout << "INVALID POINT X " << point[0] << " Y " << point[1] << " Z " << point[2] << endl;
-            cout << "Parcel X " << parcels->xpos[P2(0, pcl, parcels->nTimes)];
-            cout << " Parcel Y " << parcels->ypos[P2(0, pcl, parcels->nTimes)];
-            cout << " Parcel Z " << parcels->zpos[P2(0, pcl, parcels->nTimes)] << endl;
+            cout << "Parcel X " << parcels->xpos[PCL(0, pcl, parcels->nTimes)];
+            cout << " Parcel Y " << parcels->ypos[PCL(0, pcl, parcels->nTimes)];
+            cout << " Parcel Z " << parcels->zpos[PCL(0, pcl, parcels->nTimes)] << endl;
             invalidCount += 1;
         }
 
@@ -260,35 +309,16 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *
         if (idx_4D[2] < min_k) min_k = idx_4D[2]; 
         if (idx_4D[2] > max_k) max_k = idx_4D[2]; 
     }
-    requested_grid->isValid = 1;
+    cout << "Finished searching parcel bounds" << endl;
     // clear the memory from the temp grid
-    delete[] temp_grid.xh;
-    delete[] temp_grid.yh;
-    delete[] temp_grid.zh;
-    delete[] temp_grid.xf;
-    delete[] temp_grid.yf;
-    delete[] temp_grid.zf;
-    delete[] temp_grid.uh;
-    delete[] temp_grid.uf;
-    delete[] temp_grid.vh;
-    delete[] temp_grid.vf;
-    delete[] temp_grid.mh;
-    delete[] temp_grid.mf;
-    //delete[] temp_grid.th0;
-    //delete[] temp_grid.qv0;
-    // if literally all of our parcels aren't
-    // in the domain then something has gone
-    // horribly wrong
-    if (invalidCount == parcels->nParcels) {
-        requested_grid->isValid = 0;
-        return;
-    }
-
+    cout << "Deallocating temporary grid" << endl;
+    deallocate_grid_cpu(temp_grid);
 
     // we want to add a buffer to our dimensions so that
     // the parcels don't accidentally move outside of our
     // requested data. If the buffer goes outside the 
-    // saved dimensions, set it to the saved dimensions
+    // saved dimensions, set it to the saved dimensions.
+    // We also do this for our staggered grid calculations
     min_i = saved_X0 + min_i - 5;
     max_i = saved_X0 + max_i + 5;
     min_j = saved_Y0 + min_j - 5;
@@ -309,44 +339,121 @@ void loadMetadataAndGrid(string base_dir, datagrid *requested_grid, parcel_pos *
     if (max_k > nz-1) max_k = nz-1;
 
 
-
     cout << "Parcel Bounds In Grid" << endl;
     cout << "X0: " << min_i << " X1: " << max_i << endl;
     cout << "Y0: " << min_j << " Y1: " << max_j << endl;
     cout << "Z0: " << min_k << " Z1: " << max_k << endl;
 
 
-    requested_grid->X0 = min_i; requested_grid->Y0 = min_j;
-    requested_grid->X1 = max_i; requested_grid->Y1 = max_j;
-    requested_grid->Z0 = min_k; requested_grid->Z1 = max_k;
-
     // request our grid subset now
     cout << "REQUESTING METADATA & GRID" << endl;
+    // on rank zero, allocate our grid on both the
+    // CPU and GPU so that the GPU knows something
+    // about our data for future integration.
+    if (rank == 0) {
+        requested_grid = allocate_grid_managed( min_i, max_i, min_j, max_j, min_k, max_k);
+    }
+    // For the other MPI ranks, we only need to
+    // allocate the grids on the CPU for copying
+    // data to the MPI_Gather call
+    else {
+        requested_grid = allocate_grid_cpu( min_i, max_i, min_j, max_j, min_k, max_k);
+    }
+
+    requested_grid->isValid = 1;
+    // if literally all of our parcels aren't
+    // in the domain then something has gone
+    // horribly wrong
+    if (invalidCount == parcels->nParcels) {
+        requested_grid->isValid = 0;
+        return requested_grid;
+    }
+
+
     lofs_get_grid(requested_grid);
     cout << "END METADATA & GRID REQUEST" << endl;
-
+    return requested_grid;
 }
 
-/* Read in the U, V, and W vector components from the disk, provided previously allocated memory buffers
+/* Read in the U, V, and W vector components plus the buoyancy and turbulence fields 
+ * from the disk, provided previously allocated memory buffers
  * and the time requested in the dataset. 
  */
-void loadVectorsFromDisk(datagrid *requested_grid, float *ubuffer, float *vbuffer, float *wbuffer, \
-                        float *pbuffer, float *thbuffer, float *rhobuffer, float *khhbuffer, double t0) {
+void loadDataFromDisk(datagrid *requested_grid, float *ustag, float *vstag, float *wstag, \
+                        float *pbuffer, float *thbuffer, float *rhobuffer, float *khhbuffer, float*kmhbuffer, double t0) {
     // request 3D field!
     // u,v, and w are on their
     // respective staggered grids
-    lofs_read_3dvar(requested_grid, ubuffer, (char *)"u", t0);
-    lofs_read_3dvar(requested_grid, vbuffer, (char *)"v", t0);
-    lofs_read_3dvar(requested_grid, wbuffer, (char *)"w", t0);
+
+    // we need the boolean variables to tell the code
+    // what type of array indexing we're using, and what
+    // grid bounds should be requested to accomodate the
+    // data. 
+    bool istag = true;
+    lofs_read_3dvar(requested_grid, ustag, (char *)"u", istag, t0);
+    lofs_read_3dvar(requested_grid, vstag, (char *)"v", istag, t0);
+    lofs_read_3dvar(requested_grid, wstag, (char *)"w", istag, t0);
+    lofs_read_3dvar(requested_grid, khhbuffer, (char *)"khh", istag, t0);
+    lofs_read_3dvar(requested_grid, kmhbuffer, (char *)"kmh", istag, t0);
 
     // request additional fields for calculations
-    lofs_read_3dvar(requested_grid, pbuffer, (char *)"prespert", t0);
-    lofs_read_3dvar(requested_grid, thbuffer, (char *)"thpert", t0);
-    lofs_read_3dvar(requested_grid, rhobuffer, (char *)"rhopert", t0);
-    lofs_read_3dvar(requested_grid, khhbuffer, (char *)"khh", t0);
+    istag = false;
+    lofs_read_3dvar(requested_grid, pbuffer, (char *)"prespert", istag, t0);
+    lofs_read_3dvar(requested_grid, thbuffer, (char *)"thrhopert", istag, t0);
+    lofs_read_3dvar(requested_grid, rhobuffer, (char *)"rhopert", istag, t0);
 
 }
 
+/* This handles the vertical dimension offset so that we can
+ * include a lower ghost zone later on down the road*/
+void buffer_offset_stag(datagrid *grid, float *ubufin, float *vbufin, float *wbufin, float *khhbufin, float *kmhbufin, \
+                   float *ubufout, float *vbufout, float *wbufout, float *khhbufout, float *kmhbufout) {
+    int NX = grid->NX;
+    int NY = grid->NY;
+    int NZ = grid->NZ;
+    for (int i = 0; i < NX+2; i++) {
+        for (int j = 0; j < NY+2; j++) {
+            for (int k = 0; k < NZ; ++k) {
+                if (k == 0) {
+                    // fill the lower ghost zone with zeroes. May consider
+                    // applying the boundary condition here, but makes more
+                    // sense to apply it in GPU land for clarity. 
+                    ubufout[P3(i, j, 0, NX+2, NY+2)] = 0.0;
+                    vbufout[P3(i, j, 0, NX+2, NY+2)] = 0.0;
+                    wbufout[P3(i, j, 0, NX+2, NY+2)] = 0.0;
+                    khhbufout[P3(i, j, 0, NX+2, NY+2)] = 0.0;
+                    kmhbufout[P3(i, j, 0, NX+2, NY+2)] = 0.0;
+                }
+                ubufout[P3(i, j, k+1, NX+2, NY+2)] = ubufin[P3(i, j, k, NX+2, NY+2)];
+                vbufout[P3(i, j, k+1, NX+2, NY+2)] = vbufin[P3(i, j, k, NX+2, NY+2)];
+                wbufout[P3(i, j, k+1, NX+2, NY+2)] = wbufin[P3(i, j, k, NX+2, NY+2)];
+                khhbufout[P3(i, j, k+1, NX+2, NY+2)] = khhbufin[P3(i, j, k, NX+2, NY+2)];
+                kmhbufout[P3(i, j, k+1, NX+2, NY+2)] = kmhbufin[P3(i, j, k, NX+2, NY+2)];
+            }
+        }
+    }
+}
+
+void buffer_offset_scal(datagrid *grid, float *pbufin, float *thbufin, float *rhobufin, \
+                        float *pbufout, float *thbufout, float *rhobufout) {
+    int NX = grid->NX;
+    int NY = grid->NY;
+    int NZ = grid->NZ;
+    for (int i = 0; i < NX; i++) {
+        for (int j = 0; j < NY; j++) {
+            for (int k = 0; k < NZ; ++k) {
+                if (k == 0) {
+                    pbufout[P3(i, j, 0, NX, NY)] = pbufin[P3(i, j, 0, NX, NY)];
+                    thbufout[P3(i, j, 0, NX, NY)] = thbufin[P3(i, j, 0, NX, NY)];
+                    rhobufout[P3(i, j, 0, NX, NY)] = rhobufin[P3(i, j, 0, NX, NY)];
+                }
+                pbufout[P3(i, j, k+1, NX, NY)] = pbufin[P3(i, j, k, NX, NY)];
+                thbufout[P3(i, j, k+1, NX, NY)] = thbufin[P3(i, j, k, NX, NY)];
+                rhobufout[P3(i, j, k+1, NX, NY)] = rhobufin[P3(i, j, k, NX, NY)];
+            }
+        }
+    }
+}
 
 /* Seed some parcels into the domain
  * in physical gridpoint space, and then
@@ -357,43 +464,13 @@ void seed_parcels(parcel_pos *parcels, float X0, float Y0, float Z0, int NX, int
                     float DX, float DY, float DZ, int nTotTimes) {
     int nParcels = NX*NY*NZ;
 
-    // allocate memory for the parcels
-    // we are integrating for the entirety 
-    // of the simulation.
-    parcels->xpos = new float[nParcels * nTotTimes];
-    parcels->ypos = new float[nParcels * nTotTimes];
-    parcels->zpos = new float[nParcels * nTotTimes];
-    parcels->pclu = new float[nParcels * nTotTimes];
-    parcels->pclv = new float[nParcels * nTotTimes];
-    parcels->pclw = new float[nParcels * nTotTimes];
-    parcels->pclkhh = new float[nParcels * nTotTimes];
-    parcels->pclppert = new float[nParcels * nTotTimes];
-    parcels->pclthrhoprime = new float[nParcels * nTotTimes];
-    parcels->pclxvort = new float[nParcels * nTotTimes];
-    parcels->pclyvort = new float[nParcels * nTotTimes];
-    parcels->pclzvort = new float[nParcels * nTotTimes];
-    parcels->pclxvorttilt = new float[nParcels * nTotTimes];
-    parcels->pclyvorttilt = new float[nParcels * nTotTimes];
-    parcels->pclzvorttilt = new float[nParcels * nTotTimes];
-    parcels->pclxvortstretch = new float[nParcels * nTotTimes];
-    parcels->pclyvortstretch = new float[nParcels * nTotTimes];
-    parcels->pclzvortstretch = new float[nParcels * nTotTimes];
-    parcels->pclxvortbaro = new float[nParcels * nTotTimes];
-    parcels->pclyvortbaro = new float[nParcels * nTotTimes];
-    parcels->pclxvortturb = new float[nParcels * nTotTimes];
-    parcels->pclyvortturb = new float[nParcels * nTotTimes];
-    parcels->pclzvortturb = new float[nParcels * nTotTimes];
-    parcels->nParcels = nParcels;
-    parcels->nTimes = nTotTimes;
-    cout << X0 << " " << Y0 << " " << Z0 << endl;
-
     int pid = 0;
     for (int k = 0; k < NZ; ++k) {
         for (int j = 0; j < NY; ++j) {
             for (int i = 0; i < NX; ++i) {
-                parcels->xpos[P2(0, pid, parcels->nTimes)] = X0 + i*DX;
-                parcels->ypos[P2(0, pid, parcels->nTimes)] = Y0 + j*DY;
-                parcels->zpos[P2(0, pid, parcels->nTimes)] = Z0 + k*DZ;
+                parcels->xpos[PCL(0, pid, parcels->nTimes)] = X0 + i*DX;
+                parcels->ypos[PCL(0, pid, parcels->nTimes)] = Y0 + j*DY;
+                parcels->zpos[PCL(0, pid, parcels->nTimes)] = Z0 + k*DZ;
                 pid += 1;
             }
         }
@@ -404,59 +481,9 @@ void seed_parcels(parcel_pos *parcels, float X0, float Y0, float Z0, int NX, int
     // times that we haven't integrated to yet.
     for (int p = 0; p < nParcels; ++p) {
         for (int t = 1; t < parcels->nTimes; ++t) {
-            parcels->xpos[P2(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
-            parcels->ypos[P2(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
-            parcels->zpos[P2(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
-        }
-    }
-    cout << "END PARCEL SEED" << endl;
-
-}
-
-/* This parcel seed function is used
- * when trying to match parcel locations
- * to ones used in CM1. This is really
- * only used for testing purposes. */
-void seed_parcels_cm1(parcel_pos *parcels, int nTotTimes) {
-
-    int nParcels = 36000;
-
-    // allocate memory for the parcels
-    // we are integrating for the entirety 
-    // of the simulation.
-    parcels->xpos = new float[nParcels * nTotTimes];
-    parcels->ypos = new float[nParcels * nTotTimes];
-    parcels->zpos = new float[nParcels * nTotTimes];
-    parcels->pclu = new float[nParcels * nTotTimes];
-    parcels->pclv = new float[nParcels * nTotTimes];
-    parcels->pclw = new float[nParcels * nTotTimes];
-
-    parcels->nParcels = nParcels;
-    parcels->nTimes = nTotTimes;
-
-    int pid = 0;
-    for (int k = 0; k < 10; ++k) {
-        for (int j = 0; j < 60; ++j) {
-            for (int i = 0; i < 60; ++i) {
-                parcels->xpos[P2(0, pid, parcels->nTimes)] = -6375 + 250.0*i;
-                parcels->ypos[P2(0, pid, parcels->nTimes)] = 5125 + 250.0*j;
-                parcels->zpos[P2(0, pid, parcels->nTimes)] = 100 + 250.0*k;
-                pid += 1;
-            }
-        }
-    }
-
-    // fill the remaining portions of the array
-    // with the missing value flag for the future
-    // times that we haven't integrated to yet.
-    for (int p = 0; p < nParcels; ++p) {
-        for (int t = 1; t < parcels->nTimes; ++t) {
-            parcels->xpos[P2(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
-            parcels->ypos[P2(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
-            parcels->zpos[P2(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
-            parcels->pclu[P2(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
-            parcels->pclv[P2(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
-            parcels->pclw[P2(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
+            parcels->xpos[PCL(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
+            parcels->ypos[PCL(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
+            parcels->zpos[PCL(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
         }
     }
     cout << "END PARCEL SEED" << endl;
@@ -503,7 +530,7 @@ int main(int argc, char **argv ) {
     delete[] histpath;
 
     int rank, size;
-    long N, MX, MY, MZ;
+    long N_stag_ghost, N_stag_read, N_scal_read, N_scal_ghost, MX, MY, MZ;
     //int nTimeChunks = 120*2;
 
     // initialize a bunch of MPI stuff.
@@ -529,6 +556,7 @@ int main(int argc, char **argv ) {
     // the number of MPI ranks there are
     // plus the very last integration end time
     int nTotTimes = size+1;
+    
     // Query our dataset structure.
     // If this has been done before, it reads
     // the information from cache files in the 
@@ -537,8 +565,8 @@ int main(int argc, char **argv ) {
     lofs_get_dataset_structure(base_dir);
     // our parcel struct containing 
     // the position arrays
-    parcel_pos parcels;
-    datagrid requested_grid;
+    datagrid *requested_grid;
+    parcel_pos *parcels;
 
     // This is the main loop that does the data reading and eventually
     // calls the CUDA code to integrate forward.
@@ -547,210 +575,221 @@ int main(int argc, char **argv ) {
         // parcel start locations
         if (tChunk == 0) {
             cout << "SEEDING PARCELS" << endl;
-            //seed_parcels_cm1(&parcels, nTotTimes);
+            if (rank == 0) {
+                // allocate parcels on both CPU and GPU
+                parcels = allocate_parcels_managed(pNX, pNY, pNZ, nTotTimes);
+            }
+            else {
+                // for all other ranks, only
+                // allocate on CPU
+                parcels = allocate_parcels_cpu(pNX, pNY, pNZ, nTotTimes);
+            }
             
             // seed the parcel starting positions based on the command line
             // arguments provided by the user. I don't think any sanity checking is done
             // here for out of bounds positions so we probably need to be careful
             // of this and consider fixing that
-            seed_parcels(&parcels, pX0, pY0, pZ0, pNX, pNY, pNZ, pDX, pDY, pDZ, nTotTimes);
+            seed_parcels(parcels, pX0, pY0, pZ0, pNX, pNY, pNZ, pDX, pDY, pDZ, nTotTimes);
             // we also initialize the output netcdf file here
-            if (rank == 0) init_nc(outfilename, &parcels);
+            if (rank == 0) init_nc(outfilename, parcels);
         }
 
-        // read in the metadata and request a grid subset 
+        // Read in the metadata and request a grid subset 
         // that is dynamically based on where our parcels
-        // are in the simulation
-        loadMetadataAndGrid(base_dir, &requested_grid, &parcels); 
-        // read in some base state variables we will use
-        if ((rank == 0) && (tChunk == 0)) {
-            cout << requested_grid.qv0[0] << " " << requested_grid.th0[0] << endl;
-        }
-        if (requested_grid.isValid == 0) {
+        // are in the simulation. This is done for all MPI
+        // ranks so that they can request different time
+        // steps, but only Rank 0 will allocate the grid
+        // arrays on both the CPU and GPU.
+        
+        requested_grid = loadMetadataAndGrid(base_dir, parcels, rank); 
+        if (requested_grid->isValid == 0) {
             cout << "Something went horribly wrong when requesting a domain subset. Abort." << endl;
             exit(-1);
         }
 
 
-        // the number of grid points requested
-        N = (requested_grid.NX)*(requested_grid.NY)*(requested_grid.NZ);
+        // The number of grid points requested...
+        // There's some awkwardness here I have to figure out a better way around,
+        // but MPI Scatter/Gather behaves weird if I use the generic large buffer,
+        // so I use N_scalar for the MPI calls to non staggered/scalar fields. 
+        N_stag_read = (requested_grid->NX+2)*(requested_grid->NY+2)*(requested_grid->NZ+1);
+        N_stag_ghost = (requested_grid->NX+2)*(requested_grid->NY+2)*(requested_grid->NZ+2);
 
+        N_scal_read = (requested_grid->NX)*(requested_grid->NY)*(requested_grid->NZ);
+        N_scal_ghost = (requested_grid->NX)*(requested_grid->NY)*(requested_grid->NZ+1);
 
-        // get the size of the domain we will
-        // be requesting. The +1 is safety for
-        // staggered grids
-        MX = (long) (requested_grid.NX);
-        MY = (long) (requested_grid.NY);
-        MZ = (long) (requested_grid.NZ);
 
         // allocate space for U, V, and W arrays
-        long bufsize = (long) (requested_grid.NX+1) * (long) (requested_grid.NY+1) * (long) (requested_grid.NZ+1) * (long) sizeof(float);
-        float *ubuf, *vbuf, *wbuf, *pbuf, *thbuf, *rhobuf, *khhbuf;
-        ubuf = new float[(size_t)bufsize];
-        vbuf = new float[(size_t)bufsize];
-        wbuf = new float[(size_t)bufsize];
-        pbuf = new float[(size_t)bufsize];
-        thbuf = new float[(size_t)bufsize];
-        rhobuf = new float[(size_t)bufsize];
-        khhbuf = new float[(size_t)bufsize];
+        // for all ranks, because this is what
+        // LOFS will return it's data subset to
+        float *ubuf_tem, *vbuf_tem, *wbuf_tem, *pbuf_tem, *thbuf_tem, *rhobuf_tem, *khhbuf_tem, *kmhbuf_tem;
+        float *ubuf, *vbuf, *wbuf, *pbuf, *thbuf, *rhobuf, *khhbuf, *kmhbuf;
+        // These temporary buffers are our un-offset arrays
+        ubuf_tem = new float[N_stag_read];
+        vbuf_tem = new float[N_stag_read];
+        wbuf_tem = new float[N_stag_read];
+        // khh and kmh are on the staggered W mesh
+        khhbuf_tem = new float[N_stag_read];
+        kmhbuf_tem = new float[N_stag_read];
+        pbuf_tem = new float[N_scal_read];
+        thbuf_tem = new float[N_scal_read];
+        rhobuf_tem = new float[N_scal_read];
+
+        // These non temporary arrays are offset in the vertical by 1
+        // to account for potential ghost zone
+        ubuf = new float[N_stag_ghost];
+        vbuf = new float[N_stag_ghost];
+        wbuf = new float[N_stag_ghost];
+        // khh and kmh are on the staggered W mesh
+        khhbuf = new float[N_stag_ghost];
+        kmhbuf = new float[N_stag_ghost];
+        // As far as I'm aware, these do not need to be offset
+        pbuf = new float[N_scal_ghost];
+        thbuf = new float[N_scal_ghost];
+        rhobuf = new float[N_scal_ghost];
 
 
         // construct a 4D contiguous array to store stuff in.
         // bufsize is the size of the 3D component and size is
         // the number of MPI ranks (which is also the number of times)
         // read in
-        float *u_time_chunk, *v_time_chunk, *w_time_chunk, *p_time_chunk, *th_time_chunk; 
-        float *rho_time_chunk, *khh_time_chunk; 
+        //
+        // declare the struct on all ranks, but only
+        // allocate space for it on Rank 0
+        integration_data *data;
         if (rank == 0) {
-            u_time_chunk = (float *) malloc ((size_t)bufsize*size);
-            v_time_chunk = (float *) malloc ((size_t)bufsize*size);
-            w_time_chunk = (float *) malloc ((size_t)bufsize*size);
-            p_time_chunk = (float *) malloc ((size_t)bufsize*size);
-            th_time_chunk = (float *) malloc ((size_t)bufsize*size);
-            rho_time_chunk = (float *) malloc ((size_t)bufsize*size);
-            khh_time_chunk = (float *) malloc ((size_t)bufsize*size);
-
+            data = allocate_integration_managed(N_stag_ghost*size);
         }
+        else {
+            data = new integration_data();
+        }
+
 
         // we need to find the index of the nearest time to the user requested
         // time. If the index isn't found, abort.
         int nearest_tidx = find_nearest_index(alltimes, time, ntottimes);
         if (nearest_tidx < 0) {
             cout << "Invalid time index: " << nearest_tidx << " for time " << time << ". Abort." << endl;
+            return 0;
         }
         printf("TIMESTEP %d/%d %d %f\n", rank, size, rank + tChunk*size, alltimes[nearest_tidx + direct*( rank + tChunk*size)]);
         // load u, v, and w into memory
-        loadVectorsFromDisk(&requested_grid, ubuf, vbuf, wbuf, pbuf, thbuf, rhobuf, khhbuf, alltimes[nearest_tidx + direct*(rank + tChunk*size)]);
+        loadDataFromDisk(requested_grid, ubuf_tem, vbuf_tem, wbuf_tem, \
+                         pbuf_tem, thbuf_tem, rhobuf_tem, khhbuf_tem, \
+                         kmhbuf_tem, alltimes[nearest_tidx + direct*(rank + tChunk*size)]);
+
+        buffer_offset_stag(requested_grid, ubuf_tem, vbuf_tem, wbuf_tem, khhbuf_tem, \
+                           kmhbuf_tem, ubuf, vbuf, wbuf, khhbuf, kmhbuf);
+        buffer_offset_scal(requested_grid, pbuf_tem, thbuf_tem, rhobuf_tem, \
+                           pbuf, thbuf, rhobuf);
         
         // for MPI runs that load multiple time steps into memory,
         // communicate the data you've read into our 4D array
-        int senderr_u = MPI_Gather(ubuf, N, MPI_FLOAT, u_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_v = MPI_Gather(vbuf, N, MPI_FLOAT, v_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_w = MPI_Gather(wbuf, N, MPI_FLOAT, w_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_p = MPI_Gather(pbuf, N, MPI_FLOAT, p_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_th = MPI_Gather(thbuf, N, MPI_FLOAT, th_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_rho = MPI_Gather(rhobuf, N, MPI_FLOAT, rho_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_khh = MPI_Gather(khhbuf, N, MPI_FLOAT, khh_time_chunk, N, MPI_FLOAT, 0, MPI_COMM_WORLD);
+
+        int senderr_u = MPI_Gather(ubuf, N_stag_ghost, MPI_FLOAT, data->u_4d_chunk, N_stag_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_v = MPI_Gather(vbuf, N_stag_ghost, MPI_FLOAT, data->v_4d_chunk, N_stag_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_w = MPI_Gather(wbuf, N_stag_ghost, MPI_FLOAT, data->w_4d_chunk, N_stag_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_khh = MPI_Gather(khhbuf, N_stag_ghost, MPI_FLOAT, data->khh_4d_chunk, N_stag_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_kmh = MPI_Gather(kmhbuf, N_stag_ghost, MPI_FLOAT, data->kmh_4d_chunk, N_stag_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
+
+        // Use N_scalar here so that there aren't random zeroes throughout the middle of the array
+        int senderr_p = MPI_Gather(pbuf, N_scal_ghost, MPI_FLOAT, data->pres_4d_chunk, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_th = MPI_Gather(thbuf, N_scal_ghost, MPI_FLOAT, data->th_4d_chunk, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_rho = MPI_Gather(rhobuf, N_scal_ghost, MPI_FLOAT, data->rho_4d_chunk, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
 
         if (rank == 0) {
             // send to the GPU!!
-            int nParcels = parcels.nParcels;
-            cudaIntegrateParcels(requested_grid, parcels, u_time_chunk, v_time_chunk, w_time_chunk, p_time_chunk, th_time_chunk, \
-                                rho_time_chunk, khh_time_chunk, MX, MY, MZ, size, nTotTimes, direct); 
+            cout << "MPI Gather Error U: " << senderr_u << endl;
+            cout << "MPI Gather Error V: " << senderr_v << endl;
+            cout << "MPI Gather Error W: " << senderr_w << endl;
+            cout << "MPI Gather Error P: " << senderr_p << endl;
+            cout << "MPI Gather Error TH: " << senderr_th << endl;
+            cout << "MPI Gather Error RHO: " << senderr_rho << endl;
+            cout << "MPI Gather Error KHH: " << senderr_khh << endl;
+            cout << "MPI Gather Error KMH: " << senderr_khh << endl;
+            int nParcels = parcels->nParcels;
+            cout << "Beginning parcel integration! Heading over to the GPU to do GPU things..." << endl;
+            cudaIntegrateParcels(requested_grid, data, parcels, size, nTotTimes, direct); 
+            cout << "Finished integrating parcels!" << endl;
             // write out our information to disk
-            write_parcels(outfilename, &parcels, tChunk);
+            cout << "Beginning to write to disk..." << endl;
+            write_parcels(outfilename, parcels, tChunk);
 
             // Now that we've integrated forward and written to disk, before we can go again
             // we have to set the current end position of the parcel to the beginning for 
             // the next leg of integration. Do that, and then reset all the other values
             // to missing.
-            for (int pcl = 0; pcl < parcels.nParcels; ++pcl) {
-                parcels.xpos[P2(0, pcl, parcels.nTimes)] = parcels.xpos[P2(size, pcl, parcels.nTimes)];
-                parcels.ypos[P2(0, pcl, parcels.nTimes)] = parcels.ypos[P2(size, pcl, parcels.nTimes)];
-                parcels.zpos[P2(0, pcl, parcels.nTimes)] = parcels.zpos[P2(size, pcl, parcels.nTimes)];
+            cout << "Setting final parcel position to beginning of array for next integration cycle..." << endl;
+            for (int pcl = 0; pcl < parcels->nParcels; ++pcl) {
+                parcels->xpos[P2(0, pcl, parcels->nTimes)] = parcels->xpos[P2(size, pcl, parcels->nTimes)];
+                parcels->ypos[P2(0, pcl, parcels->nTimes)] = parcels->ypos[P2(size, pcl, parcels->nTimes)];
+                parcels->zpos[P2(0, pcl, parcels->nTimes)] = parcels->zpos[P2(size, pcl, parcels->nTimes)];
                 // empty out our parcel data arrays too
-                parcels.pclu[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                parcels.pclv[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                parcels.pclw[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                parcels.pclkhh[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                parcels.pclppert[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                parcels.pclthrhoprime[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                parcels.pclxvort[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                parcels.pclyvort[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                parcels.pclzvort[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                parcels.pclxvorttilt[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                parcels.pclyvorttilt[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                parcels.pclzvorttilt[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                parcels.pclxvortstretch[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                parcels.pclyvortstretch[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                parcels.pclzvortstretch[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                parcels.pclxvortbaro[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                parcels.pclyvortbaro[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                parcels.pclxvortturb[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                parcels.pclyvortturb[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
-                parcels.pclzvortturb[P2(0, pcl, parcels.nTimes)] = NC_FILL_FLOAT;
+                parcels->pclu[P2(0, pcl, parcels->nTimes)] = NC_FILL_FLOAT;
+                parcels->pclv[P2(0, pcl, parcels->nTimes)] = NC_FILL_FLOAT;
+                parcels->pclw[P2(0, pcl, parcels->nTimes)] = NC_FILL_FLOAT;
             }
+            cout << "Parcel position arrays reset." << endl;
 
             // memory management for root rank
-            delete[] requested_grid.xf;
-            delete[] requested_grid.yf;
-            delete[] requested_grid.zf;
-
-            delete[] requested_grid.xh;
-            delete[] requested_grid.yh;
-            delete[] requested_grid.zh;
-
-            delete[] requested_grid.uh;
-            delete[] requested_grid.vh;
-            delete[] requested_grid.mh;
-            
-            delete[] requested_grid.uf;
-            delete[] requested_grid.vf;
-            delete[] requested_grid.mf;
-            
-            delete[] requested_grid.th0;
-            delete[] requested_grid.qv0;
-            delete[] requested_grid.rho0;
+            deallocate_grid_managed(requested_grid);
 
             delete[] ubuf;
             delete[] vbuf;
             delete[] wbuf;
+            delete[] ubuf_tem;
+            delete[] vbuf_tem;
+            delete[] wbuf_tem;
+            delete[] pbuf_tem;
+            delete[] thbuf_tem;
+            delete[] rhobuf_tem;
+            delete[] khhbuf_tem;
+            delete[] kmhbuf_tem;
             delete[] pbuf;
             delete[] thbuf;
             delete[] rhobuf;
             delete[] khhbuf;
+            delete[] kmhbuf;
 
-            delete[] u_time_chunk;
-            delete[] v_time_chunk;
-            delete[] w_time_chunk;
-            delete[] p_time_chunk;
-            delete[] th_time_chunk;
-            delete[] rho_time_chunk;
-            delete[] khh_time_chunk;
+            deallocate_integration_managed(data);
         }
 
         // house keeping for the non-master
         // MPI ranks
         else {
             // memory management
-            delete[] requested_grid.xf;
-            delete[] requested_grid.yf;
-            delete[] requested_grid.zf;
-
-            delete[] requested_grid.xh;
-            delete[] requested_grid.yh;
-            delete[] requested_grid.zh;
-
-            delete[] requested_grid.uh;
-            delete[] requested_grid.vh;
-            delete[] requested_grid.mh;
-            
-            delete[] requested_grid.uf;
-            delete[] requested_grid.vf;
-            delete[] requested_grid.mf;
-            
-            delete[] requested_grid.th0;
-            delete[] requested_grid.qv0;
-            delete[] requested_grid.rho0;
+            deallocate_grid_cpu(requested_grid);
 
             delete[] ubuf;
             delete[] vbuf;
             delete[] wbuf;
+            delete[] ubuf_tem;
+            delete[] vbuf_tem;
+            delete[] wbuf_tem;
+            delete[] pbuf_tem;
+            delete[] thbuf_tem;
+            delete[] rhobuf_tem;
+            delete[] khhbuf_tem;
+            delete[] kmhbuf_tem;
             delete[] pbuf;
             delete[] thbuf;
             delete[] rhobuf;
             delete[] khhbuf;
+            delete[] kmhbuf;
         }
         // receive the updated parcel arrays
         // so that we can do proper subseting. This happens
         // after integration is complete from CUDA.
         MPI_Status status;
-        MPI_Bcast(parcels.xpos, parcels.nParcels*nTotTimes, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        MPI_Bcast(parcels.ypos, parcels.nParcels*nTotTimes, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        MPI_Bcast(parcels.zpos, parcels.nParcels*nTotTimes, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        MPI_Bcast(parcels->xpos, parcels->nParcels*nTotTimes, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        MPI_Bcast(parcels->ypos, parcels->nParcels*nTotTimes, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        MPI_Bcast(parcels->zpos, parcels->nParcels*nTotTimes, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
     }
 
+    if (rank == 0) {
+        cout << "Finished!" << endl << endl;
+    }
     MPI_Finalize();
 }

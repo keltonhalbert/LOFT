@@ -1,7 +1,7 @@
 #ifndef WRITENC_CPP
 #define WRITENC_CPP
 
-#include "datastructs.cpp"
+#include "datastructs.h"
 #include <iostream>
 #include <string>
 #include <netcdf>
@@ -29,6 +29,9 @@ void init_nc(string filename, parcel_pos *parcels) {
     NcVar uVar = output.addVar("u", ncFloat, gridDimVector);
     NcVar vVar = output.addVar("v", ncFloat, gridDimVector);
     NcVar wVar = output.addVar("w", ncFloat, gridDimVector);
+    NcVar uturbVar = output.addVar("uturb", ncFloat, gridDimVector);
+    NcVar vturbVar = output.addVar("vturb", ncFloat, gridDimVector);
+    NcVar wturbVar = output.addVar("wturb", ncFloat, gridDimVector);
     NcVar khhVar = output.addVar("khh", ncFloat, gridDimVector);
 
     NcVar xvortVar = output.addVar("xvort", ncFloat, gridDimVector);
@@ -40,6 +43,7 @@ void init_nc(string filename, parcel_pos *parcels) {
     NcVar xvortstretchVar = output.addVar("xvortstretch", ncFloat, gridDimVector);
     NcVar yvortstretchVar = output.addVar("yvortstretch", ncFloat, gridDimVector);
     NcVar zvortstretchVar = output.addVar("zvortstretch", ncFloat, gridDimVector);
+    NcVar zvortsolenoidVar = output.addVar("zvortsolenoid", ncFloat, gridDimVector);
     NcVar xvortbaroVar = output.addVar("xvortbaro", ncFloat, gridDimVector);
     NcVar yvortbaroVar = output.addVar("yvortbaro", ncFloat, gridDimVector);
     NcVar xvortturbVar = output.addVar("xvortturb", ncFloat, gridDimVector);
@@ -59,6 +63,9 @@ void init_nc(string filename, parcel_pos *parcels) {
     uVar.putAtt("units", "meters / second");
     vVar.putAtt("units", "meters / second");
     wVar.putAtt("units", "meters / second");
+    uturbVar.putAtt("units", "meters / second^2");
+    vturbVar.putAtt("units", "meters / second^2");
+    wturbVar.putAtt("units", "meters / second^2");
     khhVar.putAtt("units", "Unknown");
 
     xvortVar.putAtt("units", "s^-1");
@@ -70,6 +77,7 @@ void init_nc(string filename, parcel_pos *parcels) {
     xvortstretchVar.putAtt("units", "s^-2");
     yvortstretchVar.putAtt("units", "s^-2");
     zvortstretchVar.putAtt("units", "s^-2");
+    zvortsolenoidVar.putAtt("units", "s^-2");
     xvortbaroVar.putAtt("units", "s^-2");
     yvortbaroVar.putAtt("units", "s^-2");
     xvortturbVar.putAtt("units", "s^-2");
@@ -90,6 +98,9 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
     NcVar uVar = output.getVar("u");
     NcVar vVar = output.getVar("v");
     NcVar wVar = output.getVar("w");
+    NcVar uturbVar = output.getVar("uturb");
+    NcVar vturbVar = output.getVar("vturb");
+    NcVar wturbVar = output.getVar("wturb");
     NcVar khhVar = output.getVar("khh");
 
     NcVar ppertVar = output.getVar("prespert");
@@ -104,6 +115,7 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
     NcVar xvortstretchVar = output.getVar("xvortstretch");
     NcVar yvortstretchVar = output.getVar("yvortstretch");
     NcVar zvortstretchVar = output.getVar("zvortstretch");
+    NcVar zvortsolenoidVar = output.getVar("zvortsolenoid");
     NcVar xvortbaroVar = output.getVar("xvortbaro");
     NcVar yvortbaroVar = output.getVar("yvortbaro");
     NcVar xvortturbVar = output.getVar("xvortturb");
@@ -125,10 +137,13 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
     uVar.putVar(startp,countp,parcels->pclu);
     vVar.putVar(startp,countp,parcels->pclv);
     wVar.putVar(startp,countp,parcels->pclw);
-    khhVar.putVar(startp,countp,parcels->pclkhh);
+    uturbVar.putVar(startp,countp,parcels->pcluturb);
+    vturbVar.putVar(startp,countp,parcels->pclvturb);
+    wturbVar.putVar(startp,countp,parcels->pclwturb);
+    //khhVar.putVar(startp,countp,parcels->pclkhh);
 
-    ppertVar.putVar(startp,countp,parcels->pclppert);
-    thrhoprimeVar.putVar(startp,countp,parcels->pclthrhoprime);
+    //ppertVar.putVar(startp,countp,parcels->pclppert);
+    //thrhoprimeVar.putVar(startp,countp,parcels->pclthrhoprime);
 
     xvortVar.putVar(startp,countp,parcels->pclxvort);
     yvortVar.putVar(startp,countp,parcels->pclyvort);
@@ -139,6 +154,7 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
     xvortstretchVar.putVar(startp,countp,parcels->pclxvortstretch);
     yvortstretchVar.putVar(startp,countp,parcels->pclyvortstretch);
     zvortstretchVar.putVar(startp,countp,parcels->pclzvortstretch);
+    zvortsolenoidVar.putVar(startp,countp,parcels->pclzvortsolenoid);
     xvortbaroVar.putVar(startp,countp,parcels->pclxvortbaro);
     yvortbaroVar.putVar(startp,countp,parcels->pclyvortbaro);
     xvortturbVar.putVar(startp,countp,parcels->pclxvortturb);
