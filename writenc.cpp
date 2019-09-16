@@ -155,8 +155,8 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
     yvortstretchVar.putVar(startp,countp,parcels->pclyvortstretch);
     zvortstretchVar.putVar(startp,countp,parcels->pclzvortstretch);
     zvortsolenoidVar.putVar(startp,countp,parcels->pclzvortsolenoid);
-    //xvortbaroVar.putVar(startp,countp,parcels->pclxvortbaro);
-    //yvortbaroVar.putVar(startp,countp,parcels->pclyvortbaro);
+    xvortbaroVar.putVar(startp,countp,parcels->pclxvortbaro);
+    yvortbaroVar.putVar(startp,countp,parcels->pclyvortbaro);
     xvortturbVar.putVar(startp,countp,parcels->pclxvortturb);
     yvortturbVar.putVar(startp,countp,parcels->pclyvortturb);
     zvortturbVar.putVar(startp,countp,parcels->pclzvortturb);

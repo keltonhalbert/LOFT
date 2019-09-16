@@ -333,6 +333,19 @@ integration_data* allocate_integration_managed(long bufsize) {
     cudaMallocManaged(&(data->xvbaro_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->yvbaro_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->zvort_solenoid_4d_chunk), bufsize*sizeof(float)); 
+
+    for (int i = 0; i < bufsize; ++i) {
+        data->u_4d_chunk[i] = 0;
+        data->v_4d_chunk[i] = 0;
+        data->w_4d_chunk[i] = 0;
+        data->pi_4d_chunk[i] = 0;
+        data->pres_4d_chunk[i] = 0;
+        data->th_4d_chunk[i] = 0;
+        data->rho_4d_chunk[i] = 0;
+        data->khh_4d_chunk[i] = 0;
+        data->kmh_4d_chunk[i] = 0;
+        data->u_4d_chunk[i] = 0;
+    }
     cudaDeviceSynchronize();
 
     return data;

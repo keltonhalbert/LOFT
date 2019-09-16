@@ -291,6 +291,19 @@ __device__ void calc_xvortbaro(datagrid *grid, integration_data *data, int *idx_
     int k = idx_4D[2];
     int t = idx_4D[3];
 
+    float reps = 461.5/287.04;
+    // We use the k-1 index because of the lower ghost zone in the
+    // main arrays not being present in the base state
+    float coeff = 9.81 / (grid->th0[k-1] * (1.0 + reps*grid->qv0[k-1]/(1.0+grid->qv0[k-1])));
+    // th is theta-rho-pert
+    float *buf0 = data->th_4d_chunk;
+    float xbaro = coeff * (BUF4D(i, j+1, k, t) - BUF4D(i, j-1, k, t)) / (2*grid->dy);
+    buf0 = data->xvbaro_4d_chunk;
+    BUF4D(i, j, k, t) = xbaro;
+    if (k == 1) {
+        BUF4D(i, j, 0, t) = xbaro;
+    }
+
 }
 
 /* Compute the vorticity tendency due to baroclinic generation in the Y direction */
@@ -300,6 +313,18 @@ __device__ void calc_yvortbaro(datagrid *grid, integration_data *data, int *idx_
     int k = idx_4D[2];
     int t = idx_4D[3];
 
+    float reps = 461.5/287.04;
+    // We use the k-1 index because of the lower ghost zone in the
+    // main arrays not being present in the base state
+    float coeff = 9.81 / (grid->th0[k-1] * (1.0 + reps*grid->qv0[k-1]/(1.0+grid->qv0[k-1])));
+    // th is theta-rho-pert
+    float *buf0 = data->th_4d_chunk;
+    float ybaro = -1.0*coeff*(BUF4D(i+1, j, k, t) - BUF4D(i-1, j, k, t)) / (2*grid->dx); 
+    buf0 = data->yvbaro_4d_chunk;
+    BUF4D(i, j, k, t) = ybaro;
+    if (k == 1) {
+        BUF4D(i, j, 0, t) = ybaro;
+    }
 }
 
 __device__ void calc_zvort_solenoid(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
@@ -309,28 +334,28 @@ __device__ void calc_zvort_solenoid(datagrid *grid, integration_data *data, int 
     int t = idx_4D[3];
 
     // We can use p' here with no problems
-    float *dum0 = data->pres_4d_chunk;
+    float *buf0 = data->pres_4d_chunk;
     // dP/dx
-    float dpdx = ( (TEM4D(i+1, j, k, t) - TEM4D(i-1, j, k, t)) / ( 2*grid->dx ) ) * UH(i);
+    float dpdx = ( (BUF4D(i+1, j, k, t) - BUF4D(i-1, j, k, t)) / ( 2*grid->dx ) ) * UH(i);
     // dP/dy
-    float dpdy = ( (TEM4D(i, j+1, k, t) - TEM4D(i, j-1, k, t)) / ( 2*grid->dy ) ) * VH(j);
+    float dpdy = ( (BUF4D(i, j+1, k, t) - BUF4D(i, j-1, k, t)) / ( 2*grid->dy ) ) * VH(j);
 
-    dum0 = data->rho_4d_chunk;
+    buf0 = data->rho_4d_chunk;
     // dRho/dy
     // We use k-1 for the base state grid because it does not
     // have a lower ghost zone, so 0 corresponds to the surface 
     // instead of the ghost zone value
-    float rho2 = TEM4D(i, j+1, k, t) + grid->rho0[k-1];
-    float rho1 = TEM4D(i, j-1, k, t) + grid->rho0[k-1];
+    float rho2 = BUF4D(i, j+1, k, t) + grid->rho0[k-1];
+    float rho1 = BUF4D(i, j-1, k, t) + grid->rho0[k-1];
     float dalphady = ( ( (1./rho2) - (1./rho1) ) / ( 2*grid->dy ) ) * VH(j);
 
     // dRho/dx
-    rho2 = TEM4D(i+1, j, k, t) + grid->rho0[k-1];
-    rho1 = TEM4D(i-1, j, k, t) + grid->rho0[k-1];
+    rho2 = BUF4D(i+1, j, k, t) + grid->rho0[k-1];
+    rho1 = BUF4D(i-1, j, k, t) + grid->rho0[k-1];
     float dalphadx = ( ( (1./rho2) - (1./rho1) ) / ( 2*grid->dx ) ) * UH(i);
 
     // compute and save to the array
-    float *buf0 = data->zvort_solenoid_4d_chunk; 
+    buf0 = data->zvort_solenoid_4d_chunk; 
     BUF4D(i, j, k, t) = (dpdx*dalphady) - (dpdy*dalphadx);
 }
 
@@ -561,6 +586,29 @@ __global__ void calczvorttilt(datagrid *grid, integration_data *data, int tStart
     }
 }
 
+__global__ void calcvortbaro(datagrid *grid, integration_data *data, int tStart, int tEnd) {
+    // get our 3D index based on our blocks/threads
+    int i = (blockIdx.x*blockDim.x) + threadIdx.x;
+    int j = (blockIdx.y*blockDim.y) + threadIdx.y;
+    int k = (blockIdx.z*blockDim.z) + threadIdx.z;
+    int idx_4D[4];
+    int NX = grid->NX;
+    int NY = grid->NY;
+    int NZ = grid->NZ;
+
+    idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
+    // Even though there are NZ points, it's a center difference
+    // and we reach out NZ+1 points to get the derivatives
+    if ((i < NX-1) && (j < NY-1) && (k < NZ) && ( i > 0 ) && (j > 0) && (k >= 1)) {
+        // loop over the number of time steps we have in memory
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            idx_4D[3] = tidx;
+            calc_xvortbaro(grid, data, idx_4D, NX, NY, NZ);
+            calc_yvortbaro(grid, data, idx_4D, NX, NY, NZ);
+        }
+    }
+}
+
 /* Compute the forcing tendencies from the pressure-volume solenoid term */
 __global__ void calczvortsolenoid(datagrid *grid, integration_data *data, int tStart, int tEnd) {
     // get our 3D index based on our blocks/threads
@@ -576,7 +624,7 @@ __global__ void calczvortsolenoid(datagrid *grid, integration_data *data, int tS
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
     // Even though there are NZ points, it's a center difference
     // and we reach out NZ+1 points to get the derivatives
-    if ((i < NX) && (j < NY) && (k < NZ) && ( i > 0 ) && (j > 0) && (k >= 1)) {
+    if ((i < NX-1) && (j < NY-1) && (k < NZ) && ( i > 0 ) && (j > 0) && (k >= 1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;

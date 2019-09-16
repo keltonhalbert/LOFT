@@ -109,6 +109,11 @@ void doCalcVortTend(datagrid *grid, integration_data *data, int tStart, int tEnd
     gpuErrchk(cudaDeviceSynchronize());
     gpuErrchk( cudaPeekAtLastError() );
 
+    // Compute the baroclinic generation
+    calcvortbaro<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize());
+    gpuErrchk( cudaPeekAtLastError() );
+
     // Do the SGS turbulence closure calculations
     doCalcDef<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize());
@@ -145,7 +150,6 @@ void doCalcVortTend(datagrid *grid, integration_data *data, int tStart, int tEnd
     zeroTemArrays<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize());
     gpuErrchk( cudaPeekAtLastError() );
-
     calczvortsolenoid<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize());
     gpuErrchk(cudaPeekAtLastError());
@@ -217,6 +221,8 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             float pclxvortturb = interp3D(grid, data->turbxvort_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             float pclyvortturb = interp3D(grid, data->turbyvort_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             float pclzvortturb = interp3D(grid, data->turbzvort_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclxvortbaro = interp3D(grid, data->xvbaro_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclyvortbaro = interp3D(grid, data->yvbaro_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             float pclzvortsolenoid = interp3D(grid, data->zvort_solenoid_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
 
             parcels->pclu[PCL(tidx,   parcel_id, totTime)] = pcl_u;
@@ -239,6 +245,8 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             parcels->pclxvortturb[PCL(tidx, parcel_id, totTime)] = pclxvortturb;
             parcels->pclyvortturb[PCL(tidx, parcel_id, totTime)] = pclyvortturb;
             parcels->pclzvortturb[PCL(tidx, parcel_id, totTime)] = pclzvortturb;
+            parcels->pclxvortbaro[PCL(tidx, parcel_id, totTime)] = pclxvortbaro;
+            parcels->pclyvortbaro[PCL(tidx, parcel_id, totTime)] = pclyvortbaro;
             parcels->pclzvortsolenoid[PCL(tidx, parcel_id, totTime)] = pclzvortsolenoid;
 
             // Now we use an RK2 scheme to integrate forward

@@ -399,7 +399,7 @@ void loadDataFromDisk(datagrid *requested_grid, float *ustag, float *vstag, floa
     // request additional fields for calculations
     istag = false;
     lofs_read_3dvar(requested_grid, pbuffer, (char *)"prespert", istag, t0);
-    lofs_read_3dvar(requested_grid, thbuffer, (char *)"thpert", istag, t0);
+    lofs_read_3dvar(requested_grid, thbuffer, (char *)"thrhopert", istag, t0);
     lofs_read_3dvar(requested_grid, rhobuffer, (char *)"rhopert", istag, t0);
 
 }
@@ -439,17 +439,17 @@ void buffer_offset_scal(datagrid *grid, float *pbufin, float *thbufin, float *rh
     int NX = grid->NX;
     int NY = grid->NY;
     int NZ = grid->NZ;
-    for (int i = 0; i < NX+1; i++) {
-        for (int j = 0; j < NY+1; j++) {
-            for (int k = 0; k < NZ+1; ++k) {
+    for (int i = 0; i < NX; i++) {
+        for (int j = 0; j < NY; j++) {
+            for (int k = 0; k < NZ; ++k) {
                 if (k == 0) {
-                    pbufout[P3(i, j, 0, NX+1, NY+1)] = pbufin[P3(i, j, 0, NX+1, NY+1)];
-                    thbufout[P3(i, j, 0, NX+1, NY+1)] = thbufin[P3(i, j, 0, NX+1, NY+1)];
-                    rhobufout[P3(i, j, 0, NX+1, NY+1)] = rhobufin[P3(i, j, 0, NX+1, NY+1)];
+                    pbufout[P3(i, j, 0, NX, NY)] = pbufin[P3(i, j, 0, NX, NY)];
+                    thbufout[P3(i, j, 0, NX, NY)] = thbufin[P3(i, j, 0, NX, NY)];
+                    rhobufout[P3(i, j, 0, NX, NY)] = rhobufin[P3(i, j, 0, NX, NY)];
                 }
-                pbufout[P3(i, j, k+1, NX+1, NY+1)] = pbufin[P3(i, j, k, NX+1, NY+1)];
-                thbufout[P3(i, j, k+1, NX+1, NY+1)] = thbufin[P3(i, j, k, NX+1, NY+1)];
-                rhobufout[P3(i, j, k+1, NX+1, NY+1)] = rhobufin[P3(i, j, k, NX+1, NY+1)];
+                pbufout[P3(i, j, k+1, NX, NY)] = pbufin[P3(i, j, k, NX, NY)];
+                thbufout[P3(i, j, k+1, NX, NY)] = thbufin[P3(i, j, k, NX, NY)];
+                rhobufout[P3(i, j, k+1, NX, NY)] = rhobufin[P3(i, j, k, NX, NY)];
             }
         }
     }
@@ -615,8 +615,8 @@ int main(int argc, char **argv ) {
         N_stag_read = (requested_grid->NX+2)*(requested_grid->NY+2)*(requested_grid->NZ+1);
         N_stag_ghost = (requested_grid->NX+2)*(requested_grid->NY+2)*(requested_grid->NZ+2);
 
-        N_scal_read = (requested_grid->NX+1)*(requested_grid->NY+1)*(requested_grid->NZ+1);
-        N_scal_ghost = (requested_grid->NX+1)*(requested_grid->NY+1)*(requested_grid->NZ+2);
+        N_scal_read = (requested_grid->NX)*(requested_grid->NY)*(requested_grid->NZ);
+        N_scal_ghost = (requested_grid->NX)*(requested_grid->NY)*(requested_grid->NZ+1);
 
 
         // allocate space for U, V, and W arrays
