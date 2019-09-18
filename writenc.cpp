@@ -43,6 +43,8 @@ void init_nc(string filename, parcel_pos *parcels) {
     NcVar xvortstretchVar = output.addVar("xvortstretch", ncFloat, gridDimVector);
     NcVar yvortstretchVar = output.addVar("yvortstretch", ncFloat, gridDimVector);
     NcVar zvortstretchVar = output.addVar("zvortstretch", ncFloat, gridDimVector);
+    NcVar xvortsolenoidVar = output.addVar("xvortsolenoid", ncFloat, gridDimVector);
+    NcVar yvortsolenoidVar = output.addVar("yvortsolenoid", ncFloat, gridDimVector);
     NcVar zvortsolenoidVar = output.addVar("zvortsolenoid", ncFloat, gridDimVector);
     NcVar xvortbaroVar = output.addVar("xvortbaro", ncFloat, gridDimVector);
     NcVar yvortbaroVar = output.addVar("yvortbaro", ncFloat, gridDimVector);
@@ -77,6 +79,8 @@ void init_nc(string filename, parcel_pos *parcels) {
     xvortstretchVar.putAtt("units", "s^-2");
     yvortstretchVar.putAtt("units", "s^-2");
     zvortstretchVar.putAtt("units", "s^-2");
+    xvortsolenoidVar.putAtt("units", "s^-2");
+    yvortsolenoidVar.putAtt("units", "s^-2");
     zvortsolenoidVar.putAtt("units", "s^-2");
     xvortbaroVar.putAtt("units", "s^-2");
     yvortbaroVar.putAtt("units", "s^-2");
@@ -115,6 +119,8 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
     NcVar xvortstretchVar = output.getVar("xvortstretch");
     NcVar yvortstretchVar = output.getVar("yvortstretch");
     NcVar zvortstretchVar = output.getVar("zvortstretch");
+    NcVar xvortsolenoidVar = output.getVar("xvortsolenoid");
+    NcVar yvortsolenoidVar = output.getVar("yvortsolenoid");
     NcVar zvortsolenoidVar = output.getVar("zvortsolenoid");
     NcVar xvortbaroVar = output.getVar("xvortbaro");
     NcVar yvortbaroVar = output.getVar("yvortbaro");
@@ -154,6 +160,8 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
     xvortstretchVar.putVar(startp,countp,parcels->pclxvortstretch);
     yvortstretchVar.putVar(startp,countp,parcels->pclyvortstretch);
     zvortstretchVar.putVar(startp,countp,parcels->pclzvortstretch);
+    xvortsolenoidVar.putVar(startp,countp,parcels->pclxvortsolenoid);
+    yvortsolenoidVar.putVar(startp,countp,parcels->pclyvortsolenoid);
     zvortsolenoidVar.putVar(startp,countp,parcels->pclzvortsolenoid);
     xvortbaroVar.putVar(startp,countp,parcels->pclxvortbaro);
     yvortbaroVar.putVar(startp,countp,parcels->pclyvortbaro);

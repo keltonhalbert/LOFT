@@ -25,6 +25,7 @@ struct datagrid {
     float *qv0;
     float *th0;
     float *rho0;
+    float *p0;
     
     float *uh;
     float *uf;
@@ -80,6 +81,8 @@ struct parcel_pos {
     float *pclzvortturb;
     float *pclxvortbaro;
     float *pclyvortbaro;
+    float *pclxvortsolenoid;
+    float *pclyvortsolenoid;
     float *pclzvortsolenoid;
     int nParcels;
     int nTimes;
@@ -111,6 +114,7 @@ struct integration_data {
     float *turbv_4d_chunk;
     float *turbw_4d_chunk;
 
+
     float *tem1_4d_chunk;
     float *tem2_4d_chunk;
     float *tem3_4d_chunk;
@@ -135,6 +139,8 @@ struct integration_data {
     float *xvbaro_4d_chunk;
     float *yvbaro_4d_chunk;
  
+    float *xvort_solenoid_4d_chunk; 
+    float *yvort_solenoid_4d_chunk; 
     float *zvort_solenoid_4d_chunk; 
 };
 
