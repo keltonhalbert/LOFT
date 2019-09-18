@@ -14,7 +14,7 @@ __device__ void calcdef(datagrid *grid, integration_data *data, int *idx_4D, int
     int k = idx_4D[2];
     int t = idx_4D[3];
 
-    float *dum0, *buf0;
+    float *dum0;
     float *ustag, *vstag, *wstag;
     ustag = data->u_4d_chunk;
     vstag = data->v_4d_chunk;
@@ -56,7 +56,7 @@ __device__ void calcdef(datagrid *grid, integration_data *data, int *idx_4D, int
         // tau 13 is not on the scalar mesh
         dum0 = data->tem5_4d_chunk;
         TEM4D(i, j, k, t) = ( ( ( WA4D(i, j, k, t) - WA4D(i-1, j, k, t) ) / grid->dx ) * UF(i) ) \
-                           +( ( ( WA4D(i, j, k, t) - WA4D(i, j, k-1, t) ) / grid->dz ) * MF(k) );
+                           +( ( ( UA4D(i, j, k, t) - UA4D(i, j, k-1, t) ) / grid->dz ) * MF(k) );
 
         // tau 23 is not on the scalar mesh
         dum0 = data->tem6_4d_chunk;
@@ -226,7 +226,7 @@ __global__ void doCalcDef(datagrid *grid, integration_data *data, int tStart, in
     int NZ = grid->NZ;
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX+1) && (j < NY+1) && (k < NZ+1) && (k >=1)) {
+    if ((i < NX) && (j < NY) && (k < NZ+1) && (i > 0) && (j > 0) && (k >=1)) {
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calcdef(grid, data, idx_4D, NX, NY, NZ);
@@ -245,7 +245,7 @@ __global__ void doGetTau(datagrid *grid, integration_data *data, int tStart, int
     int NZ = grid->NZ;
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX+1) && (j < NY+1) && (k < NZ+1) && (i > 0) && (j > 0) && (k >=1)) {
+    if ((i < NX) && (j < NY) && (k < NZ+1) && (i > 0) && (j > 0) && (k >=1)) {
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             gettau(grid, data, idx_4D, NX, NY, NZ);
@@ -263,19 +263,19 @@ __global__ void doCalcTurb(datagrid *grid, integration_data *data, int tStart, i
     int NZ = grid->NZ;
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX+1) && (j < NY+1) && (k < NZ+1) && (i > 0) && (k >=1)) {
+    if ((i < NX) && (j < NY) && (k < NZ+1) && (i > 0) && (j > 0) && (k >=1)) {
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calc_turbu(grid, data, idx_4D, NX, NY, NZ);
         }
     }
-    if ((i < NX+1) && (j < NY+1) && (k < NZ+1) && (j > 0) && (k >=1)) {
+    if ((i < NX) && (j < NY) && (k < NZ+1) && (j > 0) && (i > 0) && (k >=1)) {
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calc_turbv(grid, data, idx_4D, NX, NY, NZ);
         }
     }
-    if ((i < NX+1) && (j < NY+1) && (k < NZ+1) && (k >=2)) {
+    if ((i < NX) && (j < NY) && (k < NZ+1) && (k >=2) && (i > 0) && (j > 0)) {
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calc_turbw(grid, data, idx_4D, NX, NY, NZ);

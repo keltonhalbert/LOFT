@@ -35,12 +35,6 @@ void doCalcVort(datagrid *grid, integration_data *data, int tStart, int tEnd, di
     gpuErrchk(cudaDeviceSynchronize() );
     gpuErrchk( cudaPeekAtLastError() );
 
-    // apply the lower boundary condition to the horizontal
-    // components of vorticity
-    applyVortBC<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
-    gpuErrchk(cudaDeviceSynchronize() );
-    gpuErrchk( cudaPeekAtLastError() );
-
     // Average the vorticity to the scalar grid using the temporary
     // arrays we allocated. After doing the averaging, we have to 
     // set the pointers to the temporary arrays as the new xvort,
@@ -63,18 +57,12 @@ void doCalcVortTend(datagrid *grid, integration_data *data, int tStart, int tEnd
     calcvortstretch<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize());
     gpuErrchk( cudaPeekAtLastError() );
-    applyVortTendBC<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
-    gpuErrchk(cudaDeviceSynchronize() );
-    gpuErrchk( cudaPeekAtLastError() );
 
     // Compute the vertical vorticity tendency due to tilting. We have to do 
     // each component individually because we have to average the arrays back
     // to the scalar grid. It's a mess. 
     calcxvorttilt<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize());
-    gpuErrchk( cudaPeekAtLastError() );
-    applyVortTendBC<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
-    gpuErrchk(cudaDeviceSynchronize() );
     gpuErrchk( cudaPeekAtLastError() );
     doXVortTiltAvg<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize());
@@ -86,9 +74,6 @@ void doCalcVortTend(datagrid *grid, integration_data *data, int tStart, int tEnd
     calcyvorttilt<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize());
     gpuErrchk( cudaPeekAtLastError() );
-    applyVortTendBC<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
-    gpuErrchk(cudaDeviceSynchronize() );
-    gpuErrchk( cudaPeekAtLastError() );
     doYVortTiltAvg<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize());
     gpuErrchk( cudaPeekAtLastError() );
@@ -98,9 +83,6 @@ void doCalcVortTend(datagrid *grid, integration_data *data, int tStart, int tEnd
 
     calczvorttilt<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize());
-    gpuErrchk( cudaPeekAtLastError() );
-    applyVortTendBC<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
-    gpuErrchk(cudaDeviceSynchronize() );
     gpuErrchk( cudaPeekAtLastError() );
     doZVortTiltAvg<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize());
@@ -132,12 +114,6 @@ void doCalcVortTend(datagrid *grid, integration_data *data, int tStart, int tEnd
     gpuErrchk(cudaDeviceSynchronize() );
     gpuErrchk( cudaPeekAtLastError() );
 
-    // apply the lower boundary condition to the horizontal
-    // components of vorticity
-    applyVortBC<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
-    gpuErrchk(cudaDeviceSynchronize() );
-    gpuErrchk( cudaPeekAtLastError() );
-
     // Average the vorticity to the scalar grid using the temporary
     // arrays we allocated. After doing the averaging, we have to 
     // set the pointers to the temporary arrays as the new xvort,
@@ -150,9 +126,13 @@ void doCalcVortTend(datagrid *grid, integration_data *data, int tStart, int tEnd
     zeroTemArrays<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize());
     gpuErrchk( cudaPeekAtLastError() );
-    calczvortsolenoid<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    calcpi<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize());
     gpuErrchk(cudaPeekAtLastError());
+    calcvortsolenoid<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize());
+    gpuErrchk(cudaPeekAtLastError());
+
 }
 
 __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data *data, \
@@ -223,6 +203,8 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             float pclzvortturb = interp3D(grid, data->turbzvort_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             float pclxvortbaro = interp3D(grid, data->xvbaro_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             float pclyvortbaro = interp3D(grid, data->yvbaro_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclxvortsolenoid = interp3D(grid, data->xvort_solenoid_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclyvortsolenoid = interp3D(grid, data->yvort_solenoid_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             float pclzvortsolenoid = interp3D(grid, data->zvort_solenoid_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
 
             parcels->pclu[PCL(tidx,   parcel_id, totTime)] = pcl_u;
@@ -247,6 +229,8 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             parcels->pclzvortturb[PCL(tidx, parcel_id, totTime)] = pclzvortturb;
             parcels->pclxvortbaro[PCL(tidx, parcel_id, totTime)] = pclxvortbaro;
             parcels->pclyvortbaro[PCL(tidx, parcel_id, totTime)] = pclyvortbaro;
+            parcels->pclxvortsolenoid[PCL(tidx, parcel_id, totTime)] = pclxvortsolenoid;
+            parcels->pclyvortsolenoid[PCL(tidx, parcel_id, totTime)] = pclyvortsolenoid;
             parcels->pclzvortsolenoid[PCL(tidx, parcel_id, totTime)] = pclzvortsolenoid;
 
             // Now we use an RK2 scheme to integrate forward
@@ -348,6 +332,8 @@ void cudaIntegrateParcels(datagrid *grid, integration_data *data, parcel_pos *pa
     // This is a wrapper that calls the necessary kernels to compute the
     // derivatives and average them back to the scalar grid where necessary. 
     doCalcVortTend(grid, data, tStart, tEnd, numBlocks, threadsPerBlock);
+
+
     // Before integrating the trajectories, George Bryan sets some below-grid/surface conditions 
     // that we need to consider. This handles applying those boundary conditions. 
     applyMomentumBC<<<numBlocks, threadsPerBlock>>>(data->u_4d_chunk, data->v_4d_chunk, data->w_4d_chunk, NX, NY, NZ, tStart, tEnd);
@@ -361,5 +347,4 @@ void cudaIntegrateParcels(datagrid *grid, integration_data *data, parcel_pos *pa
     gpuErrchk( cudaPeekAtLastError() );
 
 }
-
 #endif
