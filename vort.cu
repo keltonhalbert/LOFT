@@ -446,7 +446,7 @@ __global__ void applyMomentumBC(float *ustag, float *vstag, float *wstag, int NX
 
     // this is a lower boundary condition, so only when k is 0
     // also this is on the u staggered mesh
-    if (( j < nj+1) && ( i < ni+1) && ( k == 0) && (i > 0) && (j > 0)) {
+    if (( j < nj+1) && ( i < ni+1) && ( k == 0)) {
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             // use the u stagger macro to handle the
             // proper indexing
@@ -455,7 +455,7 @@ __global__ void applyMomentumBC(float *ustag, float *vstag, float *wstag, int NX
     }
     
     // do the same but now on the v staggered grid
-    if (( j < nj+1) && ( i < ni+1) && ( k == 0) && (i > 0) && (j > 0)) {
+    if (( j < nj+1) && ( i < ni+1) && ( k == 0)) {
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             // use the v stagger macro to handle the
             // proper indexing
@@ -464,7 +464,7 @@ __global__ void applyMomentumBC(float *ustag, float *vstag, float *wstag, int NX
     }
 
     // do the same but now on the w staggered grid
-    if (( j < nj+1) && ( i < ni+1) && ( k == 0) && (i > 0) && (j > 0)) {
+    if (( j < nj+1) && ( i < ni+1) && ( k == 0)) {
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             // use the w stagger macro to handle the
             // proper indexing
@@ -491,7 +491,7 @@ __global__ void doTurbVort(datagrid *grid, integration_data *data, int tStart, i
     // BAD.
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX) && (j < NY+1) && (k > 1) && (k < NZ+1) && (i > 0) && (j > 0)) {
+    if ((i < NX) && (j < NY+1) && (k > 1) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -499,14 +499,14 @@ __global__ void doTurbVort(datagrid *grid, integration_data *data, int tStart, i
         }
     }
 
-    if ((i < NX+1) && (j < NY) && (k > 1) && (k < NZ+1) && (i > 0) && (j > 0)) {
+    if ((i < NX+1) && (j < NY) && (k > 1) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calc_yvortturb_ten(grid, data, idx_4D, NX, NY, NZ);
         }
     }
-    if ((i <= NX+1) && (j <= NY+1) && (k > 0) && (k < NZ+1) && (i > 0) && (j > 0)) {
+    if ((i <= NX+1) && (j <= NY+1) && (k > 0) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -552,7 +552,7 @@ __global__ void calcvort(datagrid *grid, integration_data *data, int tStart, int
     // BAD.
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX) && (j < NY+1) && (k > 1) && (k < NZ+1) && (i > 0) && (j > 0)) {
+    if ((i < NX) && (j < NY+1) && (k > 1) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -560,14 +560,14 @@ __global__ void calcvort(datagrid *grid, integration_data *data, int tStart, int
         }
     }
 
-    if ((i < NX+1) && (j < NY) && (k > 1) && (k < NZ+1) && (i > 0) && (j > 0)) {
+    if ((i < NX+1) && (j < NY) && (k > 1) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calc_yvort(grid, data, idx_4D, NX, NY, NZ);
         }
     }
-    if ((i <= NX+1) && (j <= NY+1) && (k > 0) && (k < NZ+1) && (i > 0) && (j > 0)) {
+    if ((i <= NX+1) && (j <= NY+1) && (k > 0) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -589,7 +589,7 @@ __global__ void calcvortstretch(datagrid *grid, integration_data *data, int tSta
     //printf("%i, %i, %i\n", i, j, k);
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX) && (j < NY) && (k > 0) && (k < NZ) && (i > 0) && (j > 0)) {
+    if ((i < NX) && (j < NY) && (k > 0) && (k < NZ)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -597,14 +597,14 @@ __global__ void calcvortstretch(datagrid *grid, integration_data *data, int tSta
         }
     }
 
-    if ((i < NX) && (j < NY) && (k > 0) && (k < NZ) && (i > 0) && (j > 0)) {
+    if ((i < NX) && (j < NY) && (k > 0) && (k < NZ)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calc_yvort_stretch(grid, data, idx_4D, NX, NY, NZ);
         }
     }
-    if ((i < NX) && (j < NY) && (k > 0) && (k < NZ) && (i > 0) && (j > 0)) {
+    if ((i < NX) && (j < NY) && (k > 0) && (k < NZ)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -626,7 +626,7 @@ __global__ void calcxvorttilt(datagrid *grid, integration_data *data, int tStart
     //printf("%i, %i, %i\n", i, j, k);
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX) && (j < NY) && (k > 0) && (k < NZ) && (i > 0) && (j > 0)) {
+    if ((i < NX) && (j < NY) && (k > 0) && (k < NZ)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -648,7 +648,7 @@ __global__ void calcyvorttilt(datagrid *grid, integration_data *data, int tStart
     //printf("%i, %i, %i\n", i, j, k);
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX) && (j < NY) && (k > 0) && (k < NZ) && (i > 0) && (j > 0)) {
+    if ((i < NX) && (j < NY) && (k > 0) && (k < NZ)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -670,7 +670,7 @@ __global__ void calczvorttilt(datagrid *grid, integration_data *data, int tStart
     //printf("%i, %i, %i\n", i, j, k);
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX) && (j < NY) && (k > 0) && (k < NZ) && (i > 0) && (j > 0)) {
+    if ((i < NX) && (j < NY) && (k > 0) && (k < NZ)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -790,7 +790,7 @@ __global__ void doVortAvg(datagrid *grid, integration_data *data, int tStart, in
     int NZ = grid->NZ;
     float *buf0, *dum0;
 
-    if ((i < NX) && (j < NY) && (k < NZ) && (k > 0) && (i > 0) && (j > 0)) {
+    if ((i < NX) && (j < NY) && (k < NZ) && (k > 0)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             // average the temporary arrays into the result arrays
@@ -824,7 +824,7 @@ __global__ void doTurbVortAvg(datagrid *grid, integration_data *data, int tStart
     int NZ = grid->NZ;
     float *buf0, *dum0;
 
-    if ((i < NX) && (j < NY) && (k < NZ) && (k > 0) && (i > 0) && (j > 0)) {
+    if ((i < NX) && (j < NY) && (k < NZ) && (k > 0)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             // average the temporary arrays into the result arrays
@@ -865,7 +865,7 @@ __global__ void doXVortTiltAvg(datagrid *grid, integration_data *data, int tStar
 
     // We do the average for each array at a given point
     // and then finish the computation for the zvort tilt
-    if ((i < NX) && (j < NY) && (k < NZ) && (k > 0) && (i > 0) && (j > 0)) {
+    if ((i < NX) && (j < NY) && (k < NZ) && (k > 0)) {
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             dum0 = data->tem1_4d_chunk;
             //dudy = TEM4D(i, j, k, tidx);
@@ -906,7 +906,7 @@ __global__ void doYVortTiltAvg(datagrid *grid, integration_data *data, int tStar
 
     // We do the average for each array at a given point
     // and then finish the computation for the zvort tilt
-    if ((i < NX) && (j < NY) && (k < NZ) && (k > 0) && (i > 0) && (j > 0)) {
+    if ((i < NX) && (j < NY) && (k < NZ) && (k > 0)) {
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             dum0 = data->tem1_4d_chunk;
             //dvdx = TEM4D(i, j, k, tidx);
@@ -947,7 +947,7 @@ __global__ void doZVortTiltAvg(datagrid *grid, integration_data *data, int tStar
 
     // We do the average for each array at a given point
     // and then finish the computation for the zvort tilt
-    if ((i < NX) && (j < NY) && (k < NZ) && (k > 0) && (i > 0) && (j > 0)) {
+    if ((i < NX) && (j < NY) && (k < NZ) && (k > 0)) {
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             dum0 = data->tem1_4d_chunk;
             //dwdx = TEM4D(i, j, k, tidx);
