@@ -319,12 +319,12 @@ datagrid* loadMetadataAndGrid(string base_dir, parcel_pos *parcels, int rank) {
     // requested data. If the buffer goes outside the 
     // saved dimensions, set it to the saved dimensions.
     // We also do this for our staggered grid calculations
-    min_i = saved_X0 + min_i - 5;
-    max_i = saved_X0 + max_i + 5;
-    min_j = saved_Y0 + min_j - 5;
-    max_j = saved_Y0 + max_j + 5;
-    min_k = min_k - 5;
-    max_k = max_k + 5;
+    min_i = saved_X0 + min_i - 10;
+    max_i = saved_X0 + max_i + 10;
+    min_j = saved_Y0 + min_j - 10;
+    max_j = saved_Y0 + max_j + 10;
+    min_k = 0;
+    max_k = max_k + 20;
     cout << "Attempted Parcel Bounds In Grid" << endl;
     cout << "X0: " << min_i << " X1: " << max_i << endl;
     cout << "Y0: " << min_j << " Y1: " << max_j << endl;

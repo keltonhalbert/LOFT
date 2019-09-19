@@ -91,11 +91,6 @@ void doCalcVortTend(datagrid *grid, integration_data *data, int tStart, int tEnd
     gpuErrchk(cudaDeviceSynchronize());
     gpuErrchk( cudaPeekAtLastError() );
 
-    // Compute the baroclinic generation
-    calcvortbaro<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
-    gpuErrchk(cudaDeviceSynchronize());
-    gpuErrchk( cudaPeekAtLastError() );
-
     // Do the SGS turbulence closure calculations
     doCalcDef<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize());
