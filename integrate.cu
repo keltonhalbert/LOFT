@@ -129,6 +129,39 @@ void doCalcVortTend(datagrid *grid, integration_data *data, int tStart, int tEnd
     gpuErrchk(cudaDeviceSynchronize());
     gpuErrchk(cudaPeekAtLastError());
 
+
+    /* U momentum tendency due to 6th order numerical diffusion */
+    zeroTemArrays<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize());
+    gpuErrchk( cudaPeekAtLastError() );
+    doCalcDiffUXYZ<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize());
+    gpuErrchk( cudaPeekAtLastError() );
+    doCalcDiffU<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize());
+    gpuErrchk( cudaPeekAtLastError() );
+
+    /* V momentum tendency due to 6th order numerical diffusion */
+    zeroTemArrays<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize());
+    gpuErrchk( cudaPeekAtLastError() );
+    doCalcDiffVXYZ<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize());
+    gpuErrchk( cudaPeekAtLastError() );
+    doCalcDiffV<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize());
+    gpuErrchk( cudaPeekAtLastError() );
+
+    /* W momentum tendency due to 6th order numerical diffusion */
+    zeroTemArrays<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize());
+    gpuErrchk( cudaPeekAtLastError() );
+    doCalcDiffWXYZ<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize());
+    gpuErrchk( cudaPeekAtLastError() );
+    doCalcDiffW<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize());
+    gpuErrchk( cudaPeekAtLastError() );
 }
 
 __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data *data, \
@@ -168,18 +201,21 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             is_wgrd = false;
             pcl_u = interp3D(grid, data->u_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             float pcluturb = interp3D(grid, data->turbu_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pcludiff = interp3D(grid, data->diffu_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
 
             is_ugrd = false;
             is_vgrd = true;
             is_wgrd = false;
             pcl_v = interp3D(grid, data->v_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             float pclvturb = interp3D(grid, data->turbv_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclvdiff = interp3D(grid, data->diffv_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
 
             is_ugrd = false;
             is_vgrd = false;
             is_wgrd = true;
             pcl_w = interp3D(grid, data->w_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             float pclwturb = interp3D(grid, data->turbw_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclwdiff = interp3D(grid, data->diffw_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
 
             // interpolate scalar values to the parcel point
             is_ugrd = false;
@@ -209,6 +245,9 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             parcels->pcluturb[PCL(tidx,   parcel_id, totTime)] = pcluturb;
             parcels->pclvturb[PCL(tidx,   parcel_id, totTime)] = pclvturb;
             parcels->pclwturb[PCL(tidx,   parcel_id, totTime)] = pclwturb;
+            parcels->pcludiff[PCL(tidx,   parcel_id, totTime)] = pcludiff;
+            parcels->pclvdiff[PCL(tidx,   parcel_id, totTime)] = pclvdiff;
+            parcels->pclwdiff[PCL(tidx,   parcel_id, totTime)] = pclwdiff;
 
             // Store the vorticity in the parcel
             parcels->pclxvort[PCL(tidx, parcel_id, totTime)] = pclxvort;

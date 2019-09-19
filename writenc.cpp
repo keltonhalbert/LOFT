@@ -32,6 +32,9 @@ void init_nc(string filename, parcel_pos *parcels) {
     NcVar uturbVar = output.addVar("uturb", ncFloat, gridDimVector);
     NcVar vturbVar = output.addVar("vturb", ncFloat, gridDimVector);
     NcVar wturbVar = output.addVar("wturb", ncFloat, gridDimVector);
+    NcVar udiffVar = output.addVar("udiff", ncFloat, gridDimVector);
+    NcVar vdiffVar = output.addVar("vdiff", ncFloat, gridDimVector);
+    NcVar wdiffVar = output.addVar("wdiff", ncFloat, gridDimVector);
     NcVar khhVar = output.addVar("khh", ncFloat, gridDimVector);
 
     NcVar xvortVar = output.addVar("xvort", ncFloat, gridDimVector);
@@ -51,6 +54,9 @@ void init_nc(string filename, parcel_pos *parcels) {
     NcVar xvortturbVar = output.addVar("xvortturb", ncFloat, gridDimVector);
     NcVar yvortturbVar = output.addVar("yvortturb", ncFloat, gridDimVector);
     NcVar zvortturbVar = output.addVar("zvortturb", ncFloat, gridDimVector);
+    NcVar xvortdiffVar = output.addVar("xvortdiff", ncFloat, gridDimVector);
+    NcVar yvortdiffVar = output.addVar("yvortdiff", ncFloat, gridDimVector);
+    NcVar zvortdiffVar = output.addVar("zvortdiff", ncFloat, gridDimVector);
 
     NcVar ppertVar = output.addVar("prespert", ncFloat, gridDimVector);
     NcVar thrhoprime = output.addVar("thrhopert", ncFloat, gridDimVector);
@@ -68,6 +74,9 @@ void init_nc(string filename, parcel_pos *parcels) {
     uturbVar.putAtt("units", "meters / second^2");
     vturbVar.putAtt("units", "meters / second^2");
     wturbVar.putAtt("units", "meters / second^2");
+    udiffVar.putAtt("units", "meters / second^2");
+    vdiffVar.putAtt("units", "meters / second^2");
+    wdiffVar.putAtt("units", "meters / second^2");
     khhVar.putAtt("units", "Unknown");
 
     xvortVar.putAtt("units", "s^-1");
@@ -87,6 +96,9 @@ void init_nc(string filename, parcel_pos *parcels) {
     xvortturbVar.putAtt("units", "s^-2");
     yvortturbVar.putAtt("units", "s^-2");
     zvortturbVar.putAtt("units", "s^-2");
+    xvortdiffVar.putAtt("units", "s^-2");
+    yvortdiffVar.putAtt("units", "s^-2");
+    zvortdiffVar.putAtt("units", "s^-2");
 
     ppertVar.putAtt("units", "Pa");
     thrhoprime.putAtt("units", "K");
@@ -105,6 +117,9 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
     NcVar uturbVar = output.getVar("uturb");
     NcVar vturbVar = output.getVar("vturb");
     NcVar wturbVar = output.getVar("wturb");
+    NcVar udiffVar = output.getVar("udiff");
+    NcVar vdiffVar = output.getVar("vdiff");
+    NcVar wdiffVar = output.getVar("wdiff");
     NcVar khhVar = output.getVar("khh");
 
     NcVar ppertVar = output.getVar("prespert");
@@ -127,6 +142,9 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
     NcVar xvortturbVar = output.getVar("xvortturb");
     NcVar yvortturbVar = output.getVar("yvortturb");
     NcVar zvortturbVar = output.getVar("zvortturb");
+    NcVar xvortdiffVar = output.getVar("xvortdiff");
+    NcVar yvortdiffVar = output.getVar("yvortdiff");
+    NcVar zvortdiffVar = output.getVar("zvortdiff");
 
     vector<size_t> startp,countp;
     startp.push_back(0);
@@ -146,6 +164,9 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
     uturbVar.putVar(startp,countp,parcels->pcluturb);
     vturbVar.putVar(startp,countp,parcels->pclvturb);
     wturbVar.putVar(startp,countp,parcels->pclwturb);
+    udiffVar.putVar(startp,countp,parcels->pcludiff);
+    vdiffVar.putVar(startp,countp,parcels->pclvdiff);
+    wdiffVar.putVar(startp,countp,parcels->pclwdiff);
     //khhVar.putVar(startp,countp,parcels->pclkhh);
 
     //ppertVar.putVar(startp,countp,parcels->pclppert);
@@ -168,6 +189,9 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
     xvortturbVar.putVar(startp,countp,parcels->pclxvortturb);
     yvortturbVar.putVar(startp,countp,parcels->pclyvortturb);
     zvortturbVar.putVar(startp,countp,parcels->pclzvortturb);
+    xvortdiffVar.putVar(startp,countp,parcels->pclxvortdiff);
+    yvortdiffVar.putVar(startp,countp,parcels->pclyvortdiff);
+    zvortdiffVar.putVar(startp,countp,parcels->pclzvortdiff);
     cout << "*** SUCCESS writing file " << filename << "!" << endl;
     return;
 }

@@ -22,6 +22,8 @@ struct datagrid {
     float *zf;
     float *zh;
 
+    float *u0;
+    float *v0;
     float *qv0;
     float *th0;
     float *rho0;
@@ -67,6 +69,9 @@ struct parcel_pos {
     float *pcluturb;
     float *pclvturb;
     float *pclwturb;
+    float *pcludiff;
+    float *pclvdiff;
+    float *pclwdiff;
     float *pclxvort;
     float *pclyvort;
     float *pclzvort;
@@ -79,6 +84,9 @@ struct parcel_pos {
     float *pclxvortturb;
     float *pclyvortturb;
     float *pclzvortturb;
+    float *pclxvortdiff;
+    float *pclyvortdiff;
+    float *pclzvortdiff;
     float *pclxvortbaro;
     float *pclyvortbaro;
     float *pclxvortsolenoid;

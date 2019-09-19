@@ -155,10 +155,14 @@ void lofs_get_grid( datagrid *grid ) {
     float *th0 = new float[nz];
     float *rho0 = new float[nz];
     float *p0 = new float[nz];
+    float *u0 = new float[nz];
+    float *v0 = new float[nz];
     get1dfloat(f_id, (char *)"basestate/qv0", qv0, 0, nz);
     get1dfloat(f_id, (char *)"basestate/th0", th0, 0, nz);
     get1dfloat(f_id, (char *)"basestate/rh0", rho0, 0, nz);
     get1dfloat(f_id, (char *)"basestate/pres0", p0, 0, nz);
+    get1dfloat(f_id, (char *)"basestate/u0", u0, 0, nz);
+    get1dfloat(f_id, (char *)"basestate/v0", v0, 0, nz);
 
 
     // We want to include the lower ghost zone in the vertical
@@ -182,6 +186,8 @@ void lofs_get_grid( datagrid *grid ) {
         grid->th0[iz-grid->Z0] = th0[iz];
         grid->rho0[iz-grid->Z0] = rho0[iz];
         grid->p0[iz-grid->Z0] = p0[iz];
+        grid->u0[iz-grid->Z0] = u0[iz];
+        grid->v0[iz-grid->Z0] = v0[iz];
     }
 
 
@@ -226,6 +232,9 @@ void lofs_get_grid( datagrid *grid ) {
     delete[] rho0;
     delete[] qv0;
     delete[] th0;
+    delete[] p0;
+    delete[] u0;
+    delete[] v0;
 }
 
 void lofs_read_3dvar(datagrid *grid, float *buffer, char *varname, bool istag, double t0) {
