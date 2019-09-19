@@ -324,6 +324,9 @@ integration_data* allocate_integration_managed(long bufsize) {
     cudaMallocManaged(&(data->turbu_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->turbv_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->turbw_4d_chunk), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->diffu_4d_chunk), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->diffv_4d_chunk), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->diffw_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->tem1_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->tem2_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->tem3_4d_chunk), bufsize*sizeof(float));
@@ -342,6 +345,9 @@ integration_data* allocate_integration_managed(long bufsize) {
     cudaMallocManaged(&(data->turbxvort_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->turbyvort_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->turbzvort_4d_chunk), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->diffxvort_4d_chunk), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->diffyvort_4d_chunk), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->diffzvort_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->xvbaro_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->yvbaro_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->xvort_solenoid_4d_chunk), bufsize*sizeof(float)); 
@@ -384,6 +390,9 @@ void deallocate_integration_managed(integration_data *data) {
     cudaFree(data->turbu_4d_chunk);
     cudaFree(data->turbv_4d_chunk);
     cudaFree(data->turbw_4d_chunk);
+    cudaFree(data->diffu_4d_chunk);
+    cudaFree(data->diffv_4d_chunk);
+    cudaFree(data->diffw_4d_chunk);
     cudaFree(data->tem1_4d_chunk);
     cudaFree(data->tem2_4d_chunk);
     cudaFree(data->tem3_4d_chunk);
@@ -402,6 +411,9 @@ void deallocate_integration_managed(integration_data *data) {
     cudaFree(data->turbxvort_4d_chunk);
     cudaFree(data->turbyvort_4d_chunk);
     cudaFree(data->turbzvort_4d_chunk);
+    cudaFree(data->diffxvort_4d_chunk);
+    cudaFree(data->diffyvort_4d_chunk);
+    cudaFree(data->diffzvort_4d_chunk);
     cudaFree(data->xvbaro_4d_chunk);
     cudaFree(data->yvbaro_4d_chunk);
     cudaFree(data->xvort_solenoid_4d_chunk); 

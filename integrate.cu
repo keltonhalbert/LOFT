@@ -5,6 +5,7 @@
 #include "interp.cu"
 #include "turb.cu"
 #include "vort.cu"
+#include "diff6.cu"
 #ifndef INTEGRATE_CU
 #define INTEGRATE_CU
 

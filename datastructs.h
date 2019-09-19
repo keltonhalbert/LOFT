@@ -113,6 +113,9 @@ struct integration_data {
     float *turbu_4d_chunk;
     float *turbv_4d_chunk;
     float *turbw_4d_chunk;
+    float *diffu_4d_chunk;
+    float *diffv_4d_chunk;
+    float *diffw_4d_chunk;
 
 
     float *tem1_4d_chunk;
@@ -136,6 +139,9 @@ struct integration_data {
     float *turbxvort_4d_chunk;
     float *turbyvort_4d_chunk;
     float *turbzvort_4d_chunk;
+    float *diffxvort_4d_chunk;
+    float *diffyvort_4d_chunk;
+    float *diffzvort_4d_chunk;
     float *xvbaro_4d_chunk;
     float *yvbaro_4d_chunk;
  

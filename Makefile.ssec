@@ -20,7 +20,7 @@ all: run datastructs.o readlofs.o
 datastructs.o: datastructs.cu
 	nvcc -Xptxas -O3,-v -c -gencode=arch=compute_61,code=compute_61 --prec-div=true --ftz=true --fmad=true -o datastructs.o datastructs.cu
 
-integrate.o: integrate.cu interp.cu vort.cu turb.cu datastructs.cu
+integrate.o: integrate.cu interp.cu vort.cu turb.cu diff6.cu datastructs.cu
 	nvcc -Xptxas -O3,-v -c -gencode=arch=compute_61,code=compute_61 --prec-div=true --ftz=true --fmad=true -o integrate.o integrate.cu
 
 readlofs.o: readlofs.cpp
