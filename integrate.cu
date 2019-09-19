@@ -162,6 +162,20 @@ void doCalcVortTend(datagrid *grid, integration_data *data, int tStart, int tEnd
     doCalcDiffW<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize());
     gpuErrchk( cudaPeekAtLastError() );
+
+    /* Vorticity tendency due to 6th order numerical diffusion */
+    zeroTemArrays<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize());
+    gpuErrchk( cudaPeekAtLastError() );
+    doDiffVort<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize() );
+    gpuErrchk( cudaPeekAtLastError() );
+    doDiffVortAvg<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize());
+    gpuErrchk( cudaPeekAtLastError() );
+    zeroTemArrays<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize());
+    gpuErrchk( cudaPeekAtLastError() );
 }
 
 __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data *data, \
@@ -233,6 +247,9 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             float pclxvortturb = interp3D(grid, data->turbxvort_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             float pclyvortturb = interp3D(grid, data->turbyvort_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             float pclzvortturb = interp3D(grid, data->turbzvort_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclxvortdiff = interp3D(grid, data->diffxvort_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclyvortdiff = interp3D(grid, data->diffyvort_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclzvortdiff = interp3D(grid, data->diffzvort_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             float pclxvortbaro = interp3D(grid, data->xvbaro_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             float pclyvortbaro = interp3D(grid, data->yvbaro_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             float pclxvortsolenoid = interp3D(grid, data->xvort_solenoid_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
@@ -262,6 +279,9 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             parcels->pclxvortturb[PCL(tidx, parcel_id, totTime)] = pclxvortturb;
             parcels->pclyvortturb[PCL(tidx, parcel_id, totTime)] = pclyvortturb;
             parcels->pclzvortturb[PCL(tidx, parcel_id, totTime)] = pclzvortturb;
+            parcels->pclxvortdiff[PCL(tidx, parcel_id, totTime)] = pclxvortdiff;
+            parcels->pclyvortdiff[PCL(tidx, parcel_id, totTime)] = pclyvortdiff;
+            parcels->pclzvortdiff[PCL(tidx, parcel_id, totTime)] = pclzvortdiff;
             parcels->pclxvortbaro[PCL(tidx, parcel_id, totTime)] = pclxvortbaro;
             parcels->pclyvortbaro[PCL(tidx, parcel_id, totTime)] = pclyvortbaro;
             parcels->pclxvortsolenoid[PCL(tidx, parcel_id, totTime)] = pclxvortsolenoid;

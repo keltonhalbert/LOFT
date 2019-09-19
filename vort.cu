@@ -303,6 +303,61 @@ __device__ void calc_zvortturb_ten(datagrid *grid, integration_data *data, int *
     TEM4D(i, j, k, t) = dvdx - dudy;
 }
 
+
+/* Compute the X vorticity tendency due to the 6th order numerical diffusion */
+__device__ void calc_xvortdiff_ten(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
+    int i = idx_4D[0];
+    int j = idx_4D[1];
+    int k = idx_4D[2];
+    int t = idx_4D[3];
+
+    float *vstag = data->diffv_4d_chunk;
+    float *wstag = data->diffw_4d_chunk;
+    float *dum0 = data->tem1_4d_chunk;
+
+    float dwdy = ( ( WA4D(i, j, k, t) - WA4D(i, j-1, k, t) )/grid->dy );
+    float dvdz = ( ( VA4D(i, j, k, t) - VA4D(i, j, k-1, t) )/grid->dz );
+    TEM4D(i, j, k, t) = dwdy - dvdz; 
+    if (k == 2) {
+        TEM4D(i, j, 1, t) = dwdy - dvdz; 
+    }
+}
+
+/* Compute the Y vorticity tendency due to the 6th order numerical diffusion */
+__device__ void calc_yvortdiff_ten(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
+    int i = idx_4D[0];
+    int j = idx_4D[1];
+    int k = idx_4D[2];
+    int t = idx_4D[3];
+
+    float *ustag = data->diffu_4d_chunk;
+    float *wstag = data->diffw_4d_chunk;
+    float *dum0 = data->tem2_4d_chunk;
+
+    float dwdx = ( ( WA4D(i, j, k, t) - WA4D(i-1, j, k, t) )/grid->dx );
+    float dudz = ( ( UA4D(i, j, k, t) - UA4D(i, j, k-1, t) )/grid->dz );
+    TEM4D(i, j, k, t) = dudz - dwdx;
+    if (k == 2) {
+        TEM4D(i, j, 1, t) = dudz - dwdx;
+    }
+}
+
+/* Compute the Z vorticity tendency due to the 6th order numerical diffusion */
+__device__ void calc_zvortdiff_ten(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
+    int i = idx_4D[0];
+    int j = idx_4D[1];
+    int k = idx_4D[2];
+    int t = idx_4D[3];
+
+    float *ustag = data->diffu_4d_chunk;
+    float *vstag = data->diffv_4d_chunk;
+    float *dum0 = data->tem3_4d_chunk;
+
+    float dvdx = ( ( VA4D(i, j, k, t) - VA4D(i-1, j, k, t) )/grid->dx);
+    float dudy = ( ( UA4D(i, j, k, t) - UA4D(i, j-1, k, t) )/grid->dy);
+    TEM4D(i, j, k, t) = dvdx - dudy;
+}
+
 __device__ void calc_xvort_solenoid(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
     int i = idx_4D[0];
     int j = idx_4D[1];
@@ -474,6 +529,47 @@ __global__ void doTurbVort(datagrid *grid, integration_data *data, int tStart, i
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calc_zvortturb_ten(grid, data, idx_4D, NX, NY, NZ);
+        }
+    }
+}
+
+__global__ void doDiffVort(datagrid *grid, integration_data *data, int tStart, int tEnd) {
+    // get our 3D index based on our blocks/threads
+    int i = (blockIdx.x*blockDim.x) + threadIdx.x;
+    int j = (blockIdx.y*blockDim.y) + threadIdx.y;
+    int k = (blockIdx.z*blockDim.z) + threadIdx.z;
+    int idx_4D[4];
+    int NX = grid->NX;
+    int NY = grid->NY;
+    int NZ = grid->NZ;
+    // KELTON. FOR THE LOVE OF ALL THAT IS GOOD.
+    // STOP CHANGING THE INDEX CHECK CONDITIONS. 
+    // YOU'VE DONE THIS LIKE 5 TIMES NOW AND
+    // CAUSE SEG FAULTS EVERY TIME. LEARN YOUR 
+    // LESSON ALREADY. THIS WORKS. DON'T BREAK.
+    // BAD.
+
+    idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
+    if ((i < NX) && (j < NY+1) && (k > 1) && (k < NZ+1)) {
+        // loop over the number of time steps we have in memory
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            idx_4D[3] = tidx;
+            calc_xvortdiff_ten(grid, data, idx_4D, NX, NY, NZ);
+        }
+    }
+
+    if ((i < NX+1) && (j < NY) && (k > 1) && (k < NZ+1)) {
+        // loop over the number of time steps we have in memory
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            idx_4D[3] = tidx;
+            calc_yvortdiff_ten(grid, data, idx_4D, NX, NY, NZ);
+        }
+    }
+    if ((i <= NX+1) && (j <= NY+1) && (k > 0) && (k < NZ+1)) {
+        // loop over the number of time steps we have in memory
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            idx_4D[3] = tidx;
+            calc_zvortdiff_ten(grid, data, idx_4D, NX, NY, NZ);
         }
     }
 }
@@ -786,6 +882,40 @@ __global__ void doTurbVortAvg(datagrid *grid, integration_data *data, int tStart
     }
 }
 
+
+__global__ void doDiffVortAvg(datagrid *grid, integration_data *data, int tStart, int tEnd) {
+
+    // get our grid indices based on our block and thread info
+    int i = blockIdx.x*blockDim.x + threadIdx.x;
+    int j = blockIdx.y*blockDim.y + threadIdx.y;
+    int k = blockIdx.z*blockDim.z + threadIdx.z;
+
+    int NX = grid->NX;
+    int NY = grid->NY;
+    int NZ = grid->NZ;
+    float *buf0, *dum0;
+
+    if ((i < NX) && (j < NY) && (k < NZ) && (k > 0)) {
+        // loop over the number of time steps we have in memory
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            // average the temporary arrays into the result arrays
+            dum0 = data->tem1_4d_chunk;
+            buf0 = data->diffxvort_4d_chunk;
+            BUF4D(i, j, k, tidx) = 0.25 * ( TEM4D(i, j, k, tidx) + TEM4D(i, j+1, k, tidx) +\
+                                            TEM4D(i, j, k+1, tidx) + TEM4D(i, j+1, k+1, tidx) );
+
+            dum0 = data->tem2_4d_chunk;
+            buf0 = data->diffyvort_4d_chunk;
+            BUF4D(i, j, k, tidx) = 0.25 * ( TEM4D(i, j, k, tidx) + TEM4D(i+1, j, k, tidx) +\
+                                            TEM4D(i, j, k+1, tidx) + TEM4D(i+1, j, k+1, tidx) );
+
+            dum0 = data->tem3_4d_chunk;
+            buf0 = data->diffzvort_4d_chunk;
+            BUF4D(i, j, k, tidx) = 0.25 * ( TEM4D(i, j, k, tidx) + TEM4D(i+1, j, k, tidx) +\
+                                            TEM4D(i, j+1, k, tidx) + TEM4D(i+1, j+1, k, tidx) );
+        }
+    }
+}
 
 /* Average the derivatives within the temporary arrays used to compute
    the tilting rate and then combine the terms into the final xvtilt
