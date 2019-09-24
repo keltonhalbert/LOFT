@@ -103,7 +103,7 @@ __device__ void calc_xvort_tilt(datagrid *grid, integration_data *data, int *idx
     // This is the equivalent of our zero strain lower boundary
     else {
         float *dum0 = data->tem1_4d_chunk;
-        TEM4D(i, j, 1, t) = ( ( UA4D(i, j, 1, t) - UA4D(i, j-1, 1, t) ) / grid->dy );
+        TEM4D(i, j, 1, t) = ( ( UA4D(i, j, 2, t) - UA4D(i, j-1, 2, t) ) / grid->dy );
 
         // dudz in tem2
         dum0 = data->tem2_4d_chunk;
@@ -134,7 +134,7 @@ __device__ void calc_yvort_tilt(datagrid *grid, integration_data *data, int *idx
     else {
         // dvdx in tem1
         float *dum0 = data->tem1_4d_chunk;
-        TEM4D(i, j, 1, t) = ( ( VA4D(i, j, 1, t) - VA4D(i-1, j, 1, t) ) / grid->dx );
+        TEM4D(i, j, 1, t) = ( ( VA4D(i, j, 2, t) - VA4D(i-1, j, 2, t) ) / grid->dx );
 
         // dvdz in tem2
         dum0 = data->tem2_4d_chunk;

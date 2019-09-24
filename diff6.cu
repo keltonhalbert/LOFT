@@ -246,7 +246,7 @@ __device__ void calc_diffu(datagrid *grid, integration_data *data, int *idx_4D, 
     int t = idx_4D[3];
 
     float kdiff6 = 0.080;
-    float dt = 0.5;
+    float dt = grid->dt; 
     float coeff = (kdiff6/64.0/dt);
 
     // get diffx from tem1
@@ -274,7 +274,7 @@ __device__ void calc_diffv(datagrid *grid, integration_data *data, int *idx_4D, 
     int t = idx_4D[3];
 
     float kdiff6 = 0.080;
-    float dt = 0.5;
+    float dt = grid->dt; 
     float coeff = (kdiff6/64.0/dt);
 
     // get diffx from tem1
@@ -302,7 +302,7 @@ __device__ void calc_diffw(datagrid *grid, integration_data *data, int *idx_4D, 
     int t = idx_4D[3];
 
     float kdiff6 = 0.080;
-    float dt = 0.5;
+    float dt = grid->dt; 
     float coeff = (kdiff6/64.0/dt);
 
     // get diffx from tem1

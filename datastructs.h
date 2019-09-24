@@ -47,6 +47,7 @@ struct datagrid {
     float dx;
     float dy;
     float dz;
+    float dt;
 
     // the subset points of the grid
     // that this grid is a part of

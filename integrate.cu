@@ -196,7 +196,7 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
 
         // loop over the number of time steps we are
         // integrating over
-        float dt = 0.5;
+        float dt = grid->dt; 
         float dt2 = dt / 2.;
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
 

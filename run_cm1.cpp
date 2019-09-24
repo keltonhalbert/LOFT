@@ -672,7 +672,9 @@ int main(int argc, char **argv ) {
             cout << "Invalid time index: " << nearest_tidx << " for time " << time << ". Abort." << endl;
             return 0;
         }
-        printf("TIMESTEP %d/%d %d %f\n", rank, size, rank + tChunk*size, alltimes[nearest_tidx + direct*( rank + tChunk*size)]);
+        float dt = fabs(alltimes[nearest_tidx + direct*(1+tChunk*size)] - alltimes[nearest_tidx + direct*(tChunk*size)]);
+        printf("TIMESTEP %d/%d %d %f dt= %f\n", rank, size, rank + tChunk*size, alltimes[nearest_tidx + direct*( rank + tChunk*size)], dt);
+        requested_grid->dt = dt;
         // load u, v, and w into memory
         loadDataFromDisk(requested_grid, ubuf_tem, vbuf_tem, wbuf_tem, \
                          pbuf_tem, thbuf_tem, rhobuf_tem, khhbuf_tem, \
