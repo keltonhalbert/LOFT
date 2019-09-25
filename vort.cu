@@ -90,21 +90,21 @@ __device__ void calc_xvort_tilt(datagrid *grid, integration_data *data, int *idx
     int t = idx_4D[3];
 
     float *ustag = data->u_4d_chunk;
+    float *dum0;
+
+    if (k >= 1) {
+        // dudy in tem1
+        dum0 = data->tem1_4d_chunk;
+        TEM4D(i, j, k, t) = ( ( UA4D(i, j, k, t) - UA4D(i, j-1, k, t) ) / grid->dy );
+    }
 
     if (k >= 2) {
-        // dudy in tem1
-        float *dum0 = data->tem1_4d_chunk;
-        TEM4D(i, j, k, t) = ( ( UA4D(i, j, k, t) - UA4D(i, j-1, k, t) ) / grid->dy );
-
         // dudz in tem2
         dum0 = data->tem2_4d_chunk;
         TEM4D(i, j, k, t) = ( ( UA4D(i, j, k, t) - UA4D(i, j, k-1, t) ) / grid->dz );
     }
     // This is the equivalent of our zero strain lower boundary
-    else {
-        float *dum0 = data->tem1_4d_chunk;
-        TEM4D(i, j, 1, t) = ( ( UA4D(i, j, 2, t) - UA4D(i, j-1, 2, t) ) / grid->dy );
-
+    if (k == 2) {
         // dudz in tem2
         dum0 = data->tem2_4d_chunk;
         TEM4D(i, j, 1, t) = ( ( UA4D(i, j, 2, t) - UA4D(i, j, 1, t) ) / grid->dz );
@@ -120,22 +120,21 @@ __device__ void calc_yvort_tilt(datagrid *grid, integration_data *data, int *idx
     int t = idx_4D[3];
 
     float *vstag = data->v_4d_chunk;
+    float *dum0;
     
-    if (k >= 2) {
+    if (k >=1) {
         // dvdx in tem1
-        float *dum0 = data->tem1_4d_chunk;
+        dum0 = data->tem1_4d_chunk;
         TEM4D(i, j, k, t) = ( ( VA4D(i, j, k, t) - VA4D(i-1, j, k, t) ) / grid->dx );
+    }
 
+    if (k >= 2) {
         // dvdz in tem2
         dum0 = data->tem2_4d_chunk;
         TEM4D(i, j, k, t) = ( ( VA4D(i, j, k, t) - VA4D(i, j, k-1, t) ) / grid->dz );
     }
     // This is the equivalent of our zero strain lower boundary
-    else {
-        // dvdx in tem1
-        float *dum0 = data->tem1_4d_chunk;
-        TEM4D(i, j, 1, t) = ( ( VA4D(i, j, 2, t) - VA4D(i-1, j, 2, t) ) / grid->dx );
-
+    if (k == 2) {
         // dvdz in tem2
         dum0 = data->tem2_4d_chunk;
         TEM4D(i, j, 1, t) = ( ( VA4D(i, j, 2, t) - VA4D(i, j, 1, t) ) / grid->dz );
@@ -155,21 +154,13 @@ __device__ void calc_zvort_tilt(datagrid *grid, integration_data *data, int *idx
     // Compute dw/dx and put it in the tem1 array. The derivatives
     // land on weird places so we have to average each derivative back
     // to the scalar grid, resulting in this clunky approach
-    if (k >= 2) {
+    if (k >= 1) {
         float *dum0 = data->tem1_4d_chunk;
         TEM4D(i, j, k, t) = ( ( WA4D(i, j, k, t) - WA4D(i-1, j, k, t) ) / grid->dx );
 
         // put dw/dy in tem2
         dum0 = data->tem2_4d_chunk;
         TEM4D(i, j, k, t) = ( ( WA4D(i, j, k, t) - WA4D(i, j-1, k, t) ) / grid->dy );
-    }
-    else {
-        float *dum0 = data->tem1_4d_chunk;
-        TEM4D(i, j, 1, t) = ( ( WA4D(i, j, 1, t) - WA4D(i-1, j, 1, t) ) / grid->dx );
-
-        // put dw/dy in tem2
-        dum0 = data->tem2_4d_chunk;
-        TEM4D(i, j, 1, t) = ( ( WA4D(i, j, 1, t) - WA4D(i, j-1, 1, t) ) / grid->dy );
     }
 }
 
@@ -385,6 +376,10 @@ __device__ void calc_xvort_solenoid(datagrid *grid, integration_data *data, int 
     buf0 = data->xvort_solenoid_4d_chunk; 
     BUF4D(i, j, k, t) = -cp*(dthdy*dpidz - dthdz*dpidy); 
     if (k == 2) {
+        // the d/dy terms are defined at k = 1,
+        // go get those
+        dpidy = ( ( BUF4D(i, j+1, 1, t) - BUF4D(i, j-1, 1, t) ) / (2*grid->dy) );
+        dthdy = ( (BUF4D(i, j+1, 1, t) - BUF4D(i, j-1, 1, t)) / ( 2*grid->dy ) );
         BUF4D(i, j, 1, t) = -cp*(dthdy*dpidz - dthdz*dpidy); 
     }
 }
@@ -417,6 +412,10 @@ __device__ void calc_yvort_solenoid(datagrid *grid, integration_data *data, int 
     buf0 = data->yvort_solenoid_4d_chunk; 
     BUF4D(i, j, k, t) = -cp*(dthdz*dpidx - dthdx*dpidz); 
     if (k == 2) {
+        // the d/dx terms are defined at k = 1,
+        // go get those
+        dpidx = ( (BUF4D(i+1, j, 1, t) - BUF4D(i-1, j, 1, t)) / ( 2*grid->dx ) );
+        dthdx = ( (BUF4D(i+1, j, 1, t) - BUF4D(i-1, j, 1, t)) / ( 2*grid->dx ) );
         BUF4D(i, j, 1, t) = -cp*(dthdz*dpidx - dthdx*dpidz); 
     }
 }
@@ -445,9 +444,11 @@ __device__ void calc_zvort_solenoid(datagrid *grid, integration_data *data, int 
     // compute and save to the array
     buf0 = data->yvort_solenoid_4d_chunk; 
     BUF4D(i, j, k, t) = -cp*(dthdx*dpidy - dthdy*dpidx); 
+    /*
     if (k == 2) {
         BUF4D(i, j, 1, t) = -cp*(dthdx*dpidy - dthdy*dpidx); 
     }
+    */
 }
 
 /* When doing the parcel trajectory integration, George Bryan does

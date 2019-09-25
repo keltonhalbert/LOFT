@@ -336,7 +336,7 @@ datagrid* loadMetadataAndGrid(string base_dir, parcel_pos *parcels, int rank) {
     if (min_j < saved_Y0) min_j = saved_Y0;
     if (max_j > saved_Y1) max_j = saved_Y1;
     if (min_k < 0) min_k = 0;
-    if (max_k > nz-1) max_k = nz-1;
+    if (max_k > nz-2) max_k = nz-2;
 
 
     cout << "Parcel Bounds In Grid" << endl;
