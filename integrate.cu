@@ -208,7 +208,7 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             pcl_x = point[0];
             pcl_y = point[1];
             pcl_z = point[2];
-            if (( pcl_x > grid->xf[grid->NX] ) || ( pcl_y > grid->yf[grid->NY] ) || ( pcl_z > grid->zf[grid->NZ] ) \
+            if (( pcl_x > grid->xf[grid->NX-4] ) || ( pcl_y > grid->yf[grid->NY-4] ) || ( pcl_z > grid->zf[grid->NZ-4] ) \
              || ( pcl_x < grid->xf[0] )        || ( pcl_y < grid->yf[0] )        || ( pcl_z < 0. ) ) break;
 
 

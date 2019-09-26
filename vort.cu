@@ -33,9 +33,11 @@ __device__ void calc_xvort(datagrid *grid, integration_data *data, int *idx_4D, 
     float *vstag = data->v_4d_chunk;
     float *wstag = data->w_4d_chunk;
     float *dum0 = data->tem1_4d_chunk;
+    float dy = grid->yf[j+1] - grid->yf[j];
+    float dz = grid->zf[k+1] - grid->zf[k];
 
-    float dwdy = ( ( WA4D(i, j, k, t) - WA4D(i, j-1, k, t) )/grid->dy );
-    float dvdz = ( ( VA4D(i, j, k, t) - VA4D(i, j, k-1, t) )/grid->dz );
+    float dwdy = ( ( WA4D(i, j, k, t) - WA4D(i, j-1, k, t) )/dy );
+    float dvdz = ( ( VA4D(i, j, k, t) - VA4D(i, j, k-1, t) )/dz );
     TEM4D(i, j, k, t) = dwdy - dvdz; 
     if (k == 2) {
         TEM4D(i, j, 1, t) = dwdy - dvdz; 
@@ -54,9 +56,11 @@ __device__ void calc_yvort(datagrid *grid, integration_data *data, int *idx_4D, 
     float *ustag = data->u_4d_chunk;
     float *wstag = data->w_4d_chunk;
     float *dum0 = data->tem2_4d_chunk;
+    float dx = grid->xf[i+1] - grid->xf[i];
+    float dz = grid->zf[k+1] - grid->zf[k];
 
-    float dwdx = ( ( WA4D(i, j, k, t) - WA4D(i-1, j, k, t) )/grid->dx );
-    float dudz = ( ( UA4D(i, j, k, t) - UA4D(i, j, k-1, t) )/grid->dz );
+    float dwdx = ( ( WA4D(i, j, k, t) - WA4D(i-1, j, k, t) )/dx );
+    float dudz = ( ( UA4D(i, j, k, t) - UA4D(i, j, k-1, t) )/dz );
     TEM4D(i, j, k, t) = dudz - dwdx;
     if (k == 2) {
         TEM4D(i, j, 1, t) = dudz - dwdx;
@@ -75,9 +79,11 @@ __device__ void calc_zvort(datagrid *grid, integration_data *data, int *idx_4D, 
     float *ustag = data->u_4d_chunk;
     float *vstag = data->v_4d_chunk;
     float *dum0 = data->tem3_4d_chunk;
+    float dx = grid->xf[i+1] - grid->xf[i];
+    float dy = grid->yf[j+1] - grid->yf[j];
 
-    float dvdx = ( ( VA4D(i, j, k, t) - VA4D(i-1, j, k, t) )/grid->dx);
-    float dudy = ( ( UA4D(i, j, k, t) - UA4D(i, j-1, k, t) )/grid->dy);
+    float dvdx = ( ( VA4D(i, j, k, t) - VA4D(i-1, j, k, t) )/dx);
+    float dudy = ( ( UA4D(i, j, k, t) - UA4D(i, j-1, k, t) )/dy);
     TEM4D(i, j, k, t) = dvdx - dudy;
 }
 
@@ -91,23 +97,25 @@ __device__ void calc_xvort_tilt(datagrid *grid, integration_data *data, int *idx
 
     float *ustag = data->u_4d_chunk;
     float *dum0;
+    float dy = grid->yf[j+1] - grid->yf[j];
+    float dz = grid->zf[k+1] - grid->zf[k];
 
     if (k >= 1) {
         // dudy in tem1
         dum0 = data->tem1_4d_chunk;
-        TEM4D(i, j, k, t) = ( ( UA4D(i, j, k, t) - UA4D(i, j-1, k, t) ) / grid->dy );
+        TEM4D(i, j, k, t) = ( ( UA4D(i, j, k, t) - UA4D(i, j-1, k, t) ) / dy );
     }
 
     if (k >= 2) {
         // dudz in tem2
         dum0 = data->tem2_4d_chunk;
-        TEM4D(i, j, k, t) = ( ( UA4D(i, j, k, t) - UA4D(i, j, k-1, t) ) / grid->dz );
+        TEM4D(i, j, k, t) = ( ( UA4D(i, j, k, t) - UA4D(i, j, k-1, t) ) / dz );
     }
     // This is the equivalent of our zero strain lower boundary
     if (k == 2) {
         // dudz in tem2
         dum0 = data->tem2_4d_chunk;
-        TEM4D(i, j, 1, t) = ( ( UA4D(i, j, 2, t) - UA4D(i, j, 1, t) ) / grid->dz );
+        TEM4D(i, j, 1, t) = ( ( UA4D(i, j, 2, t) - UA4D(i, j, 1, t) ) / dz );
     }    
 }
 
@@ -121,23 +129,25 @@ __device__ void calc_yvort_tilt(datagrid *grid, integration_data *data, int *idx
 
     float *vstag = data->v_4d_chunk;
     float *dum0;
+    float dx = grid->xf[i+1] - grid->xf[i];
+    float dz = grid->zf[k+1] - grid->zf[k];
     
     if (k >=1) {
         // dvdx in tem1
         dum0 = data->tem1_4d_chunk;
-        TEM4D(i, j, k, t) = ( ( VA4D(i, j, k, t) - VA4D(i-1, j, k, t) ) / grid->dx );
+        TEM4D(i, j, k, t) = ( ( VA4D(i, j, k, t) - VA4D(i-1, j, k, t) ) / dx );
     }
 
     if (k >= 2) {
         // dvdz in tem2
         dum0 = data->tem2_4d_chunk;
-        TEM4D(i, j, k, t) = ( ( VA4D(i, j, k, t) - VA4D(i, j, k-1, t) ) / grid->dz );
+        TEM4D(i, j, k, t) = ( ( VA4D(i, j, k, t) - VA4D(i, j, k-1, t) ) / dz );
     }
     // This is the equivalent of our zero strain lower boundary
     if (k == 2) {
         // dvdz in tem2
         dum0 = data->tem2_4d_chunk;
-        TEM4D(i, j, 1, t) = ( ( VA4D(i, j, 2, t) - VA4D(i, j, 1, t) ) / grid->dz );
+        TEM4D(i, j, 1, t) = ( ( VA4D(i, j, 2, t) - VA4D(i, j, 1, t) ) / dz );
     }
 }
 
@@ -150,17 +160,19 @@ __device__ void calc_zvort_tilt(datagrid *grid, integration_data *data, int *idx
     int t = idx_4D[3];
 
     float *wstag = data->w_4d_chunk;
+    float dx = grid->xf[i+1] - grid->xf[i];
+    float dy = grid->yf[j+1] - grid->yf[j];
 
     // Compute dw/dx and put it in the tem1 array. The derivatives
     // land on weird places so we have to average each derivative back
     // to the scalar grid, resulting in this clunky approach
     if (k >= 1) {
         float *dum0 = data->tem1_4d_chunk;
-        TEM4D(i, j, k, t) = ( ( WA4D(i, j, k, t) - WA4D(i-1, j, k, t) ) / grid->dx );
+        TEM4D(i, j, k, t) = ( ( WA4D(i, j, k, t) - WA4D(i-1, j, k, t) ) / dx );
 
         // put dw/dy in tem2
         dum0 = data->tem2_4d_chunk;
-        TEM4D(i, j, k, t) = ( ( WA4D(i, j, k, t) - WA4D(i, j-1, k, t) ) / grid->dy );
+        TEM4D(i, j, k, t) = ( ( WA4D(i, j, k, t) - WA4D(i, j-1, k, t) ) / dy );
     }
 }
 
@@ -176,14 +188,16 @@ __device__ void calc_xvort_stretch(datagrid *grid, integration_data *data, int *
     float *wstag = data->w_4d_chunk;
     float *xvort = data->xvort_4d_chunk;
     float *xvort_stretch = data->xvstretch_4d_chunk;
+    float dy = grid->yf[j+1] - grid->yf[j];
+    float dz = grid->zf[k+1] - grid->zf[k];
 
     // this stencil conveniently lands itself on the scalar grid,
     // so we won't have to worry about doing any averaging. I think.
     float *buf0 = xvort;
     float xv = BUF4D(i, j, k, t);
     float dvdy, dwdz;
-    dvdy = ( ( VA4D(i, j+1, k, t) - VA4D(i, j, k, t) )/grid->dy);
-    dwdz = ( ( WA4D(i, j, k+1, t) - WA4D(i, j, k, t) )/grid->dz);
+    dvdy = ( ( VA4D(i, j+1, k, t) - VA4D(i, j, k, t) )/dy);
+    dwdz = ( ( WA4D(i, j, k+1, t) - WA4D(i, j, k, t) )/dz);
 
     buf0 = xvort_stretch;
     BUF4D(i, j, k, t) = -xv*( dvdy + dwdz);
@@ -202,14 +216,16 @@ __device__ void calc_yvort_stretch(datagrid *grid, integration_data *data, int *
     float *wstag = data->w_4d_chunk;
     float *yvort = data->yvort_4d_chunk;
     float *yvort_stretch = data->yvstretch_4d_chunk;
+    float dx = grid->xf[i+1] - grid->xf[i];
+    float dz = grid->zf[k+1] - grid->zf[k];
 
     // this stencil conveniently lands itself on the scalar grid,
     // so we won't have to worry about doing any averaging. I think.
     float *buf0 = yvort;
     float yv = BUF4D(i, j, k, t);
     float dudx, dwdz;
-    dudx = ( ( UA4D(i+1, j, k, t) - UA4D(i, j, k, t) )/grid->dx);
-    dwdz = ( ( WA4D(i, j, k+1, t) - WA4D(i, j, k, t) )/grid->dz);
+    dudx = ( ( UA4D(i+1, j, k, t) - UA4D(i, j, k, t) )/dx);
+    dwdz = ( ( WA4D(i, j, k+1, t) - WA4D(i, j, k, t) )/dz);
 
     buf0 = yvort_stretch;
     BUF4D(i, j, k, t) = -yv*( dudx + dwdz);
@@ -228,13 +244,15 @@ __device__ void calc_zvort_stretch(datagrid *grid, integration_data *data, int *
     float *wstag = data->w_4d_chunk;
     float *zvort = data->zvort_4d_chunk;
     float *zvort_stretch = data->zvstretch_4d_chunk;
+    float dx = grid->xf[i+1] - grid->xf[i];
+    float dy = grid->yf[j+1] - grid->yf[j];
 
     // this stencil conveniently lands itself on the scalar grid,
     // so we won't have to worry about doing any averaging. I think.
     float *buf0 = zvort;
     float zv = BUF4D(i, j, k, t);
-    float dudx = ( ( UA4D(i+1, j, k, t) - UA4D(i, j, k, t) )/grid->dx);
-    float dvdy = ( ( VA4D(i, j+1, k, t) - VA4D(i, j, k, t) )/grid->dy);
+    float dudx = ( ( UA4D(i+1, j, k, t) - UA4D(i, j, k, t) )/dx);
+    float dvdy = ( ( VA4D(i, j+1, k, t) - VA4D(i, j, k, t) )/dy);
 
     buf0 = zvort_stretch;
     BUF4D(i, j, k, t) = -zv*( dudx + dvdy);
@@ -250,9 +268,11 @@ __device__ void calc_xvortturb_ten(datagrid *grid, integration_data *data, int *
     float *vstag = data->turbv_4d_chunk;
     float *wstag = data->turbw_4d_chunk;
     float *dum0 = data->tem1_4d_chunk;
+    float dy = grid->yf[j+1] - grid->yf[j];
+    float dz = grid->zf[k+1] - grid->zf[k];
 
-    float dwdy = ( ( WA4D(i, j, k, t) - WA4D(i, j-1, k, t) )/grid->dy );
-    float dvdz = ( ( VA4D(i, j, k, t) - VA4D(i, j, k-1, t) )/grid->dz );
+    float dwdy = ( ( WA4D(i, j, k, t) - WA4D(i, j-1, k, t) )/dy );
+    float dvdz = ( ( VA4D(i, j, k, t) - VA4D(i, j, k-1, t) )/dz );
     TEM4D(i, j, k, t) = dwdy - dvdz; 
     if (k == 2) {
         TEM4D(i, j, 1, t) = dwdy - dvdz; 
@@ -269,9 +289,11 @@ __device__ void calc_yvortturb_ten(datagrid *grid, integration_data *data, int *
     float *ustag = data->turbu_4d_chunk;
     float *wstag = data->turbw_4d_chunk;
     float *dum0 = data->tem2_4d_chunk;
+    float dx = grid->xf[i+1] - grid->xf[i];
+    float dz = grid->zf[k+1] - grid->zf[k];
 
-    float dwdx = ( ( WA4D(i, j, k, t) - WA4D(i-1, j, k, t) )/grid->dx );
-    float dudz = ( ( UA4D(i, j, k, t) - UA4D(i, j, k-1, t) )/grid->dz );
+    float dwdx = ( ( WA4D(i, j, k, t) - WA4D(i-1, j, k, t) )/dx );
+    float dudz = ( ( UA4D(i, j, k, t) - UA4D(i, j, k-1, t) )/dz );
     TEM4D(i, j, k, t) = dudz - dwdx;
     if (k == 2) {
         TEM4D(i, j, 1, t) = dudz - dwdx;
@@ -288,9 +310,11 @@ __device__ void calc_zvortturb_ten(datagrid *grid, integration_data *data, int *
     float *ustag = data->turbu_4d_chunk;
     float *vstag = data->turbv_4d_chunk;
     float *dum0 = data->tem3_4d_chunk;
+    float dx = grid->xf[i+1] - grid->xf[i];
+    float dy = grid->yf[j+1] - grid->yf[j];
 
-    float dvdx = ( ( VA4D(i, j, k, t) - VA4D(i-1, j, k, t) )/grid->dx);
-    float dudy = ( ( UA4D(i, j, k, t) - UA4D(i, j-1, k, t) )/grid->dy);
+    float dvdx = ( ( VA4D(i, j, k, t) - VA4D(i-1, j, k, t) )/dx);
+    float dudy = ( ( UA4D(i, j, k, t) - UA4D(i, j-1, k, t) )/dy);
     TEM4D(i, j, k, t) = dvdx - dudy;
 }
 
@@ -305,9 +329,11 @@ __device__ void calc_xvortdiff_ten(datagrid *grid, integration_data *data, int *
     float *vstag = data->diffv_4d_chunk;
     float *wstag = data->diffw_4d_chunk;
     float *dum0 = data->tem1_4d_chunk;
+    float dy = grid->yf[j+1] - grid->yf[j];
+    float dz = grid->zf[k+1] - grid->zf[k];
 
-    float dwdy = ( ( WA4D(i, j, k, t) - WA4D(i, j-1, k, t) )/grid->dy );
-    float dvdz = ( ( VA4D(i, j, k, t) - VA4D(i, j, k-1, t) )/grid->dz );
+    float dwdy = ( ( WA4D(i, j, k, t) - WA4D(i, j-1, k, t) )/dy );
+    float dvdz = ( ( VA4D(i, j, k, t) - VA4D(i, j, k-1, t) )/dz );
     TEM4D(i, j, k, t) = dwdy - dvdz; 
     if (k == 2) {
         TEM4D(i, j, 1, t) = dwdy - dvdz; 
@@ -324,9 +350,11 @@ __device__ void calc_yvortdiff_ten(datagrid *grid, integration_data *data, int *
     float *ustag = data->diffu_4d_chunk;
     float *wstag = data->diffw_4d_chunk;
     float *dum0 = data->tem2_4d_chunk;
+    float dx = grid->xf[i+1] - grid->xf[i];
+    float dz = grid->zf[k+1] - grid->zf[k];
 
-    float dwdx = ( ( WA4D(i, j, k, t) - WA4D(i-1, j, k, t) )/grid->dx );
-    float dudz = ( ( UA4D(i, j, k, t) - UA4D(i, j, k-1, t) )/grid->dz );
+    float dwdx = ( ( WA4D(i, j, k, t) - WA4D(i-1, j, k, t) )/dx );
+    float dudz = ( ( UA4D(i, j, k, t) - UA4D(i, j, k-1, t) )/dz );
     TEM4D(i, j, k, t) = dudz - dwdx;
     if (k == 2) {
         TEM4D(i, j, 1, t) = dudz - dwdx;
@@ -343,9 +371,11 @@ __device__ void calc_zvortdiff_ten(datagrid *grid, integration_data *data, int *
     float *ustag = data->diffu_4d_chunk;
     float *vstag = data->diffv_4d_chunk;
     float *dum0 = data->tem3_4d_chunk;
+    float dx = grid->xf[i+1] - grid->xf[i];
+    float dy = grid->yf[j+1] - grid->yf[j];
 
-    float dvdx = ( ( VA4D(i, j, k, t) - VA4D(i-1, j, k, t) )/grid->dx);
-    float dudy = ( ( UA4D(i, j, k, t) - UA4D(i, j-1, k, t) )/grid->dy);
+    float dvdx = ( ( VA4D(i, j, k, t) - VA4D(i-1, j, k, t) )/dx);
+    float dudy = ( ( UA4D(i, j, k, t) - UA4D(i, j-1, k, t) )/dy);
     TEM4D(i, j, k, t) = dvdx - dudy;
 }
 
@@ -356,21 +386,23 @@ __device__ void calc_xvort_solenoid(datagrid *grid, integration_data *data, int 
     int t = idx_4D[3];
 
     float cp = 1005.7;
+    float dy = grid->yf[j+1] - grid->yf[j];
+    float dz = grid->zf[k+1] - grid->zf[k];
 
     float *buf0 = data->pi_4d_chunk;
     // dPi/dz
     float pi_upper = BUF4D(i, j, k+1, t);
     float pi_lower = BUF4D(i, j, k-1, t);
-    float dpidz = ( (pi_upper - pi_lower) / ( 2*grid->dz ) );
+    float dpidz = ( (pi_upper - pi_lower) / ( 2*dz ) );
     // dPi/dy
-    float dpidy = ( (BUF4D(i, j+1, k, t) - BUF4D(i, j-1, k, t)) / ( 2*grid->dy ) );
+    float dpidy = ( (BUF4D(i, j+1, k, t) - BUF4D(i, j-1, k, t)) / ( 2*dy ) );
 
     buf0 = data->th_4d_chunk;
     // dthrho/dy
-    float dthdy = ( (BUF4D(i, j+1, k, t) - BUF4D(i, j-1, k, t)) / ( 2*grid->dy ) );
+    float dthdy = ( (BUF4D(i, j+1, k, t) - BUF4D(i, j-1, k, t)) / ( 2*dy ) );
 
     // ddthrho/dz
-    float dthdz = ( (BUF4D(i, j, k+1, t) - BUF4D(i, j, k-1, t)) / ( 2*grid->dz ) );
+    float dthdz = ( (BUF4D(i, j, k+1, t) - BUF4D(i, j, k-1, t)) / ( 2*dz ) );
 
     // compute and save to the array
     buf0 = data->xvort_solenoid_4d_chunk; 
@@ -378,8 +410,8 @@ __device__ void calc_xvort_solenoid(datagrid *grid, integration_data *data, int 
     if (k == 2) {
         // the d/dy terms are defined at k = 1,
         // go get those
-        dpidy = ( ( BUF4D(i, j+1, 1, t) - BUF4D(i, j-1, 1, t) ) / (2*grid->dy) );
-        dthdy = ( (BUF4D(i, j+1, 1, t) - BUF4D(i, j-1, 1, t)) / ( 2*grid->dy ) );
+        dpidy = ( ( BUF4D(i, j+1, 1, t) - BUF4D(i, j-1, 1, t) ) / (2*dy) );
+        dthdy = ( (BUF4D(i, j+1, 1, t) - BUF4D(i, j-1, 1, t)) / ( 2*dy ) );
         BUF4D(i, j, 1, t) = -cp*(dthdy*dpidz - dthdz*dpidy); 
     }
 }
@@ -391,22 +423,24 @@ __device__ void calc_yvort_solenoid(datagrid *grid, integration_data *data, int 
     int t = idx_4D[3];
 
     float cp = 1005.7;
+    float dx = grid->xf[i+1] - grid->xf[i];
+    float dz = grid->zf[k+1] - grid->zf[k];
 
     float *buf0 = data->pi_4d_chunk;
     // dPi/dz
     // We need pres0 because we're doing a vertical derivative
     float pi_upper = BUF4D(i, j, k+1, t);
     float pi_lower = BUF4D(i, j, k-1, t);
-    float dpidz = ( (pi_upper - pi_lower) / ( 2*grid->dz ) );
+    float dpidz = ( (pi_upper - pi_lower) / ( 2*dz ) );
     // dPi/dx
-    float dpidx = ( (BUF4D(i+1, j, k, t) - BUF4D(i-1, j, k, t)) / ( 2*grid->dx ) );
+    float dpidx = ( (BUF4D(i+1, j, k, t) - BUF4D(i-1, j, k, t)) / ( 2*dx ) );
 
     buf0 = data->th_4d_chunk;
     // dthrho/dx
-    float dthdx = ( (BUF4D(i+1, j, k, t) - BUF4D(i-1, j, k, t)) / ( 2*grid->dx ) );
+    float dthdx = ( (BUF4D(i+1, j, k, t) - BUF4D(i-1, j, k, t)) / ( 2*dx ) );
 
     // dthrho/dz
-    float dthdz = ( (BUF4D(i, j, k+1, t) - BUF4D(i, j, k-1, t)) / ( 2*grid->dz ) );
+    float dthdz = ( (BUF4D(i, j, k+1, t) - BUF4D(i, j, k-1, t)) / ( 2*dz ) );
 
     // compute and save to the array
     buf0 = data->yvort_solenoid_4d_chunk; 
@@ -414,8 +448,8 @@ __device__ void calc_yvort_solenoid(datagrid *grid, integration_data *data, int 
     if (k == 2) {
         // the d/dx terms are defined at k = 1,
         // go get those
-        dpidx = ( (BUF4D(i+1, j, 1, t) - BUF4D(i-1, j, 1, t)) / ( 2*grid->dx ) );
-        dthdx = ( (BUF4D(i+1, j, 1, t) - BUF4D(i-1, j, 1, t)) / ( 2*grid->dx ) );
+        dpidx = ( (BUF4D(i+1, j, 1, t) - BUF4D(i-1, j, 1, t)) / ( 2*dx ) );
+        dthdx = ( (BUF4D(i+1, j, 1, t) - BUF4D(i-1, j, 1, t)) / ( 2*dx ) );
         BUF4D(i, j, 1, t) = -cp*(dthdz*dpidx - dthdx*dpidz); 
     }
 }
@@ -427,19 +461,21 @@ __device__ void calc_zvort_solenoid(datagrid *grid, integration_data *data, int 
     int t = idx_4D[3];
 
     float cp = 1005.7;
+    float dx = grid->xf[i+1] - grid->xf[i];
+    float dy = grid->yf[j+1] - grid->yf[j];
 
     float *buf0 = data->pi_4d_chunk;
     // dPi/dx
-    float dpidx = ( (BUF4D(i+1, j, k, t) - BUF4D(i-1, j, k, t)) / ( 2*grid->dx ) );
+    float dpidx = ( (BUF4D(i+1, j, k, t) - BUF4D(i-1, j, k, t)) / ( 2*dx ) );
     // dPi/dy
-    float dpidy = ( (BUF4D(i, j+1, k, t) - BUF4D(i, j-1, k, t)) / ( 2*grid->dy ) );
+    float dpidy = ( (BUF4D(i, j+1, k, t) - BUF4D(i, j-1, k, t)) / ( 2*dy ) );
 
     buf0 = data->th_4d_chunk;
     // dthrho/dx
-    float dthdx = ( (BUF4D(i+1, j, k, t) - BUF4D(i-1, j, k, t)) / ( 2*grid->dx ) );
+    float dthdx = ( (BUF4D(i+1, j, k, t) - BUF4D(i-1, j, k, t)) / ( 2*dx ) );
 
     // dthrho/dy
-    float dthdy = ( (BUF4D(i, j+1, k, t) - BUF4D(i, j-1, k, t)) / ( 2*grid->dy ) );
+    float dthdy = ( (BUF4D(i, j+1, k, t) - BUF4D(i, j-1, k, t)) / ( 2*dy ) );
 
     // compute and save to the array
     buf0 = data->yvort_solenoid_4d_chunk; 

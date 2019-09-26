@@ -20,25 +20,29 @@ __device__ void calcdef(datagrid *grid, integration_data *data, int *idx_4D, int
     vstag = data->v_4d_chunk;
     wstag = data->w_4d_chunk;
 
+    float dx = grid->xf[i+1] - grid->xf[i];
+    float dy = grid->yf[j+1] - grid->yf[j];
+    float dz = grid->zf[k+1] - grid->zf[k];
+
     // apply the zero strain condition for free slip to out subsurface/ghost zone
     // tau 11. Derivative is du/dx and therefore the derivative on the staggered mesh results on the scalar point.
     dum0 = data->tem1_4d_chunk;
-    TEM4D(i, j, k, t) = ( ( UA4D(i+1, j, k, t) - UA4D(i, j, k, t) ) / grid->dx ) * UH(i);
+    TEM4D(i, j, k, t) = ( ( UA4D(i+1, j, k, t) - UA4D(i, j, k, t) ) / dx ) * UH(i);
 
     // tau 12. Derivatives are no longer on the staggered mesh since it's du/dy and dv/dx. Therefore, and
     // averaging step must take place on the TEM array after calculation. 
 
     dum0 = data->tem2_4d_chunk;
-    TEM4D(i, j, k, t) = ( ( ( UA4D(i, j, k, t) - UA4D(i, j-1, k, t) ) / grid->dy ) * VF(j) ) \
-                        + ( ( ( VA4D(i, j, k, t) - VA4D(i-1, j, k, t) ) / grid->dx ) * UF(i) );
+    TEM4D(i, j, k, t) = ( ( ( UA4D(i, j, k, t) - UA4D(i, j-1, k, t) ) / dy ) * VF(j) ) \
+                        + ( ( ( VA4D(i, j, k, t) - VA4D(i-1, j, k, t) ) / dx ) * UF(i) );
 
     // tau 22. Once again back on the scalar mesh. 
     dum0 = data->tem3_4d_chunk;
-    TEM4D(i, j, k, t) = ( ( VA4D(i, j+1, k, t) - VA4D(i, j, k, t) ) / grid->dy ) * VH(j);
+    TEM4D(i, j, k, t) = ( ( VA4D(i, j+1, k, t) - VA4D(i, j, k, t) ) / dy ) * VH(j);
 
     // tau 33. On the scalar mesh. 
     dum0 = data->tem4_4d_chunk;
-    TEM4D(i, j, k, t) = ( ( WA4D(i, j, k+1, t) - WA4D(i, j, k, t) ) / grid->dz ) * MH(k);
+    TEM4D(i, j, k, t) = ( ( WA4D(i, j, k+1, t) - WA4D(i, j, k, t) ) / dz ) * MH(k);
 
     if (k == 1) {
         // we'll go ahead and apply the zero strain condition on the lower boundary/ghost zone
@@ -55,13 +59,13 @@ __device__ void calcdef(datagrid *grid, integration_data *data, int *idx_4D, int
 
         // tau 13 is not on the scalar mesh
         dum0 = data->tem5_4d_chunk;
-        TEM4D(i, j, k, t) = ( ( ( WA4D(i, j, k, t) - WA4D(i-1, j, k, t) ) / grid->dx ) * UF(i) ) \
-                           +( ( ( UA4D(i, j, k, t) - UA4D(i, j, k-1, t) ) / grid->dz ) * MF(k) );
+        TEM4D(i, j, k, t) = ( ( ( WA4D(i, j, k, t) - WA4D(i-1, j, k, t) ) / dx ) * UF(i) ) \
+                           +( ( ( UA4D(i, j, k, t) - UA4D(i, j, k-1, t) ) / dz ) * MF(k) );
 
         // tau 23 is not on the scalar mesh
         dum0 = data->tem6_4d_chunk;
-        TEM4D(i, j, k, t) = ( ( ( WA4D(i, j, k, t) - WA4D(i, j-1, k, t) ) / grid->dy ) * VF(j) ) \
-                           +( ( ( VA4D(i, j, k, t) - VA4D(i, j, k-1, t) ) / grid->dz ) * MF(k) );
+        TEM4D(i, j, k, t) = ( ( ( WA4D(i, j, k, t) - WA4D(i, j-1, k, t) ) / dy ) * VF(j) ) \
+                           +( ( ( VA4D(i, j, k, t) - VA4D(i, j, k-1, t) ) / dz ) * MF(k) );
 
     }
 }
@@ -135,18 +139,21 @@ __device__ void calc_turbu(datagrid *grid, integration_data *data, int *idx_4D, 
     // so we will use the stagger macros to store the data in order to maintain
     // consistency
     float *ustag, *buf0, *dum0;
+    float dx = grid->xf[i+1] - grid->xf[i];
+    float dy = grid->yf[j+1] - grid->yf[j];
+    float dz = grid->zf[k+1] - grid->zf[k];
 
     // tau 11
     dum0 = data->tem1_4d_chunk;
-    float turbx = ((TEM4D(i, j, k, t) - TEM4D(i-1, j, k, t)) / grid->dx)*UF(i);
+    float turbx = ((TEM4D(i, j, k, t) - TEM4D(i-1, j, k, t)) / dx)*UF(i);
 
     // tau 12
     dum0 = data->tem2_4d_chunk;
-    float turby = ((TEM4D(i, j+1, k, t) - TEM4D(i, j, k, t)) / grid->dy)*VH(j);
+    float turby = ((TEM4D(i, j+1, k, t) - TEM4D(i, j, k, t)) / dy)*VH(j);
 
     // tau 13
     dum0 = data->tem5_4d_chunk;
-    float turbz = ((TEM4D(i, j, k+1, t) - TEM4D(i, j, k, t)) / grid->dz)*MH(k);
+    float turbz = ((TEM4D(i, j, k+1, t) - TEM4D(i, j, k, t)) / dz)*MH(k);
 
     buf0 = data->rho_4d_chunk;
     // calculate the momentum tendency now
@@ -165,18 +172,21 @@ __device__ void calc_turbv(datagrid *grid, integration_data *data, int *idx_4D, 
     // so we will use the stagger macros to store the data in order to maintain
     // consistency
     float *vstag, *buf0, *dum0;
+    float dx = grid->xf[i+1] - grid->xf[i];
+    float dy = grid->yf[j+1] - grid->yf[j];
+    float dz = grid->zf[k+1] - grid->zf[k];
 
     // tau 12
     dum0 = data->tem2_4d_chunk;
-    float turbx = ((TEM4D(i+1, j, k, t) - TEM4D(i, j, k, t)) / grid->dx)*UH(i);
+    float turbx = ((TEM4D(i+1, j, k, t) - TEM4D(i, j, k, t)) / dx)*UH(i);
 
     // tau 22
     dum0 = data->tem3_4d_chunk;
-    float turby = ((TEM4D(i, j, k, t) - TEM4D(i, j-1, k, t)) / grid->dy)*VF(j);
+    float turby = ((TEM4D(i, j, k, t) - TEM4D(i, j-1, k, t)) / dy)*VF(j);
 
     // tau 23
     dum0 = data->tem6_4d_chunk;
-    float turbz = ((TEM4D(i, j, k+1, t) - TEM4D(i, j, k, t)) / grid->dz)*MH(k);
+    float turbz = ((TEM4D(i, j, k+1, t) - TEM4D(i, j, k, t)) / dz)*MH(k);
 
     buf0 = data->rho_4d_chunk;
     // calculate the momentum tendency now
@@ -195,18 +205,21 @@ __device__ void calc_turbw(datagrid *grid, integration_data *data, int *idx_4D, 
     // so we will use the stagger macros to store the data in order to maintain
     // consistency
     float *wstag, *buf0, *dum0;
+    float dx = grid->xf[i+1] - grid->xf[i];
+    float dy = grid->yf[j+1] - grid->yf[j];
+    float dz = grid->zf[k+1] - grid->zf[k];
 
     // tau 13
     dum0 = data->tem5_4d_chunk;
-    float turbx = ((TEM4D(i+1, j, k, t) - TEM4D(i, j, k, t)) / grid->dx)*UH(i);
+    float turbx = ((TEM4D(i+1, j, k, t) - TEM4D(i, j, k, t)) / dx)*UH(i);
 
     // tau 23
     dum0 = data->tem6_4d_chunk;
-    float turby = ((TEM4D(i, j+1, k, t) - TEM4D(i, j, k, t)) / grid->dy)*VH(j);
+    float turby = ((TEM4D(i, j+1, k, t) - TEM4D(i, j, k, t)) / dy)*VH(j);
 
     // tau 33
     dum0 = data->tem4_4d_chunk;
-    float turbz = ((TEM4D(i, j, k, t) - TEM4D(i, j, k-1, t)) / grid->dz)*MF(k);
+    float turbz = ((TEM4D(i, j, k, t) - TEM4D(i, j, k-1, t)) / dz)*MF(k);
 
     buf0 = data->rho_4d_chunk;
     // calculate the momentum tendency now

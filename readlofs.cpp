@@ -135,14 +135,9 @@ void lofs_get_grid( datagrid *grid ) {
     float *zf = new float[nz+2];
     float dx, dy, dz;
     float rdx, rdy, rdz;
-    get0dfloat (f_id,(char *)"mesh/dx",&dx); rdx=1.0/dx;
-    get0dfloat (f_id,(char *)"mesh/dy",&dy); rdy=1.0/dy;
+    //get0dfloat (f_id,(char *)"mesh/dx",&dx); rdx=1.0/dx;
+    //get0dfloat (f_id,(char *)"mesh/dy",&dy); rdy=1.0/dy;
     // temporary fix until this is saved by the model
-    dz=dx;rdz=rdx;
-
-    grid->dx = dx;
-    grid->dy = dy;
-    grid->dz = dz;
 
     // fill the arrays with the goods
     get1dfloat( f_id, (char *)"mesh/xhfull", xhfull, 0, nx );
@@ -201,6 +196,22 @@ void lofs_get_grid( datagrid *grid ) {
     // // offset by the correct amount on each side. The macros take care of
     // // the offsetting.
 
+    
+    for (int iz = grid->Z0; iz <= grid->Z1; iz++) grid->zh[iz-grid->Z0] = zh[iz];
+	for (int iy = grid->Y0; iy <= grid->Y1; iy++) grid->yh[iy-grid->Y0] = yhfull[iy];
+	for (int ix = grid->X0; ix <= grid->X1; ix++) grid->xh[ix-grid->X0] = xhfull[ix];
+
+    for (int iz = grid->Z0; iz <= grid->Z1+1; iz++) grid->zf[iz-grid->Z0] = zf[iz];
+    for (int iy = grid->Y0; iy <= grid->Y1+1; iy++) grid->yf[iy-grid->Y0] = yffull[iy];
+    for (int ix = grid->X0; ix <= grid->X1+1; ix++) grid->xf[ix-grid->X0] = xffull[ix];
+
+    dx = grid->xf[1] - grid->xf[0];
+    dy = grid->yf[1] - grid->yf[0];
+    dz = grid->zf[2] - grid->zf[1];
+    grid->dx = dx;
+    grid->dy = dy;
+    grid->dz = dz;
+
     // fill the x and y arrays with the subset
     // portion of the horizontal dimensions
     for (int ix = grid->X0 - 1; ix <= grid->X1 + 1; ix++) UH(ix-grid->X0) = dx/(xffull[ix+1]-xffull[ix]);
@@ -212,15 +223,6 @@ void lofs_get_grid( datagrid *grid ) {
     for (int iz = grid->Z0+1; iz < grid->Z1; iz++) MF(iz-grid->Z0) = dz/(zh[iz]-zf[iz-1]);
     // param.F lower boundary
     MF(0) = MF(1);
-
-    
-    for (int iz = grid->Z0; iz <= grid->Z1; iz++) grid->zh[iz-grid->Z0] = zh[iz];
-	for (int iy = grid->Y0; iy <= grid->Y1; iy++) grid->yh[iy-grid->Y0] = yhfull[iy];
-	for (int ix = grid->X0; ix <= grid->X1; ix++) grid->xh[ix-grid->X0] = xhfull[ix];
-
-    for (int iz = grid->Z0; iz <= grid->Z1+1; iz++) grid->zf[iz-grid->Z0] = zf[iz];
-    for (int iy = grid->Y0; iy <= grid->Y1+1; iy++) grid->yf[iy-grid->Y0] = yffull[iy];
-    for (int ix = grid->X0; ix <= grid->X1+1; ix++) grid->xf[ix-grid->X0] = xffull[ix];
 
 
     delete[] xffull;

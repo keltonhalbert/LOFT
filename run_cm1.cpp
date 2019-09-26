@@ -291,6 +291,7 @@ datagrid* loadMetadataAndGrid(string base_dir, parcel_pos *parcels, int rank) {
         point[1] = parcels->ypos[PCL(0, pcl, parcels->nTimes)];
         point[2] = parcels->zpos[PCL(0, pcl, parcels->nTimes)];
         // find the nearest grid point!
+        if ((point[0] == NC_FILL_FLOAT) || (point[1] == NC_FILL_FLOAT) || (point[2] == NC_FILL_FLOAT)) continue;
         nearest_grid_idx(point, temp_grid, idx_4D);
         if ( (idx_4D[0] == -1) || (idx_4D[1] == -1) || (idx_4D[2] == -1) ) {
             cout << "INVALID POINT X " << point[0] << " Y " << point[1] << " Z " << point[2] << endl;
@@ -331,10 +332,10 @@ datagrid* loadMetadataAndGrid(string base_dir, parcel_pos *parcels, int rank) {
     cout << "Z0: " << min_k << " Z1: " << max_k << endl;
 
     // keep the data in our saved bounds
-    if (min_i < saved_X0) min_i = saved_X0;
-    if (max_i > saved_X1) max_i = saved_X1;
-    if (min_j < saved_Y0) min_j = saved_Y0;
-    if (max_j > saved_Y1) max_j = saved_Y1;
+    if (min_i < saved_X0) min_i = saved_X0+1;
+    if (max_i > saved_X1) max_i = saved_X1-1;
+    if (min_j < saved_Y0) min_j = saved_Y0+1;
+    if (max_j > saved_Y1) max_j = saved_Y1-1;
     if (min_k < 0) min_k = 0;
     if (max_k > nz-2) max_k = nz-2;
 
@@ -371,6 +372,9 @@ datagrid* loadMetadataAndGrid(string base_dir, parcel_pos *parcels, int rank) {
 
 
     lofs_get_grid(requested_grid);
+    cout << "MY DX IS " << requested_grid->dx << endl;
+    cout << "MY DY IS " << requested_grid->dy << endl;
+    cout << "MY DZ IS " << requested_grid->dz << endl;
     cout << "END METADATA & GRID REQUEST" << endl;
     return requested_grid;
 }
@@ -487,6 +491,7 @@ void seed_parcels(parcel_pos *parcels, float X0, float Y0, float Z0, int NX, int
         }
     }
     cout << "END PARCEL SEED" << endl;
+    cout << NC_FILL_FLOAT << endl;
 }
 
 
@@ -672,7 +677,7 @@ int main(int argc, char **argv ) {
             cout << "Invalid time index: " << nearest_tidx << " for time " << time << ". Abort." << endl;
             return 0;
         }
-        float dt = fabs(alltimes[nearest_tidx + direct*(1+tChunk*size)] - alltimes[nearest_tidx + direct*(tChunk*size)]);
+        double dt = fabs(alltimes[nearest_tidx + direct*(1+tChunk*size)] - alltimes[nearest_tidx + direct*(tChunk*size)]);
         printf("TIMESTEP %d/%d %d %f dt= %f\n", rank, size, rank + tChunk*size, alltimes[nearest_tidx + direct*( rank + tChunk*size)], dt);
         requested_grid->dt = dt;
         // load u, v, and w into memory
