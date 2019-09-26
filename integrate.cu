@@ -52,6 +52,10 @@ void doCalcVort(datagrid *grid, integration_data *data, int tStart, int tEnd, di
 
 void doCalcVortTend(datagrid *grid, integration_data *data, int tStart, int tEnd, dim3 numBlocks, dim3 threadsPerBlock) {
 
+    doCalcRf<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaDeviceSynchronize());
+    gpuErrchk( cudaPeekAtLastError() );
+
     // Compute the vorticity tendency due to stretching. These conveniently
     // end up on the scalar grid, and no extra steps are required. This will
     // compute the tendency for all 3 components of vorticity. 

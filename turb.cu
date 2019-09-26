@@ -5,6 +5,25 @@
 #include "interp.cu"
 #ifndef TURB_CU
 #define TURB_CU
+
+__device__ void calcrf(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
+    int i = idx_4D[0];
+    int j = idx_4D[1];
+    int k = idx_4D[2];
+    int t = idx_4D[3];
+    // use the w staggered grid
+    float *wstag = data->rhof_4d_chunk;
+    float *buf0 = data->rho_4d_chunk;
+
+    if (k >= 2) {
+        WA4D(i, j, k, t) =  (0.5 * (BUF4D(i, j, k-1, t) + grid->rho0[k-2]) + 0.5 * (BUF4D(i, j, k, t) + grid->rho0[k-1]));
+    }
+    // k == 1
+    else {
+        WA4D(i, j, 1, t) = (1.75*(BUF4D(i, j, 1, t) + grid->rho0[0]) - (BUF4D(i, j, 2, t) +grid->rho0[1]) + 0.25*(BUF4D(i, j, 3, t) + grid->rho0[2]));
+    }
+}
+
 // calculate the deformation terms for the turbulence diagnostics. They get stored in the 
 // arrays later designated for tau stress tensors and variables are named according to
 // tensor notation
@@ -120,12 +139,12 @@ __device__ void gettau(datagrid *grid, integration_data *data, int *idx_4D, int 
         wstag = data->rhof_4d_chunk; // rather than make a new maro, we'll just use the WA4D macro
         TEM4D(i, j, k, t) = TEM4D(i, j, k, t) * 0.25 \
                                 *( KM4D(i-1, j, k, t) + KM4D(i, j, k, t) ) \
-                                *( (WA4D(i-1, j, k, t) + grid->rho0[k-1]) + (WA4D(i, j, k, t) + grid->rho0[k-1]) ); 
+                                *( (WA4D(i-1, j, k, t)) + (WA4D(i, j, k, t)) ); 
         // tau 23
         dum0 = data->tem6_4d_chunk;
         TEM4D(i, j, k, t) = TEM4D(i, j, k, t) * 0.25 \
                                 *( KM4D(i, j-1, k, t) + KM4D(i, j, k, t) ) \
-                                *( (WA4D(i, j-1, k, t) + grid->rho0[k-1]) + (WA4D(i, j, k, t) + grid->rho0[k-1]) ); 
+                                *( (WA4D(i, j-1, k, t) + WA4D(i, j, k, t)) ); 
     }
 }
 
@@ -228,6 +247,24 @@ __device__ void calc_turbw(datagrid *grid, integration_data *data, int *idx_4D, 
     WA4D(i, j, k, t) = ( turbx + turby + turbz ) * rrf; 
 }
 
+__global__ void doCalcRf(datagrid *grid, integration_data *data, int tStart, int tEnd) {
+    // get our 3D index based on our blocks/threads
+    int i = (blockIdx.x*blockDim.x) + threadIdx.x;
+    int j = (blockIdx.y*blockDim.y) + threadIdx.y;
+    int k = (blockIdx.z*blockDim.z) + threadIdx.z;
+    int idx_4D[4];
+    int NX = grid->NX;
+    int NY = grid->NY;
+    int NZ = grid->NZ;
+
+    idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
+    if ((i < NX) && (j < NY) && (k < NZ+1) && (k >=1)) {
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            idx_4D[3] = tidx;
+            calcrf(grid, data, idx_4D, NX, NY, NZ);
+        }
+    }
+}
 __global__ void doCalcDef(datagrid *grid, integration_data *data, int tStart, int tEnd) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
