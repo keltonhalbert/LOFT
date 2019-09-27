@@ -183,24 +183,36 @@ __device__ void calc_xvort_stretch(datagrid *grid, integration_data *data, int *
     int j = idx_4D[1];
     int k = idx_4D[2];
     int t = idx_4D[3];
+    
 
-    float *vstag = data->v_4d_chunk;
     float *wstag = data->w_4d_chunk;
+    float *vstag = data->v_4d_chunk;
     float *xvort = data->xvort_4d_chunk;
     float *xvort_stretch = data->xvstretch_4d_chunk;
     float dy = grid->yf[j+1] - grid->yf[j];
     float dz = grid->zf[k+1] - grid->zf[k];
+
+    float rrv = grid->rho0[k-1];
+    float rrw1, rrw2;
+    if ( k == 1 ) {
+        rrw1 = 1.75*grid->rho0[0] - grid->rho0[1] + 0.25*grid->rho0[2];
+        rrw2 = 0.5*grid->rho0[1] + 0.5*grid->rho0[2];
+    }
+    else {
+        rrw1 = 0.5*grid->rho0[k-2] + 0.5*grid->rho0[k-1];
+        rrw2 = 0.5*grid->rho0[k-1] + 0.5*grid->rho0[k  ];
+    }
 
     // this stencil conveniently lands itself on the scalar grid,
     // so we won't have to worry about doing any averaging. I think.
     float *buf0 = xvort;
     float xv = BUF4D(i, j, k, t);
     float dvdy, dwdz;
-    dvdy = ( ( VA4D(i, j+1, k, t) - VA4D(i, j, k, t) )/dy);
-    dwdz = ( ( WA4D(i, j, k+1, t) - WA4D(i, j, k, t) )/dz);
+    dvdy = rrv * ( ( VA4D(i, j+1, k, t) - VA4D(i, j, k, t) )/dy);
+    dwdz = ( (  rrw2*WA4D(i, j, k+1, t) - rrw1*WA4D(i, j, k, t) )/dz);
 
     buf0 = xvort_stretch;
-    BUF4D(i, j, k, t) = -xv*( dvdy + dwdz);
+    BUF4D(i, j, k, t) = -xv*( (dvdy + dwdz) / rrv);
 
 }
 
@@ -219,16 +231,27 @@ __device__ void calc_yvort_stretch(datagrid *grid, integration_data *data, int *
     float dx = grid->xf[i+1] - grid->xf[i];
     float dz = grid->zf[k+1] - grid->zf[k];
 
+    float rru = grid->rho0[k-1];
+    float rrw1, rrw2;
+    if ( k == 1 ) {
+        rrw1 = 1.75*grid->rho0[0] - grid->rho0[1] + 0.25*grid->rho0[2];
+        rrw2 = 0.5*grid->rho0[1] + 0.5*grid->rho0[2];
+    }
+    else {
+        rrw1 = 0.5*grid->rho0[k-2] + 0.5*grid->rho0[k-1];
+        rrw2 = 0.5*grid->rho0[k-1] + 0.5*grid->rho0[k  ];
+    }
+
     // this stencil conveniently lands itself on the scalar grid,
     // so we won't have to worry about doing any averaging. I think.
     float *buf0 = yvort;
     float yv = BUF4D(i, j, k, t);
     float dudx, dwdz;
-    dudx = ( ( UA4D(i+1, j, k, t) - UA4D(i, j, k, t) )/dx);
-    dwdz = ( ( WA4D(i, j, k+1, t) - WA4D(i, j, k, t) )/dz);
+    dudx = ( rru*( UA4D(i+1, j, k, t) - UA4D(i, j, k, t) )/dx);
+    dwdz = ( ( rrw2*WA4D(i, j, k+1, t) - rrw1*WA4D(i, j, k, t) )/dz);
 
     buf0 = yvort_stretch;
-    BUF4D(i, j, k, t) = -yv*( dudx + dwdz);
+    BUF4D(i, j, k, t) = -yv*( (dudx + dwdz) / rru);
 }
 
 /* Compute the Z component of vorticity tendency due
