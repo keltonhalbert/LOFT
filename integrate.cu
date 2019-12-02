@@ -262,6 +262,24 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             float pclyvortsolenoid = interp3D(grid, data->yvort_solenoid_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             float pclzvortsolenoid = interp3D(grid, data->zvort_solenoid_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
 
+            // Now do the scalars
+            float pclppert = interp3D(grid, data->pres_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclqvpert = interp3D(grid, data->qv_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclrhopert = interp3D(grid, data->rho_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclthetapert = interp3D(grid, data->t_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclthrhopert = interp3D(grid, data->th_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+
+            float pclpbar;
+            float pclqvbar;
+            float pclrhobar;
+            float pclthetabar;
+            float pclthrhobar;
+
+            float pclqc = interp3D(grid, data->qc_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclqi = interp3D(grid, data->qi_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclqs = interp3D(grid, data->qs_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclqg = interp3D(grid, data->qg_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+
             parcels->pclu[PCL(tidx,   parcel_id, totTime)] = pcl_u;
             parcels->pclv[PCL(tidx,   parcel_id, totTime)] = pcl_v;
             parcels->pclw[PCL(tidx,   parcel_id, totTime)] = pcl_w;
@@ -293,6 +311,18 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             parcels->pclxvortsolenoid[PCL(tidx, parcel_id, totTime)] = pclxvortsolenoid;
             parcels->pclyvortsolenoid[PCL(tidx, parcel_id, totTime)] = pclyvortsolenoid;
             parcels->pclzvortsolenoid[PCL(tidx, parcel_id, totTime)] = pclzvortsolenoid;
+
+            // scalars
+            parcels->pclppert[PCL(tidx, parcel_id, totTime)] = pclppert;
+            parcels->pclqvpert[PCL(tidx, parcel_id, totTime)] = pclqvpert;
+            parcels->pclrhopert[PCL(tidx, parcel_id, totTime)] = pclrhopert;
+            parcels->pclthetapert[PCL(tidx, parcel_id, totTime)] = pclthetapert;
+            parcels->pclthrhopert[PCL(tidx, parcel_id, totTime)] = pclthrhopert;
+
+            parcels->pclqc[PCL(tidx, parcel_id, totTime)] = pclqc;
+            parcels->pclqi[PCL(tidx, parcel_id, totTime)] = pclqi;
+            parcels->pclqs[PCL(tidx, parcel_id, totTime)] = pclqs;
+            parcels->pclqg[PCL(tidx, parcel_id, totTime)] = pclqg;
 
             // Now we use an RK2 scheme to integrate forward
             // in time. Values are interpolated to the parcel 
