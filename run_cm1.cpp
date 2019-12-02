@@ -324,8 +324,8 @@ datagrid* loadMetadataAndGrid(string base_dir, parcel_pos *parcels, int rank) {
     max_i = saved_X0 + max_i + 10;
     min_j = saved_Y0 + min_j - 10;
     max_j = saved_Y0 + max_j + 10;
-    min_k = 0;
-    max_k = max_k + 20;
+    min_k = min_k - 10;
+    max_k = max_k + 10;
     cout << "Attempted Parcel Bounds In Grid" << endl;
     cout << "X0: " << min_i << " X1: " << max_i << endl;
     cout << "Y0: " << min_j << " Y1: " << max_j << endl;
@@ -384,7 +384,9 @@ datagrid* loadMetadataAndGrid(string base_dir, parcel_pos *parcels, int rank) {
  * and the time requested in the dataset. 
  */
 void loadDataFromDisk(datagrid *requested_grid, float *ustag, float *vstag, float *wstag, \
-                        float *pbuffer, float *thbuffer, float *rhobuffer, float *khhbuffer, float*kmhbuffer, double t0) {
+                        float *pbuffer, float *tbuffer, float *thbuffer, float *rhobuffer, \
+                        float *qvbuffer, float *qcbuffer, float *qibuffer, float *qsbuffer, \
+                        float *qgbuffer, float *khhbuffer, float*kmhbuffer, double t0) {
     // request 3D field!
     // u,v, and w are on their
     // respective staggered grids
@@ -403,8 +405,14 @@ void loadDataFromDisk(datagrid *requested_grid, float *ustag, float *vstag, floa
     // request additional fields for calculations
     istag = false;
     lofs_read_3dvar(requested_grid, pbuffer, (char *)"prespert", istag, t0);
+    lofs_read_3dvar(requested_grid, tbuffer, (char *)"thpert", istag, t0);
     lofs_read_3dvar(requested_grid, thbuffer, (char *)"thrhopert", istag, t0);
     lofs_read_3dvar(requested_grid, rhobuffer, (char *)"rhopert", istag, t0);
+    lofs_read_3dvar(requested_grid, qvbuffer, (char *)"qvpert", istag, t0);
+    lofs_read_3dvar(requested_grid, qcbuffer, (char *)"qc", istag, t0);
+    lofs_read_3dvar(requested_grid, qsbuffer, (char *)"qs", istag, t0);
+    lofs_read_3dvar(requested_grid, qibuffer, (char *)"qi", istag, t0);
+    lofs_read_3dvar(requested_grid, qgbuffer, (char *)"qg", istag, t0);
 
 }
 
@@ -438,8 +446,10 @@ void buffer_offset_stag(datagrid *grid, float *ubufin, float *vbufin, float *wbu
     }
 }
 
-void buffer_offset_scal(datagrid *grid, float *pbufin, float *thbufin, float *rhobufin, \
-                        float *pbufout, float *thbufout, float *rhobufout) {
+void buffer_offset_scal(datagrid *grid, float *pbufin, float *tbufin, float *thbufin, float *rhobufin, \
+                        float *qvbufin, float *qcbufin, float *qibufin, float *qsbufin, float *qgbufin, \
+                        float *pbufout, float *tbufout, float *thbufout, float *rhobufout, \
+                        float *qvbufout, float *qcbufout, float *qibufout, float *qsbufout, float *qgbufout) {
     int NX = grid->NX;
     int NY = grid->NY;
     int NZ = grid->NZ;
@@ -448,12 +458,24 @@ void buffer_offset_scal(datagrid *grid, float *pbufin, float *thbufin, float *rh
             for (int k = 0; k < NZ; ++k) {
                 if (k == 0) {
                     pbufout[P3(i, j, 0, NX, NY)] = pbufin[P3(i, j, 0, NX, NY)];
+                    tbufout[P3(i, j, 0, NX, NY)] = tbufin[P3(i, j, 0, NX, NY)];
                     thbufout[P3(i, j, 0, NX, NY)] = thbufin[P3(i, j, 0, NX, NY)];
                     rhobufout[P3(i, j, 0, NX, NY)] = rhobufin[P3(i, j, 0, NX, NY)];
+                    qvbufout[P3(i, j, 0, NX, NY)] = qvbufin[P3(i, j, 0, NX, NY)];
+                    qcbufout[P3(i, j, 0, NX, NY)] = qcbufin[P3(i, j, 0, NX, NY)];
+                    qibufout[P3(i, j, 0, NX, NY)] = qibufin[P3(i, j, 0, NX, NY)];
+                    qsbufout[P3(i, j, 0, NX, NY)] = qsbufin[P3(i, j, 0, NX, NY)];
+                    qgbufout[P3(i, j, 0, NX, NY)] = qgbufin[P3(i, j, 0, NX, NY)];
                 }
                 pbufout[P3(i, j, k+1, NX, NY)] = pbufin[P3(i, j, k, NX, NY)];
+                tbufout[P3(i, j, k+1, NX, NY)] = tbufin[P3(i, j, k, NX, NY)];
                 thbufout[P3(i, j, k+1, NX, NY)] = thbufin[P3(i, j, k, NX, NY)];
                 rhobufout[P3(i, j, k+1, NX, NY)] = rhobufin[P3(i, j, k, NX, NY)];
+                qvbufout[P3(i, j, k+1, NX, NY)] = qvbufin[P3(i, j, k, NX, NY)];
+                qcbufout[P3(i, j, k+1, NX, NY)] = qcbufin[P3(i, j, k, NX, NY)];
+                qibufout[P3(i, j, k+1, NX, NY)] = qibufin[P3(i, j, k, NX, NY)];
+                qsbufout[P3(i, j, k+1, NX, NY)] = qsbufin[P3(i, j, k, NX, NY)];
+                qgbufout[P3(i, j, k+1, NX, NY)] = qgbufin[P3(i, j, k, NX, NY)];
             }
         }
     }
@@ -627,8 +649,9 @@ int main(int argc, char **argv ) {
         // allocate space for U, V, and W arrays
         // for all ranks, because this is what
         // LOFS will return it's data subset to
-        float *ubuf_tem, *vbuf_tem, *wbuf_tem, *pbuf_tem, *thbuf_tem, *rhobuf_tem, *khhbuf_tem, *kmhbuf_tem;
-        float *ubuf, *vbuf, *wbuf, *pbuf, *thbuf, *rhobuf, *khhbuf, *kmhbuf;
+        float *ubuf_tem, *vbuf_tem, *wbuf_tem, *pbuf_tem, *tbuf_tem, *thbuf_tem, *rhobuf_tem, \
+              *qvbuf_tem, *qcbuf_tem, *qibuf_tem, *qsbuf_tem, *qgbuf_tem, *khhbuf_tem, *kmhbuf_tem;
+        float *ubuf, *vbuf, *wbuf, *pbuf, *tbuf, *thbuf, *rhobuf, *qvbuf, *qcbuf, *qibuf, *qsbuf, *qgbuf, *khhbuf, *kmhbuf;
         // These temporary buffers are our un-offset arrays
         ubuf_tem = new float[N_stag_read];
         vbuf_tem = new float[N_stag_read];
@@ -637,8 +660,14 @@ int main(int argc, char **argv ) {
         khhbuf_tem = new float[N_stag_read];
         kmhbuf_tem = new float[N_stag_read];
         pbuf_tem = new float[N_scal_read];
+        tbuf_tem = new float[N_scal_read];
         thbuf_tem = new float[N_scal_read];
         rhobuf_tem = new float[N_scal_read];
+        qvbuf_tem = new float[N_scal_read];
+        qcbuf_tem = new float[N_scal_read];
+        qibuf_tem = new float[N_scal_read];
+        qsbuf_tem = new float[N_scal_read];
+        qgbuf_tem = new float[N_scal_read];
 
         // These non temporary arrays are offset in the vertical by 1
         // to account for potential ghost zone
@@ -650,8 +679,14 @@ int main(int argc, char **argv ) {
         kmhbuf = new float[N_stag_ghost];
         // As far as I'm aware, these do not need to be offset
         pbuf = new float[N_scal_ghost];
+        tbuf = new float[N_scal_ghost];
         thbuf = new float[N_scal_ghost];
         rhobuf = new float[N_scal_ghost];
+        qvbuf = new float[N_scal_ghost];
+        qcbuf = new float[N_scal_ghost];
+        qibuf = new float[N_scal_ghost];
+        qsbuf = new float[N_scal_ghost];
+        qgbuf = new float[N_scal_ghost];
 
 
         // construct a 4D contiguous array to store stuff in.
@@ -682,13 +717,15 @@ int main(int argc, char **argv ) {
         requested_grid->dt = dt;
         // load u, v, and w into memory
         loadDataFromDisk(requested_grid, ubuf_tem, vbuf_tem, wbuf_tem, \
-                         pbuf_tem, thbuf_tem, rhobuf_tem, khhbuf_tem, \
+                         pbuf_tem, tbuf_tem, thbuf_tem, rhobuf_tem, qvbuf_tem, \
+                         qcbuf_tem, qibuf_tem, qsbuf_tem, qgbuf_tem, khhbuf_tem, \
                          kmhbuf_tem, alltimes[nearest_tidx + direct*(rank + tChunk*size)]);
 
         buffer_offset_stag(requested_grid, ubuf_tem, vbuf_tem, wbuf_tem, khhbuf_tem, \
                            kmhbuf_tem, ubuf, vbuf, wbuf, khhbuf, kmhbuf);
-        buffer_offset_scal(requested_grid, pbuf_tem, thbuf_tem, rhobuf_tem, \
-                           pbuf, thbuf, rhobuf);
+        buffer_offset_scal(requested_grid, pbuf_tem, tbuf_tem, thbuf_tem, rhobuf_tem, \
+                        qvbuf_tem, qcbuf_tem, qibuf_tem, qsbuf_tem, qgbuf_tem, \
+                        pbuf, tbuf, thbuf, rhobuf, qvbuf, qcbuf, qibuf, qsbuf, qgbuf);
         
         // for MPI runs that load multiple time steps into memory,
         // communicate the data you've read into our 4D array
@@ -701,8 +738,14 @@ int main(int argc, char **argv ) {
 
         // Use N_scalar here so that there aren't random zeroes throughout the middle of the array
         int senderr_p = MPI_Gather(pbuf, N_scal_ghost, MPI_FLOAT, data->pres_4d_chunk, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_t = MPI_Gather(tbuf, N_scal_ghost, MPI_FLOAT, data->t_4d_chunk, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
         int senderr_th = MPI_Gather(thbuf, N_scal_ghost, MPI_FLOAT, data->th_4d_chunk, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
         int senderr_rho = MPI_Gather(rhobuf, N_scal_ghost, MPI_FLOAT, data->rho_4d_chunk, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_qv = MPI_Gather(qvbuf, N_scal_ghost, MPI_FLOAT, data->qv_4d_chunk, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_qc = MPI_Gather(qcbuf, N_scal_ghost, MPI_FLOAT, data->qc_4d_chunk, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_qi = MPI_Gather(qibuf, N_scal_ghost, MPI_FLOAT, data->qi_4d_chunk, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_qs = MPI_Gather(qsbuf, N_scal_ghost, MPI_FLOAT, data->qs_4d_chunk, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_qg = MPI_Gather(qgbuf, N_scal_ghost, MPI_FLOAT, data->qg_4d_chunk, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
 
         if (rank == 0) {
@@ -711,10 +754,16 @@ int main(int argc, char **argv ) {
             cout << "MPI Gather Error V: " << senderr_v << endl;
             cout << "MPI Gather Error W: " << senderr_w << endl;
             cout << "MPI Gather Error P: " << senderr_p << endl;
+            cout << "MPI Gather Error T: " << senderr_th << endl;
             cout << "MPI Gather Error TH: " << senderr_th << endl;
             cout << "MPI Gather Error RHO: " << senderr_rho << endl;
             cout << "MPI Gather Error KHH: " << senderr_khh << endl;
             cout << "MPI Gather Error KMH: " << senderr_khh << endl;
+            cout << "MPI Gather Error QV: " << senderr_qv << endl;
+            cout << "MPI Gather Error QC: " << senderr_qc << endl;
+            cout << "MPI Gather Error QI: " << senderr_qi << endl;
+            cout << "MPI Gather Error QS: " << senderr_qs << endl;
+            cout << "MPI Gather Error QG: " << senderr_qg << endl;
             int nParcels = parcels->nParcels;
             cout << "Beginning parcel integration! Heading over to the GPU to do GPU things..." << endl;
             cudaIntegrateParcels(requested_grid, data, parcels, size, nTotTimes, direct); 
@@ -749,15 +798,27 @@ int main(int argc, char **argv ) {
             delete[] vbuf_tem;
             delete[] wbuf_tem;
             delete[] pbuf_tem;
+            delete[] tbuf_tem;
             delete[] thbuf_tem;
             delete[] rhobuf_tem;
             delete[] khhbuf_tem;
             delete[] kmhbuf_tem;
+            delete[] qvbuf_tem;
+            delete[] qcbuf_tem;
+            delete[] qibuf_tem;
+            delete[] qsbuf_tem;
+            delete[] qgbuf_tem;
             delete[] pbuf;
+            delete[] tbuf;
             delete[] thbuf;
             delete[] rhobuf;
             delete[] khhbuf;
             delete[] kmhbuf;
+            delete[] qvbuf;
+            delete[] qcbuf;
+            delete[] qibuf;
+            delete[] qsbuf;
+            delete[] qgbuf;
 
             deallocate_integration_managed(data);
         }
@@ -775,15 +836,27 @@ int main(int argc, char **argv ) {
             delete[] vbuf_tem;
             delete[] wbuf_tem;
             delete[] pbuf_tem;
+            delete[] tbuf_tem;
             delete[] thbuf_tem;
             delete[] rhobuf_tem;
             delete[] khhbuf_tem;
             delete[] kmhbuf_tem;
+            delete[] qvbuf_tem;
+            delete[] qcbuf_tem;
+            delete[] qibuf_tem;
+            delete[] qsbuf_tem;
+            delete[] qgbuf_tem;
             delete[] pbuf;
+            delete[] tbuf;
             delete[] thbuf;
             delete[] rhobuf;
             delete[] khhbuf;
             delete[] kmhbuf;
+            delete[] qvbuf;
+            delete[] qcbuf;
+            delete[] qibuf;
+            delete[] qsbuf;
+            delete[] qgbuf;
         }
         // receive the updated parcel arrays
         // so that we can do proper subseting. This happens

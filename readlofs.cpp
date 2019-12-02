@@ -107,6 +107,8 @@ void lofs_get_grid( datagrid *grid ) {
 	int NX,NY,NZ;
     int nk, nj, ni;
     int ngz = 1;
+    // how much vertical data is actually written?
+    //get0dint (f_id,(char *)"namelist/orf_io/nkwrite_val",&nz);
     // how many points are in our 
     // subset?
 	NX = grid->NX;
