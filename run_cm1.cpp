@@ -386,7 +386,7 @@ datagrid* loadMetadataAndGrid(string base_dir, parcel_pos *parcels, int rank) {
 void loadDataFromDisk(datagrid *requested_grid, float *ustag, float *vstag, float *wstag, \
                         float *pbuffer, float *tbuffer, float *thbuffer, float *rhobuffer, \
                         float *qvbuffer, float *qcbuffer, float *qibuffer, float *qsbuffer, \
-                        float *qgbuffer, float *khhbuffer, float*kmhbuffer, double t0) {
+                        float *qgbuffer, float*kmhbuffer, double t0) {
     // request 3D field!
     // u,v, and w are on their
     // respective staggered grids
@@ -399,7 +399,6 @@ void loadDataFromDisk(datagrid *requested_grid, float *ustag, float *vstag, floa
     lofs_read_3dvar(requested_grid, ustag, (char *)"u", istag, t0);
     lofs_read_3dvar(requested_grid, vstag, (char *)"v", istag, t0);
     lofs_read_3dvar(requested_grid, wstag, (char *)"w", istag, t0);
-    lofs_read_3dvar(requested_grid, khhbuffer, (char *)"khh", istag, t0);
     lofs_read_3dvar(requested_grid, kmhbuffer, (char *)"kmh", istag, t0);
 
     // request additional fields for calculations
@@ -418,8 +417,8 @@ void loadDataFromDisk(datagrid *requested_grid, float *ustag, float *vstag, floa
 
 /* This handles the vertical dimension offset so that we can
  * include a lower ghost zone later on down the road*/
-void buffer_offset_stag(datagrid *grid, float *ubufin, float *vbufin, float *wbufin, float *khhbufin, float *kmhbufin, \
-                   float *ubufout, float *vbufout, float *wbufout, float *khhbufout, float *kmhbufout) {
+void buffer_offset_stag(datagrid *grid, float *ubufin, float *vbufin, float *wbufin, float *kmhbufin, \
+                   float *ubufout, float *vbufout, float *wbufout, float *kmhbufout) {
     int NX = grid->NX;
     int NY = grid->NY;
     int NZ = grid->NZ;
@@ -433,13 +432,11 @@ void buffer_offset_stag(datagrid *grid, float *ubufin, float *vbufin, float *wbu
                     ubufout[P3(i, j, 0, NX+2, NY+2)] = 0.0;
                     vbufout[P3(i, j, 0, NX+2, NY+2)] = 0.0;
                     wbufout[P3(i, j, 0, NX+2, NY+2)] = 0.0;
-                    khhbufout[P3(i, j, 0, NX+2, NY+2)] = 0.0;
                     kmhbufout[P3(i, j, 0, NX+2, NY+2)] = 0.0;
                 }
                 ubufout[P3(i, j, k+1, NX+2, NY+2)] = ubufin[P3(i, j, k, NX+2, NY+2)];
                 vbufout[P3(i, j, k+1, NX+2, NY+2)] = vbufin[P3(i, j, k, NX+2, NY+2)];
                 wbufout[P3(i, j, k+1, NX+2, NY+2)] = wbufin[P3(i, j, k, NX+2, NY+2)];
-                khhbufout[P3(i, j, k+1, NX+2, NY+2)] = khhbufin[P3(i, j, k, NX+2, NY+2)];
                 kmhbufout[P3(i, j, k+1, NX+2, NY+2)] = kmhbufin[P3(i, j, k, NX+2, NY+2)];
             }
         }
@@ -650,14 +647,13 @@ int main(int argc, char **argv ) {
         // for all ranks, because this is what
         // LOFS will return it's data subset to
         float *ubuf_tem, *vbuf_tem, *wbuf_tem, *pbuf_tem, *tbuf_tem, *thbuf_tem, *rhobuf_tem, \
-              *qvbuf_tem, *qcbuf_tem, *qibuf_tem, *qsbuf_tem, *qgbuf_tem, *khhbuf_tem, *kmhbuf_tem;
-        float *ubuf, *vbuf, *wbuf, *pbuf, *tbuf, *thbuf, *rhobuf, *qvbuf, *qcbuf, *qibuf, *qsbuf, *qgbuf, *khhbuf, *kmhbuf;
+              *qvbuf_tem, *qcbuf_tem, *qibuf_tem, *qsbuf_tem, *qgbuf_tem, *kmhbuf_tem;
+        float *ubuf, *vbuf, *wbuf, *pbuf, *tbuf, *thbuf, *rhobuf, *qvbuf, *qcbuf, *qibuf, *qsbuf, *qgbuf, *kmhbuf;
         // These temporary buffers are our un-offset arrays
         ubuf_tem = new float[N_stag_read];
         vbuf_tem = new float[N_stag_read];
         wbuf_tem = new float[N_stag_read];
         // khh and kmh are on the staggered W mesh
-        khhbuf_tem = new float[N_stag_read];
         kmhbuf_tem = new float[N_stag_read];
         pbuf_tem = new float[N_scal_read];
         tbuf_tem = new float[N_scal_read];
@@ -675,7 +671,6 @@ int main(int argc, char **argv ) {
         vbuf = new float[N_stag_ghost];
         wbuf = new float[N_stag_ghost];
         // khh and kmh are on the staggered W mesh
-        khhbuf = new float[N_stag_ghost];
         kmhbuf = new float[N_stag_ghost];
         // As far as I'm aware, these do not need to be offset
         pbuf = new float[N_scal_ghost];
@@ -718,11 +713,11 @@ int main(int argc, char **argv ) {
         // load u, v, and w into memory
         loadDataFromDisk(requested_grid, ubuf_tem, vbuf_tem, wbuf_tem, \
                          pbuf_tem, tbuf_tem, thbuf_tem, rhobuf_tem, qvbuf_tem, \
-                         qcbuf_tem, qibuf_tem, qsbuf_tem, qgbuf_tem, khhbuf_tem, \
+                         qcbuf_tem, qibuf_tem, qsbuf_tem, qgbuf_tem, \
                          kmhbuf_tem, alltimes[nearest_tidx + direct*(rank + tChunk*size)]);
 
-        buffer_offset_stag(requested_grid, ubuf_tem, vbuf_tem, wbuf_tem, khhbuf_tem, \
-                           kmhbuf_tem, ubuf, vbuf, wbuf, khhbuf, kmhbuf);
+        buffer_offset_stag(requested_grid, ubuf_tem, vbuf_tem, wbuf_tem, \
+                           kmhbuf_tem, ubuf, vbuf, wbuf,  kmhbuf);
         buffer_offset_scal(requested_grid, pbuf_tem, tbuf_tem, thbuf_tem, rhobuf_tem, \
                         qvbuf_tem, qcbuf_tem, qibuf_tem, qsbuf_tem, qgbuf_tem, \
                         pbuf, tbuf, thbuf, rhobuf, qvbuf, qcbuf, qibuf, qsbuf, qgbuf);
@@ -733,7 +728,6 @@ int main(int argc, char **argv ) {
         int senderr_u = MPI_Gather(ubuf, N_stag_ghost, MPI_FLOAT, data->u_4d_chunk, N_stag_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
         int senderr_v = MPI_Gather(vbuf, N_stag_ghost, MPI_FLOAT, data->v_4d_chunk, N_stag_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
         int senderr_w = MPI_Gather(wbuf, N_stag_ghost, MPI_FLOAT, data->w_4d_chunk, N_stag_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_khh = MPI_Gather(khhbuf, N_stag_ghost, MPI_FLOAT, data->khh_4d_chunk, N_stag_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
         int senderr_kmh = MPI_Gather(kmhbuf, N_stag_ghost, MPI_FLOAT, data->kmh_4d_chunk, N_stag_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
         // Use N_scalar here so that there aren't random zeroes throughout the middle of the array
@@ -757,8 +751,7 @@ int main(int argc, char **argv ) {
             cout << "MPI Gather Error T: " << senderr_th << endl;
             cout << "MPI Gather Error TH: " << senderr_th << endl;
             cout << "MPI Gather Error RHO: " << senderr_rho << endl;
-            cout << "MPI Gather Error KHH: " << senderr_khh << endl;
-            cout << "MPI Gather Error KMH: " << senderr_khh << endl;
+            cout << "MPI Gather Error KMH: " << senderr_kmh << endl;
             cout << "MPI Gather Error QV: " << senderr_qv << endl;
             cout << "MPI Gather Error QC: " << senderr_qc << endl;
             cout << "MPI Gather Error QI: " << senderr_qi << endl;
@@ -801,7 +794,6 @@ int main(int argc, char **argv ) {
             delete[] tbuf_tem;
             delete[] thbuf_tem;
             delete[] rhobuf_tem;
-            delete[] khhbuf_tem;
             delete[] kmhbuf_tem;
             delete[] qvbuf_tem;
             delete[] qcbuf_tem;
@@ -812,7 +804,6 @@ int main(int argc, char **argv ) {
             delete[] tbuf;
             delete[] thbuf;
             delete[] rhobuf;
-            delete[] khhbuf;
             delete[] kmhbuf;
             delete[] qvbuf;
             delete[] qcbuf;
@@ -839,7 +830,6 @@ int main(int argc, char **argv ) {
             delete[] tbuf_tem;
             delete[] thbuf_tem;
             delete[] rhobuf_tem;
-            delete[] khhbuf_tem;
             delete[] kmhbuf_tem;
             delete[] qvbuf_tem;
             delete[] qcbuf_tem;
@@ -850,7 +840,6 @@ int main(int argc, char **argv ) {
             delete[] tbuf;
             delete[] thbuf;
             delete[] rhobuf;
-            delete[] khhbuf;
             delete[] kmhbuf;
             delete[] qvbuf;
             delete[] qcbuf;

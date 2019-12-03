@@ -280,4 +280,46 @@ __host__ __device__ float interp3D(datagrid *grid, float *data_grd, float *point
     return output_val;
 }
 
+/* Do a 1D interpolation */
+__host__ __device__ float interp1D(datagrid *grid, float *data_grd, float *point, bool wgrid, int tstep) {
+    float z0, z1;
+    float y0, y1;
+    int zidx = 1;
+    float output_val; 
+    float zpt = point[2];
+
+    if (wgrid) {
+        z0 = grid->zf[zidx];
+        z1 = grid->zf[grid->NZ-1];
+        while ((z0 <= zpt) && (zidx < grid->NZ-1)) {
+            z0 = grid->zf[zidx+1];
+            zidx += 1;
+        }
+        y0 = data_grd[zidx];
+        zidx = grid->NZ-1;
+        while ((z1 >= zpt) && (zidx > 1)) {
+            z1 = grid->zf[zidx-1];
+            zidx -= 1;
+        }
+        y1 = data_grd[zidx];
+    }
+    else {
+        z0 = grid->zh[zidx];
+        z1 = grid->zh[grid->NZ-1];
+        while ((z0 <= zpt) && (zidx < grid->NZ-1)) {
+            z0 = grid->zh[zidx+1];
+            zidx += 1;
+        }
+        y0 = data_grd[zidx];
+        zidx = grid->NZ-1;
+        while ((z1 >= zpt) && (zidx > 1)) {
+            z1 = grid->zh[zidx-1];
+            zidx -= 1;
+        }
+        y1 = data_grd[zidx];
+    }
+    output_val = y0 + ((zpt - z0) / (z1 - z0)) * (y1 - y0);
+    return output_val;
+}
+
 #endif

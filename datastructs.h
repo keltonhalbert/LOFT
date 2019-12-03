@@ -88,8 +88,6 @@ struct parcel_pos {
     float *pclxvortdiff;
     float *pclyvortdiff;
     float *pclzvortdiff;
-    float *pclxvortbaro;
-    float *pclyvortbaro;
     float *pclxvortsolenoid;
     float *pclyvortsolenoid;
     float *pclzvortsolenoid;
@@ -136,7 +134,6 @@ struct integration_data {
     float *th_4d_chunk;
     float *rho_4d_chunk;
     float *rhof_4d_chunk;
-    float *khh_4d_chunk;
     float *kmh_4d_chunk;
     float *qv_4d_chunk;
     float *qc_4d_chunk;
@@ -176,8 +173,6 @@ struct integration_data {
     float *diffxvort_4d_chunk;
     float *diffyvort_4d_chunk;
     float *diffzvort_4d_chunk;
-    float *xvbaro_4d_chunk;
-    float *yvbaro_4d_chunk;
  
     float *xvort_solenoid_4d_chunk; 
     float *yvort_solenoid_4d_chunk; 

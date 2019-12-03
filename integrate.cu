@@ -256,8 +256,6 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             float pclxvortdiff = interp3D(grid, data->diffxvort_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             float pclyvortdiff = interp3D(grid, data->diffyvort_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             float pclzvortdiff = interp3D(grid, data->diffzvort_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-            float pclxvortbaro = interp3D(grid, data->xvbaro_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-            float pclyvortbaro = interp3D(grid, data->yvbaro_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             float pclxvortsolenoid = interp3D(grid, data->xvort_solenoid_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             float pclyvortsolenoid = interp3D(grid, data->yvort_solenoid_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             float pclzvortsolenoid = interp3D(grid, data->zvort_solenoid_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
@@ -269,11 +267,11 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             float pclthetapert = interp3D(grid, data->t_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             float pclthrhopert = interp3D(grid, data->th_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
 
-            float pclpbar;
-            float pclqvbar;
-            float pclrhobar;
-            float pclthetabar;
-            float pclthrhobar;
+            float pclpbar = interp1D(grid, grid->p0, point, is_wgrd, tidx);
+            float pclqvbar = interp1D(grid, grid->qv0, point, is_wgrd, tidx);
+            float pclrhobar = interp1D(grid, grid->rho0, point, is_wgrd, tidx);
+            float pclthetabar = interp1D(grid, grid->th0, point, is_wgrd, tidx);
+            float pclthrhobar = interp1D(grid, grid->th0, point, is_wgrd, tidx);
 
             float pclqc = interp3D(grid, data->qc_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             float pclqi = interp3D(grid, data->qi_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
@@ -306,8 +304,6 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             parcels->pclxvortdiff[PCL(tidx, parcel_id, totTime)] = pclxvortdiff;
             parcels->pclyvortdiff[PCL(tidx, parcel_id, totTime)] = pclyvortdiff;
             parcels->pclzvortdiff[PCL(tidx, parcel_id, totTime)] = pclzvortdiff;
-            parcels->pclxvortbaro[PCL(tidx, parcel_id, totTime)] = pclxvortbaro;
-            parcels->pclyvortbaro[PCL(tidx, parcel_id, totTime)] = pclyvortbaro;
             parcels->pclxvortsolenoid[PCL(tidx, parcel_id, totTime)] = pclxvortsolenoid;
             parcels->pclyvortsolenoid[PCL(tidx, parcel_id, totTime)] = pclyvortsolenoid;
             parcels->pclzvortsolenoid[PCL(tidx, parcel_id, totTime)] = pclzvortsolenoid;
@@ -318,6 +314,12 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             parcels->pclrhopert[PCL(tidx, parcel_id, totTime)] = pclrhopert;
             parcels->pclthetapert[PCL(tidx, parcel_id, totTime)] = pclthetapert;
             parcels->pclthrhopert[PCL(tidx, parcel_id, totTime)] = pclthrhopert;
+
+            parcels->pclpbar[PCL(tidx, parcel_id, totTime)] = pclpbar;
+            parcels->pclqvbar[PCL(tidx, parcel_id, totTime)] = pclqvbar;
+            parcels->pclrhobar[PCL(tidx, parcel_id, totTime)] = pclrhobar;
+            parcels->pclthetabar[PCL(tidx, parcel_id, totTime)] = pclthetabar;
+            parcels->pclthrhobar[PCL(tidx, parcel_id, totTime)] = pclthrhobar;
 
             parcels->pclqc[PCL(tidx, parcel_id, totTime)] = pclqc;
             parcels->pclqi[PCL(tidx, parcel_id, totTime)] = pclqi;

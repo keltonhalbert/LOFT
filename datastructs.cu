@@ -195,8 +195,6 @@ parcel_pos* allocate_parcels_managed(int NX, int NY, int NZ, int nTotTimes) {
     cudaMallocManaged(&(parcels->pclxvortdiff), nParcels*nTotTimes*sizeof(float)); 
     cudaMallocManaged(&(parcels->pclyvortdiff), nParcels*nTotTimes*sizeof(float)); 
     cudaMallocManaged(&(parcels->pclzvortdiff), nParcels*nTotTimes*sizeof(float)); 
-    cudaMallocManaged(&(parcels->pclxvortbaro), nParcels*nTotTimes*sizeof(float)); 
-    cudaMallocManaged(&(parcels->pclyvortbaro), nParcels*nTotTimes*sizeof(float)); 
     cudaMallocManaged(&(parcels->pclxvortsolenoid), nParcels*nTotTimes*sizeof(float));
     cudaMallocManaged(&(parcels->pclyvortsolenoid), nParcels*nTotTimes*sizeof(float));
     cudaMallocManaged(&(parcels->pclzvortsolenoid), nParcels*nTotTimes*sizeof(float));
@@ -263,8 +261,6 @@ parcel_pos* allocate_parcels_cpu(int NX, int NY, int NZ, int nTotTimes) {
     parcels->pclxvortdiff = new float[nParcels*nTotTimes]; 
     parcels->pclyvortdiff = new float[nParcels*nTotTimes]; 
     parcels->pclzvortdiff = new float[nParcels*nTotTimes]; 
-    parcels->pclxvortbaro = new float[nParcels*nTotTimes]; 
-    parcels->pclyvortbaro = new float[nParcels*nTotTimes]; 
     parcels->pclxvortsolenoid = new float[nParcels*nTotTimes];
     parcels->pclyvortsolenoid = new float[nParcels*nTotTimes];
     parcels->pclzvortsolenoid = new float[nParcels*nTotTimes];
@@ -322,8 +318,6 @@ void deallocate_parcels_managed(parcel_pos *parcels) {
     cudaFree(parcels->pclxvortdiff);
     cudaFree(parcels->pclyvortdiff);
     cudaFree(parcels->pclzvortdiff);
-    cudaFree(parcels->pclxvortbaro);
-    cudaFree(parcels->pclyvortbaro);
     cudaFree(parcels->pclxvortsolenoid);
     cudaFree(parcels->pclyvortsolenoid);
     cudaFree(parcels->pclzvortsolenoid);
@@ -378,8 +372,6 @@ void deallocate_parcels_cpu(parcel_pos *parcels) {
     delete[] parcels->pclxvortdiff;
     delete[] parcels->pclyvortdiff;
     delete[] parcels->pclzvortdiff;
-    delete[] parcels->pclxvortbaro;
-    delete[] parcels->pclyvortbaro;
     delete[] parcels->pclxvortsolenoid;
     delete[] parcels->pclyvortsolenoid;
     delete[] parcels->pclzvortsolenoid;
@@ -422,7 +414,6 @@ integration_data* allocate_integration_managed(long bufsize) {
     cudaMallocManaged(&(data->t_4d_chunk),  bufsize*sizeof(float));
     cudaMallocManaged(&(data->rho_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->rhof_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->khh_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->kmh_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->qc_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->qi_4d_chunk), bufsize*sizeof(float));
@@ -456,8 +447,6 @@ integration_data* allocate_integration_managed(long bufsize) {
     cudaMallocManaged(&(data->diffxvort_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->diffyvort_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->diffzvort_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->xvbaro_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->yvbaro_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->xvort_solenoid_4d_chunk), bufsize*sizeof(float)); 
     cudaMallocManaged(&(data->yvort_solenoid_4d_chunk), bufsize*sizeof(float)); 
     cudaMallocManaged(&(data->zvort_solenoid_4d_chunk), bufsize*sizeof(float)); 
@@ -470,7 +459,6 @@ integration_data* allocate_integration_managed(long bufsize) {
         data->pres_4d_chunk[i] = 0;
         data->th_4d_chunk[i] = 0;
         data->rho_4d_chunk[i] = 0;
-        data->khh_4d_chunk[i] = 0;
         data->kmh_4d_chunk[i] = 0;
         data->u_4d_chunk[i] = 0;
     }
@@ -494,7 +482,6 @@ void deallocate_integration_managed(integration_data *data) {
     cudaFree(data->th_4d_chunk);
     cudaFree(data->rho_4d_chunk);
     cudaFree(data->rhof_4d_chunk);
-    cudaFree(data->khh_4d_chunk);
     cudaFree(data->kmh_4d_chunk);
     cudaFree(data->qc_4d_chunk);
     cudaFree(data->qi_4d_chunk);
@@ -528,8 +515,6 @@ void deallocate_integration_managed(integration_data *data) {
     cudaFree(data->diffxvort_4d_chunk);
     cudaFree(data->diffyvort_4d_chunk);
     cudaFree(data->diffzvort_4d_chunk);
-    cudaFree(data->xvbaro_4d_chunk);
-    cudaFree(data->yvbaro_4d_chunk);
     cudaFree(data->xvort_solenoid_4d_chunk); 
     cudaFree(data->yvort_solenoid_4d_chunk); 
     cudaFree(data->zvort_solenoid_4d_chunk); 
