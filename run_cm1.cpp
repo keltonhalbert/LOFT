@@ -337,7 +337,7 @@ datagrid* loadMetadataAndGrid(string base_dir, parcel_pos *parcels, int rank) {
     if (min_j < saved_Y0) min_j = saved_Y0+1;
     if (max_j > saved_Y1) max_j = saved_Y1-1;
     if (min_k < 0) min_k = 0;
-    if (max_k > nz-2) max_k = nz-2;
+    if (max_k > nkwrite_val-2) max_k = nkwrite_val-2;
 
 
     cout << "Parcel Bounds In Grid" << endl;
@@ -408,10 +408,12 @@ void loadDataFromDisk(datagrid *requested_grid, float *ustag, float *vstag, floa
     lofs_read_3dvar(requested_grid, thbuffer, (char *)"thrhopert", istag, t0);
     lofs_read_3dvar(requested_grid, rhobuffer, (char *)"rhopert", istag, t0);
     lofs_read_3dvar(requested_grid, qvbuffer, (char *)"qvpert", istag, t0);
+    /*
     lofs_read_3dvar(requested_grid, qcbuffer, (char *)"qc", istag, t0);
     lofs_read_3dvar(requested_grid, qsbuffer, (char *)"qs", istag, t0);
     lofs_read_3dvar(requested_grid, qibuffer, (char *)"qi", istag, t0);
     lofs_read_3dvar(requested_grid, qgbuffer, (char *)"qg", istag, t0);
+    */
 
 }
 
@@ -459,20 +461,24 @@ void buffer_offset_scal(datagrid *grid, float *pbufin, float *tbufin, float *thb
                     thbufout[P3(i, j, 0, NX, NY)] = thbufin[P3(i, j, 0, NX, NY)];
                     rhobufout[P3(i, j, 0, NX, NY)] = rhobufin[P3(i, j, 0, NX, NY)];
                     qvbufout[P3(i, j, 0, NX, NY)] = qvbufin[P3(i, j, 0, NX, NY)];
+                    /*
                     qcbufout[P3(i, j, 0, NX, NY)] = qcbufin[P3(i, j, 0, NX, NY)];
                     qibufout[P3(i, j, 0, NX, NY)] = qibufin[P3(i, j, 0, NX, NY)];
                     qsbufout[P3(i, j, 0, NX, NY)] = qsbufin[P3(i, j, 0, NX, NY)];
                     qgbufout[P3(i, j, 0, NX, NY)] = qgbufin[P3(i, j, 0, NX, NY)];
+                    */
                 }
                 pbufout[P3(i, j, k+1, NX, NY)] = pbufin[P3(i, j, k, NX, NY)];
                 tbufout[P3(i, j, k+1, NX, NY)] = tbufin[P3(i, j, k, NX, NY)];
                 thbufout[P3(i, j, k+1, NX, NY)] = thbufin[P3(i, j, k, NX, NY)];
                 rhobufout[P3(i, j, k+1, NX, NY)] = rhobufin[P3(i, j, k, NX, NY)];
                 qvbufout[P3(i, j, k+1, NX, NY)] = qvbufin[P3(i, j, k, NX, NY)];
+                /*
                 qcbufout[P3(i, j, k+1, NX, NY)] = qcbufin[P3(i, j, k, NX, NY)];
                 qibufout[P3(i, j, k+1, NX, NY)] = qibufin[P3(i, j, k, NX, NY)];
                 qsbufout[P3(i, j, k+1, NX, NY)] = qsbufin[P3(i, j, k, NX, NY)];
                 qgbufout[P3(i, j, k+1, NX, NY)] = qgbufin[P3(i, j, k, NX, NY)];
+                */
             }
         }
     }
@@ -660,10 +666,12 @@ int main(int argc, char **argv ) {
         thbuf_tem = new float[N_scal_read];
         rhobuf_tem = new float[N_scal_read];
         qvbuf_tem = new float[N_scal_read];
+        /*
         qcbuf_tem = new float[N_scal_read];
         qibuf_tem = new float[N_scal_read];
         qsbuf_tem = new float[N_scal_read];
         qgbuf_tem = new float[N_scal_read];
+        */
 
         // These non temporary arrays are offset in the vertical by 1
         // to account for potential ghost zone
@@ -678,10 +686,12 @@ int main(int argc, char **argv ) {
         thbuf = new float[N_scal_ghost];
         rhobuf = new float[N_scal_ghost];
         qvbuf = new float[N_scal_ghost];
+        /*
         qcbuf = new float[N_scal_ghost];
         qibuf = new float[N_scal_ghost];
         qsbuf = new float[N_scal_ghost];
         qgbuf = new float[N_scal_ghost];
+        */
 
 
         // construct a 4D contiguous array to store stuff in.
@@ -707,7 +717,8 @@ int main(int argc, char **argv ) {
             cout << "Invalid time index: " << nearest_tidx << " for time " << time << ". Abort." << endl;
             return 0;
         }
-        double dt = fabs(alltimes[nearest_tidx + direct*(1+tChunk*size)] - alltimes[nearest_tidx + direct*(tChunk*size)]);
+        //double dt = fabs(alltimes[nearest_tidx + direct*(1+tChunk*size)] - alltimes[nearest_tidx + direct*(tChunk*size)]);
+        double dt = fabs(alltimes[1] - alltimes[0]);
         printf("TIMESTEP %d/%d %d %f dt= %f\n", rank, size, rank + tChunk*size, alltimes[nearest_tidx + direct*( rank + tChunk*size)], dt);
         requested_grid->dt = dt;
         // load u, v, and w into memory
@@ -736,10 +747,12 @@ int main(int argc, char **argv ) {
         int senderr_th = MPI_Gather(thbuf, N_scal_ghost, MPI_FLOAT, data->th_4d_chunk, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
         int senderr_rho = MPI_Gather(rhobuf, N_scal_ghost, MPI_FLOAT, data->rho_4d_chunk, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
         int senderr_qv = MPI_Gather(qvbuf, N_scal_ghost, MPI_FLOAT, data->qv_4d_chunk, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        /*
         int senderr_qc = MPI_Gather(qcbuf, N_scal_ghost, MPI_FLOAT, data->qc_4d_chunk, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
         int senderr_qi = MPI_Gather(qibuf, N_scal_ghost, MPI_FLOAT, data->qi_4d_chunk, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
         int senderr_qs = MPI_Gather(qsbuf, N_scal_ghost, MPI_FLOAT, data->qs_4d_chunk, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
         int senderr_qg = MPI_Gather(qgbuf, N_scal_ghost, MPI_FLOAT, data->qg_4d_chunk, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        */
 
 
         if (rank == 0) {
@@ -753,10 +766,12 @@ int main(int argc, char **argv ) {
             cout << "MPI Gather Error RHO: " << senderr_rho << endl;
             cout << "MPI Gather Error KMH: " << senderr_kmh << endl;
             cout << "MPI Gather Error QV: " << senderr_qv << endl;
+            /*
             cout << "MPI Gather Error QC: " << senderr_qc << endl;
             cout << "MPI Gather Error QI: " << senderr_qi << endl;
             cout << "MPI Gather Error QS: " << senderr_qs << endl;
             cout << "MPI Gather Error QG: " << senderr_qg << endl;
+            */
             int nParcels = parcels->nParcels;
             cout << "Beginning parcel integration! Heading over to the GPU to do GPU things..." << endl;
             cudaIntegrateParcels(requested_grid, data, parcels, size, nTotTimes, direct); 
@@ -796,20 +811,24 @@ int main(int argc, char **argv ) {
             delete[] rhobuf_tem;
             delete[] kmhbuf_tem;
             delete[] qvbuf_tem;
+            /*
             delete[] qcbuf_tem;
             delete[] qibuf_tem;
             delete[] qsbuf_tem;
             delete[] qgbuf_tem;
+            */
             delete[] pbuf;
             delete[] tbuf;
             delete[] thbuf;
             delete[] rhobuf;
             delete[] kmhbuf;
             delete[] qvbuf;
+            /*
             delete[] qcbuf;
             delete[] qibuf;
             delete[] qsbuf;
             delete[] qgbuf;
+            */
 
             deallocate_integration_managed(data);
         }
@@ -832,20 +851,24 @@ int main(int argc, char **argv ) {
             delete[] rhobuf_tem;
             delete[] kmhbuf_tem;
             delete[] qvbuf_tem;
+            /*
             delete[] qcbuf_tem;
             delete[] qibuf_tem;
             delete[] qsbuf_tem;
             delete[] qgbuf_tem;
+            */
             delete[] pbuf;
             delete[] tbuf;
             delete[] thbuf;
             delete[] rhobuf;
             delete[] kmhbuf;
             delete[] qvbuf;
+            /*
             delete[] qcbuf;
             delete[] qibuf;
             delete[] qsbuf;
             delete[] qgbuf;
+            */
         }
         // receive the updated parcel arrays
         // so that we can do proper subseting. This happens

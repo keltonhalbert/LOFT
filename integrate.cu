@@ -213,7 +213,9 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             pcl_y = point[1];
             pcl_z = point[2];
             if (( pcl_x > grid->xf[grid->NX-4] ) || ( pcl_y > grid->yf[grid->NY-4] ) || ( pcl_z > grid->zf[grid->NZ-4] ) \
-             || ( pcl_x < grid->xf[0] )        || ( pcl_y < grid->yf[0] )        || ( pcl_z < 0. ) ) break;
+             || ( pcl_x < grid->xf[0] )        || ( pcl_y < grid->yf[0] )        || ( pcl_z < 0. ) ) {
+                break;
+            }
 
 
             is_ugrd = true;
@@ -236,6 +238,7 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             pcl_w = interp3D(grid, data->w_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             float pclwturb = interp3D(grid, data->turbw_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             float pclwdiff = interp3D(grid, data->diffw_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclkmh = interp3D(grid, data->kmh_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
 
             // interpolate scalar values to the parcel point
             is_ugrd = false;
@@ -273,10 +276,12 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             float pclthetabar = interp1D(grid, grid->th0, point, is_wgrd, tidx);
             float pclthrhobar = interp1D(grid, grid->th0, point, is_wgrd, tidx);
 
+            /*
             float pclqc = interp3D(grid, data->qc_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             float pclqi = interp3D(grid, data->qi_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             float pclqs = interp3D(grid, data->qs_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             float pclqg = interp3D(grid, data->qg_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            */
 
             parcels->pclu[PCL(tidx,   parcel_id, totTime)] = pcl_u;
             parcels->pclv[PCL(tidx,   parcel_id, totTime)] = pcl_v;
@@ -309,6 +314,7 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             parcels->pclzvortsolenoid[PCL(tidx, parcel_id, totTime)] = pclzvortsolenoid;
 
             // scalars
+            parcels->pclkmh[PCL(tidx, parcel_id, totTime)] = pclkmh;
             parcels->pclppert[PCL(tidx, parcel_id, totTime)] = pclppert;
             parcels->pclqvpert[PCL(tidx, parcel_id, totTime)] = pclqvpert;
             parcels->pclrhopert[PCL(tidx, parcel_id, totTime)] = pclrhopert;
@@ -321,10 +327,12 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             parcels->pclthetabar[PCL(tidx, parcel_id, totTime)] = pclthetabar;
             parcels->pclthrhobar[PCL(tidx, parcel_id, totTime)] = pclthrhobar;
 
+            /*
             parcels->pclqc[PCL(tidx, parcel_id, totTime)] = pclqc;
             parcels->pclqi[PCL(tidx, parcel_id, totTime)] = pclqi;
             parcels->pclqs[PCL(tidx, parcel_id, totTime)] = pclqs;
             parcels->pclqg[PCL(tidx, parcel_id, totTime)] = pclqg;
+            */
 
             // Now we use an RK2 scheme to integrate forward
             // in time. Values are interpolated to the parcel 
@@ -375,6 +383,7 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
                     }
                 }
             } // end RK loop
+
             parcels->xpos[PCL(tidx+1, parcel_id, totTime)] = point[0]; 
             parcels->ypos[PCL(tidx+1, parcel_id, totTime)] = point[1];
             parcels->zpos[PCL(tidx+1, parcel_id, totTime)] = point[2];

@@ -174,6 +174,7 @@ parcel_pos* allocate_parcels_managed(int NX, int NY, int NZ, int nTotTimes) {
     cudaMallocManaged(&(parcels->pclu), nParcels*nTotTimes*sizeof(float)); 
     cudaMallocManaged(&(parcels->pclv), nParcels*nTotTimes*sizeof(float)); 
     cudaMallocManaged(&(parcels->pclw), nParcels*nTotTimes*sizeof(float)); 
+    cudaMallocManaged(&(parcels->pclkmh), nParcels*nTotTimes*sizeof(float)); 
     cudaMallocManaged(&(parcels->pcluturb), nParcels*nTotTimes*sizeof(float)); 
     cudaMallocManaged(&(parcels->pclvturb), nParcels*nTotTimes*sizeof(float)); 
     cudaMallocManaged(&(parcels->pclwturb), nParcels*nTotTimes*sizeof(float)); 
@@ -211,10 +212,12 @@ parcel_pos* allocate_parcels_managed(int NX, int NY, int NZ, int nTotTimes) {
     cudaMallocManaged(&(parcels->pclthetabar), nParcels*nTotTimes*sizeof(float)); 
     cudaMallocManaged(&(parcels->pclthrhobar), nParcels*nTotTimes*sizeof(float)); 
 
+    /*
     cudaMallocManaged(&(parcels->pclqc), nParcels*nTotTimes*sizeof(float)); 
     cudaMallocManaged(&(parcels->pclqi), nParcels*nTotTimes*sizeof(float)); 
     cudaMallocManaged(&(parcels->pclqs), nParcels*nTotTimes*sizeof(float)); 
     cudaMallocManaged(&(parcels->pclqg), nParcels*nTotTimes*sizeof(float)); 
+    */
 
     // set the static variables
     parcels->nParcels = nParcels;
@@ -240,6 +243,7 @@ parcel_pos* allocate_parcels_cpu(int NX, int NY, int NZ, int nTotTimes) {
     parcels->pclu = new float[nParcels*nTotTimes]; 
     parcels->pclv = new float[nParcels*nTotTimes]; 
     parcels->pclw = new float[nParcels*nTotTimes]; 
+    parcels->pclkmh = new float[nParcels*nTotTimes]; 
     parcels->pcluturb = new float[nParcels*nTotTimes]; 
     parcels->pclvturb = new float[nParcels*nTotTimes]; 
     parcels->pclwturb = new float[nParcels*nTotTimes]; 
@@ -277,10 +281,12 @@ parcel_pos* allocate_parcels_cpu(int NX, int NY, int NZ, int nTotTimes) {
     parcels->pclthetabar = new float[nParcels*nTotTimes];
     parcels->pclthrhobar = new float[nParcels*nTotTimes];
 
+    /*
     parcels->pclqc = new float[nParcels*nTotTimes];
     parcels->pclqi = new float[nParcels*nTotTimes];
     parcels->pclqs = new float[nParcels*nTotTimes];
     parcels->pclqg = new float[nParcels*nTotTimes];
+    */
     // set the static variables
     parcels->nParcels = nParcels;
     parcels->nTimes = nTotTimes;
@@ -297,6 +303,7 @@ void deallocate_parcels_managed(parcel_pos *parcels) {
     cudaFree(parcels->pclu);
     cudaFree(parcels->pclv);
     cudaFree(parcels->pclw);
+    cudaFree(parcels->pclkmh);
     cudaFree(parcels->pcluturb);
     cudaFree(parcels->pclvturb);
     cudaFree(parcels->pclwturb);
@@ -335,10 +342,12 @@ void deallocate_parcels_managed(parcel_pos *parcels) {
     cudaFree(parcels->pclthetabar);
     cudaFree(parcels->pclthrhobar);
 
+    /*
     cudaFree(parcels->pclqc);
     cudaFree(parcels->pclqi);
     cudaFree(parcels->pclqs);
     cudaFree(parcels->pclqg);
+    */
     cudaFree(parcels);
     cudaDeviceSynchronize();
 }
@@ -351,6 +360,7 @@ void deallocate_parcels_cpu(parcel_pos *parcels) {
     delete[] parcels->pclu;
     delete[] parcels->pclv;
     delete[] parcels->pclw;
+    delete[] parcels->pclkmh;
     delete[] parcels->pcluturb;
     delete[] parcels->pclvturb;
     delete[] parcels->pclwturb;
@@ -388,10 +398,12 @@ void deallocate_parcels_cpu(parcel_pos *parcels) {
     delete[] parcels->pclthetabar;
     delete[] parcels->pclthrhobar;
 
+    /*
     delete[] parcels->pclqc;
     delete[] parcels->pclqi;
     delete[] parcels->pclqs;
     delete[] parcels->pclqg;
+    */
     delete[] parcels;
 }
 
@@ -415,10 +427,12 @@ integration_data* allocate_integration_managed(long bufsize) {
     cudaMallocManaged(&(data->rho_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->rhof_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->kmh_4d_chunk), bufsize*sizeof(float));
+    /*
     cudaMallocManaged(&(data->qc_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->qi_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->qs_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->qg_4d_chunk), bufsize*sizeof(float));
+    */
     cudaMallocManaged(&(data->qv_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->turbu_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->turbv_4d_chunk), bufsize*sizeof(float));
@@ -483,10 +497,12 @@ void deallocate_integration_managed(integration_data *data) {
     cudaFree(data->rho_4d_chunk);
     cudaFree(data->rhof_4d_chunk);
     cudaFree(data->kmh_4d_chunk);
+    /*
     cudaFree(data->qc_4d_chunk);
     cudaFree(data->qi_4d_chunk);
     cudaFree(data->qs_4d_chunk);
     cudaFree(data->qg_4d_chunk);
+    */
     cudaFree(data->qv_4d_chunk);
     cudaFree(data->turbu_4d_chunk);
     cudaFree(data->turbv_4d_chunk);

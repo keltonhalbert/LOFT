@@ -27,6 +27,7 @@ char **nodedir;
 double *dirtimes;
 int ntimedirs;
 int nx,ny,nz,nodex,nodey;
+int nkwrite_val; 
 char firstfilename[MAXSTR];
 char base[MAXSTR];
 int nnodedirs;
@@ -96,6 +97,7 @@ void lofs_get_dataset_structure(std::string base_dir) {
     alltimes = get_all_available_times(topdir,timedir,ntimedirs,nodedir,nnodedirs,
                                         &ntottimes,firstfilename,&firsttimedirindex, 
                                         &saved_X0,&saved_Y0,&saved_X1,&saved_Y1,debug, 0);
+
 }
 
 
@@ -107,8 +109,18 @@ void lofs_get_grid( datagrid *grid ) {
 	int NX,NY,NZ;
     int nk, nj, ni;
     int ngz = 1;
+    // open the first found HDF5 files and use it to
+    // construct our grid in memory. Since it's a self-describing
+    // file system, only 1 file is needed to construct the whole
+    // grid in order to then subset it. Yay for not having to
+    // reconstruct the whole thing!!!
+    f_id = H5Fopen(firstfilename, H5F_ACC_RDONLY,H5P_DEFAULT);
+
     // how much vertical data is actually written?
-    //get0dint (f_id,(char *)"namelist/orf_io/nkwrite_val",&nz);
+    printf("Attemtping to determine vertical write size...\n");
+    //get0dint (f_id,(char *)"namelist/orf_io/nkwrite_val",&nkwrite_val);
+    get0dint (f_id,(char *)"grid/nkwrite_val",&nkwrite_val);
+    printf("NKWRITE: %d\n", nkwrite_val);
     // how many points are in our 
     // subset?
 	NX = grid->NX;
@@ -116,12 +128,6 @@ void lofs_get_grid( datagrid *grid ) {
 	NZ = grid->NZ;
     nk = NZ; nj = NY; ni = NX;
 
-    // open the first found HDF5 files and use it to
-    // construct our grid in memory. Since it's a self-describing
-    // file system, only 1 file is needed to construct the whole
-    // grid in order to then subset it. Yay for not having to
-    // reconstruct the whole thing!!!
-    f_id = H5Fopen(firstfilename, H5F_ACC_RDONLY,H5P_DEFAULT);
 
     // allocate memory for the grid arrays
     float *xhfull = new float[nx];

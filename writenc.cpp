@@ -67,10 +67,12 @@ void init_nc(string filename, parcel_pos *parcels) {
     NcVar thetabarVar = output.addVar("thetabar", ncFloat, gridDimVector);
     NcVar thrhobarVar = output.addVar("thrhobar", ncFloat, gridDimVector);
 
+    /*
     NcVar qcVar = output.addVar("qc", ncFloat, gridDimVector);
     NcVar qiVar = output.addVar("qi", ncFloat, gridDimVector);
     NcVar qsVar = output.addVar("qs", ncFloat, gridDimVector);
     NcVar qgVar = output.addVar("qg", ncFloat, gridDimVector);
+    */
 
     // Define the units attributes for coordinate vars. This
     // attatches a test attribute to each of the coordinate 
@@ -121,10 +123,12 @@ void init_nc(string filename, parcel_pos *parcels) {
     thetabarVar.putAtt("units", "K");
     thrhobarVar.putAtt("units", "K");
 
+    /*
     qcVar.putAtt("units", "g kg^-1");
     qiVar.putAtt("units", "g kg^-1");
     qsVar.putAtt("units", "g kg^-1");
     qgVar.putAtt("units", "g kg^-1");
+    */
 }
  
 void write_parcels(string filename, parcel_pos *parcels, int writeIters ) { 
@@ -177,10 +181,12 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
     NcVar thetabarVar = output.getVar("thetabar");
     NcVar thrhobarVar = output.getVar("thrhobar");
 
+    /*
     NcVar qcVar = output.getVar("qc");
     NcVar qiVar = output.getVar("qi");
     NcVar qsVar = output.getVar("qs");
     NcVar qgVar = output.getVar("qg");
+    */
 
     vector<size_t> startp,countp;
     startp.push_back(0);
@@ -216,10 +222,12 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
     thetabarVar.putVar(startp,countp,parcels->pclthetabar);
     thrhobarVar.putVar(startp,countp,parcels->pclthrhobar);
 
+    /*
     qcVar.putVar(startp,countp,parcels->pclqc);
     qiVar.putVar(startp,countp,parcels->pclqi);
     qsVar.putVar(startp,countp,parcels->pclqs);
     qgVar.putVar(startp,countp,parcels->pclqg);
+    */
 
     xvortVar.putVar(startp,countp,parcels->pclxvort);
     yvortVar.putVar(startp,countp,parcels->pclyvort);
