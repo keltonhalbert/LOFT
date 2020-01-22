@@ -411,7 +411,7 @@ void deallocate_parcels_cpu(parcel_pos *parcels) {
    fields for integration and calculation. This
    only ever gets called by Rank 0, so there 
    should be no need for a CPU counterpart. */
-integration_data* allocate_model_managed(long bufsize) {
+model_data* allocate_model_managed(long bufsize) {
     model_data *data;
     // create the struct on both the GPU and the CPU.
     cudaMallocManaged(&data, sizeof(model_data));
@@ -420,7 +420,7 @@ integration_data* allocate_model_managed(long bufsize) {
     cudaMallocManaged(&(data->ustag), bufsize*sizeof(float));
     cudaMallocManaged(&(data->vstag), bufsize*sizeof(float));
     cudaMallocManaged(&(data->wstag), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->pipert), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->pi), bufsize*sizeof(float));
     cudaMallocManaged(&(data->prespert), bufsize*sizeof(float));
     cudaMallocManaged(&(data->thrhopert),  bufsize*sizeof(float));
     cudaMallocManaged(&(data->thetapert),  bufsize*sizeof(float));
@@ -432,36 +432,36 @@ integration_data* allocate_model_managed(long bufsize) {
     cudaMallocManaged(&(data->qs), bufsize*sizeof(float));
     cudaMallocManaged(&(data->qg), bufsize*sizeof(float));
     cudaMallocManaged(&(data->qvpert), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->turbu_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->turbv_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->turbw_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->diffu_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->diffv_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->diffw_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->tem1_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->tem2_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->tem3_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->tem4_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->tem5_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->tem6_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->xvort_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->yvort_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->zvort_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->xvtilt_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->yvtilt_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->zvtilt_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->xvstretch_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->yvstretch_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->zvstretch_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->turbxvort_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->turbyvort_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->turbzvort_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->diffxvort_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->diffyvort_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->diffzvort_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->xvort_solenoid_4d_chunk), bufsize*sizeof(float)); 
-    cudaMallocManaged(&(data->yvort_solenoid_4d_chunk), bufsize*sizeof(float)); 
-    cudaMallocManaged(&(data->zvort_solenoid_4d_chunk), bufsize*sizeof(float)); 
+    cudaMallocManaged(&(data->turbu), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->turbv), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->turbw), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->diffu), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->diffv), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->diffw), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->tem1), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->tem2), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->tem3), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->tem4), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->tem5), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->tem6), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->xvort), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->yvort), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->zvort), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->xvtilt), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->yvtilt), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->zvtilt), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->xvstretch), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->yvstretch), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->zvstretch), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->turbxvort), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->turbyvort), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->turbzvort), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->diffxvort), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->diffyvort), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->diffzvort), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->xvort_solenoid), bufsize*sizeof(float)); 
+    cudaMallocManaged(&(data->yvort_solenoid), bufsize*sizeof(float)); 
+    cudaMallocManaged(&(data->zvort_solenoid), bufsize*sizeof(float)); 
 
     return data;
 
@@ -475,7 +475,7 @@ void deallocate_model_managed(model_data *data) {
     cudaFree(data->ustag);
     cudaFree(data->vstag);
     cudaFree(data->wstag);
-    cudaFree(data->pipert);
+    cudaFree(data->pi);
     cudaFree(data->prespert);
     cudaFree(data->thetapert);
     cudaFree(data->thrhopert);
@@ -519,3 +519,4 @@ void deallocate_model_managed(model_data *data) {
     cudaFree(data->yvort_solenoid); 
     cudaFree(data->zvort_solenoid); 
 }
+#endif

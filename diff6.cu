@@ -7,7 +7,7 @@
 #ifndef DIFF6_CU
 #define DIFF6_CU
 
-__device__ void calc_diffx_u(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
+__device__ void calc_diffx_u(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
     int i = idx_4D[0];
     int j = idx_4D[1];
     int k = idx_4D[2];
@@ -15,8 +15,8 @@ __device__ void calc_diffx_u(datagrid *grid, integration_data *data, int *idx_4D
 
     // we're going to store our x diffusion of u
     // in the tem1 array for later use
-    float *dum0 = data->tem1_4d_chunk;
-    float *ustag = data->u_4d_chunk;
+    float *dum0 = data->tem1;
+    float *ustag = data->ustag;
 
     float pval = ( 10.0*( UA4D(i  , j, k, t) - UA4D(i-1, j, k, t) ) \
                    -5.0*( UA4D(i+1, j, k, t) - UA4D(i-2, j, k, t) ) \
@@ -27,7 +27,7 @@ __device__ void calc_diffx_u(datagrid *grid, integration_data *data, int *idx_4D
     TEM4D(i, j, k, t) = pval;
 }
 
-__device__ void calc_diffx_v(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
+__device__ void calc_diffx_v(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
     int i = idx_4D[0];
     int j = idx_4D[1];
     int k = idx_4D[2];
@@ -35,8 +35,8 @@ __device__ void calc_diffx_v(datagrid *grid, integration_data *data, int *idx_4D
 
     // we're going to store our x diffusion of v
     // in the tem1 array for later use
-    float *dum0 = data->tem1_4d_chunk;
-    float *vstag = data->v_4d_chunk;
+    float *dum0 = data->tem1;
+    float *vstag = data->vstag;
 
     float pval = ( 10.0*( VA4D(i  , j, k, t) - VA4D(i-1, j, k, t) ) \
                    -5.0*( VA4D(i+1, j, k, t) - VA4D(i-2, j, k, t) ) \
@@ -47,7 +47,7 @@ __device__ void calc_diffx_v(datagrid *grid, integration_data *data, int *idx_4D
     TEM4D(i, j, k, t) = pval;
 }
 
-__device__ void calc_diffx_w(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
+__device__ void calc_diffx_w(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
     int i = idx_4D[0];
     int j = idx_4D[1];
     int k = idx_4D[2];
@@ -55,8 +55,8 @@ __device__ void calc_diffx_w(datagrid *grid, integration_data *data, int *idx_4D
 
     // we're going to store our x diffusion of w
     // in the tem1 array for later use
-    float *dum0 = data->tem1_4d_chunk;
-    float *wstag = data->w_4d_chunk;
+    float *dum0 = data->tem1;
+    float *wstag = data->wstag;
 
     float pval = ( 10.0*( WA4D(i  , j, k, t) - WA4D(i-1, j, k, t) ) \
                    -5.0*( WA4D(i+1, j, k, t) - WA4D(i-2, j, k, t) ) \
@@ -67,7 +67,7 @@ __device__ void calc_diffx_w(datagrid *grid, integration_data *data, int *idx_4D
     TEM4D(i, j, k, t) = pval;
 }
 
-__device__ void calc_diffy_u(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
+__device__ void calc_diffy_u(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
     int i = idx_4D[0];
     int j = idx_4D[1];
     int k = idx_4D[2];
@@ -75,8 +75,8 @@ __device__ void calc_diffy_u(datagrid *grid, integration_data *data, int *idx_4D
 
     // we're going to store our y diffusion of u
     // in the tem2 array for later use
-    float *dum0 = data->tem2_4d_chunk;
-    float *ustag = data->u_4d_chunk;
+    float *dum0 = data->tem2;
+    float *ustag = data->ustag;
 
     float pval = ( 10.0*( UA4D(i, j  , k, t) - UA4D(i, j-1, k, t) ) \
                    -5.0*( UA4D(i, j+1, k, t) - UA4D(i, j-2, k, t) ) \
@@ -87,7 +87,7 @@ __device__ void calc_diffy_u(datagrid *grid, integration_data *data, int *idx_4D
     TEM4D(i, j, k, t) = pval;
 }
 
-__device__ void calc_diffy_v(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
+__device__ void calc_diffy_v(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
     int i = idx_4D[0];
     int j = idx_4D[1];
     int k = idx_4D[2];
@@ -95,8 +95,8 @@ __device__ void calc_diffy_v(datagrid *grid, integration_data *data, int *idx_4D
 
     // we're going to store our y diffusion of v
     // in the tem2 array for later use
-    float *dum0 = data->tem2_4d_chunk;
-    float *vstag = data->v_4d_chunk;
+    float *dum0 = data->tem2;
+    float *vstag = data->vstag;
 
     float pval = ( 10.0*( VA4D(i, j  , k, t) - VA4D(i, j-1, k, t) ) \
                    -5.0*( VA4D(i, j+1, k, t) - VA4D(i, j-2, k, t) ) \
@@ -107,7 +107,7 @@ __device__ void calc_diffy_v(datagrid *grid, integration_data *data, int *idx_4D
     TEM4D(i, j, k, t) = pval;
 }
 
-__device__ void calc_diffy_w(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
+__device__ void calc_diffy_w(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
     int i = idx_4D[0];
     int j = idx_4D[1];
     int k = idx_4D[2];
@@ -115,8 +115,8 @@ __device__ void calc_diffy_w(datagrid *grid, integration_data *data, int *idx_4D
 
     // we're going to store our y diffusion of w
     // in the tem2 array for later use
-    float *dum0 = data->tem2_4d_chunk;
-    float *wstag = data->w_4d_chunk;
+    float *dum0 = data->tem2;
+    float *wstag = data->wstag;
 
     float pval = ( 10.0*( WA4D(i, j  , k, t) - WA4D(i, j-1, k, t) ) \
                    -5.0*( WA4D(i, j+1, k, t) - WA4D(i, j-2, k, t) ) \
@@ -127,7 +127,7 @@ __device__ void calc_diffy_w(datagrid *grid, integration_data *data, int *idx_4D
     TEM4D(i, j, k, t) = pval;
 }
 
-__device__ void calc_diffz_u(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
+__device__ void calc_diffz_u(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
     int i = idx_4D[0];
     int j = idx_4D[1];
     int k = idx_4D[2];
@@ -135,8 +135,8 @@ __device__ void calc_diffz_u(datagrid *grid, integration_data *data, int *idx_4D
 
     // we're going to store our z diffusion of u
     // in the tem3 array for later use
-    float *dum0 = data->tem3_4d_chunk;
-    float *ustag = data->u_4d_chunk;
+    float *dum0 = data->tem3;
+    float *ustag = data->ustag;
 
     // We have to subtract off the base state wind. This will look
     // a little ugly, but it's better than having a seperate kernel
@@ -168,7 +168,7 @@ __device__ void calc_diffz_u(datagrid *grid, integration_data *data, int *idx_4D
     }
 }
 
-__device__ void calc_diffz_v(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
+__device__ void calc_diffz_v(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
     int i = idx_4D[0];
     int j = idx_4D[1];
     int k = idx_4D[2];
@@ -176,8 +176,8 @@ __device__ void calc_diffz_v(datagrid *grid, integration_data *data, int *idx_4D
 
     // we're going to store our z diffusion of v
     // in the tem3 array for later use
-    float *dum0 = data->tem3_4d_chunk;
-    float *vstag = data->v_4d_chunk;
+    float *dum0 = data->tem3;
+    float *vstag = data->vstag;
 
     // We have to subtract off the base state wind. This will look
     // a little ugly, but it's better than having a seperate kernel
@@ -209,7 +209,7 @@ __device__ void calc_diffz_v(datagrid *grid, integration_data *data, int *idx_4D
     }
 }
 
-__device__ void calc_diffz_w(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
+__device__ void calc_diffz_w(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
     int i = idx_4D[0];
     int j = idx_4D[1];
     int k = idx_4D[2];
@@ -217,8 +217,8 @@ __device__ void calc_diffz_w(datagrid *grid, integration_data *data, int *idx_4D
 
     // we're going to store our z diffusion of w
     // in the tem3 array for later use
-    float *dum0 = data->tem3_4d_chunk;
-    float *wstag = data->w_4d_chunk;
+    float *dum0 = data->tem3;
+    float *wstag = data->wstag;
 
     float pval = ( 10.0*( WA4D(i, j, k  , t) - WA4D(i, j, k-1, t) ) \
                    -5.0*( WA4D(i, j, k+1, t) - WA4D(i, j, k-2, t) ) \
@@ -239,7 +239,7 @@ __device__ void calc_diffz_w(datagrid *grid, integration_data *data, int *idx_4D
     }
 }
 
-__device__ void calc_diffu(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
+__device__ void calc_diffu(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
     int i = idx_4D[0];
     int j = idx_4D[1];
     int k = idx_4D[2];
@@ -250,24 +250,24 @@ __device__ void calc_diffu(datagrid *grid, integration_data *data, int *idx_4D, 
     float coeff = (kdiff6/64.0/dt);
 
     // get diffx from tem1
-    float *dum0 = data->tem1_4d_chunk;
+    float *dum0 = data->tem1;
     float diffx = coeff*(TEM4D(i+1, j, k, t)-TEM4D(i, j, k, t));
 
     // get diffy from tem2
-    dum0 = data->tem2_4d_chunk;
+    dum0 = data->tem2;
     float diffy = coeff*(TEM4D(i, j+1, k, t)-TEM4D(i, j, k, t));
 
     // get diffz from tem3
-    dum0 = data->tem3_4d_chunk;
+    dum0 = data->tem3;
     float diffz = coeff*(TEM4D(i, j, k+1, t)-TEM4D(i, j, k, t));
 
     // put it in our uten array
-    float *ustag = data->diffu_4d_chunk;
+    float *ustag = data->diffu;
     UA4D(i, j, k, t) = diffx + diffy + diffz;
 
 }
 
-__device__ void calc_diffv(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
+__device__ void calc_diffv(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
     int i = idx_4D[0];
     int j = idx_4D[1];
     int k = idx_4D[2];
@@ -278,24 +278,24 @@ __device__ void calc_diffv(datagrid *grid, integration_data *data, int *idx_4D, 
     float coeff = (kdiff6/64.0/dt);
 
     // get diffx from tem1
-    float *dum0 = data->tem1_4d_chunk;
+    float *dum0 = data->tem1;
     float diffx = coeff*(TEM4D(i+1, j, k, t)-TEM4D(i, j, k, t));
 
     // get diffy from tem2
-    dum0 = data->tem2_4d_chunk;
+    dum0 = data->tem2;
     float diffy = coeff*(TEM4D(i, j+1, k, t)-TEM4D(i, j, k, t));
 
     // get diffz from tem3
-    dum0 = data->tem3_4d_chunk;
+    dum0 = data->tem3;
     float diffz = coeff*(TEM4D(i, j, k+1, t)-TEM4D(i, j, k, t));
 
     // put it in our uten array
-    float *vstag = data->diffv_4d_chunk;
+    float *vstag = data->diffv;
     VA4D(i, j, k, t) = diffx + diffy + diffz;
 
 }
 
-__device__ void calc_diffw(datagrid *grid, integration_data *data, int *idx_4D, int NX, int NY, int NZ) {
+__device__ void calc_diffw(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
     int i = idx_4D[0];
     int j = idx_4D[1];
     int k = idx_4D[2];
@@ -306,24 +306,24 @@ __device__ void calc_diffw(datagrid *grid, integration_data *data, int *idx_4D, 
     float coeff = (kdiff6/64.0/dt);
 
     // get diffx from tem1
-    float *dum0 = data->tem1_4d_chunk;
+    float *dum0 = data->tem1;
     float diffx = coeff*(TEM4D(i+1, j, k, t)-TEM4D(i, j, k, t));
 
     // get diffy from tem2
-    dum0 = data->tem2_4d_chunk;
+    dum0 = data->tem2;
     float diffy = coeff*(TEM4D(i, j+1, k, t)-TEM4D(i, j, k, t));
 
     // get diffz from tem3
-    dum0 = data->tem3_4d_chunk;
+    dum0 = data->tem3;
     float diffz = coeff*(TEM4D(i, j, k+1, t)-TEM4D(i, j, k, t));
 
     // put it in our uten array
-    float *wstag = data->diffw_4d_chunk;
+    float *wstag = data->diffw;
     WA4D(i, j, k, t) = diffx + diffy + diffz;
 
 }
 
-__global__ void doCalcDiffUXYZ(datagrid *grid, integration_data *data, int tStart, int tEnd) {
+__global__ void doCalcDiffUXYZ(datagrid *grid, model_data *data, int tStart, int tEnd) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
@@ -345,7 +345,7 @@ __global__ void doCalcDiffUXYZ(datagrid *grid, integration_data *data, int tStar
     }
 }
 
-__global__ void doCalcDiffVXYZ(datagrid *grid, integration_data *data, int tStart, int tEnd) {
+__global__ void doCalcDiffVXYZ(datagrid *grid, model_data *data, int tStart, int tEnd) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
@@ -367,7 +367,7 @@ __global__ void doCalcDiffVXYZ(datagrid *grid, integration_data *data, int tStar
     }
 }
 
-__global__ void doCalcDiffWXYZ(datagrid *grid, integration_data *data, int tStart, int tEnd) {
+__global__ void doCalcDiffWXYZ(datagrid *grid, model_data *data, int tStart, int tEnd) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
@@ -389,7 +389,7 @@ __global__ void doCalcDiffWXYZ(datagrid *grid, integration_data *data, int tStar
     }
 }
 
-__global__ void doCalcDiffU(datagrid *grid, integration_data *data, int tStart, int tEnd) {
+__global__ void doCalcDiffU(datagrid *grid, model_data *data, int tStart, int tEnd) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
@@ -408,7 +408,7 @@ __global__ void doCalcDiffU(datagrid *grid, integration_data *data, int tStart, 
         }
     }
 }
-__global__ void doCalcDiffV(datagrid *grid, integration_data *data, int tStart, int tEnd) {
+__global__ void doCalcDiffV(datagrid *grid, model_data *data, int tStart, int tEnd) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
@@ -427,7 +427,7 @@ __global__ void doCalcDiffV(datagrid *grid, integration_data *data, int tStart, 
         }
     }
 }
-__global__ void doCalcDiffW(datagrid *grid, integration_data *data, int tStart, int tEnd) {
+__global__ void doCalcDiffW(datagrid *grid, model_data *data, int tStart, int tEnd) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;

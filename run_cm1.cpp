@@ -701,12 +701,12 @@ int main(int argc, char **argv ) {
         //
         // declare the struct on all ranks, but only
         // allocate space for it on Rank 0
-        integration_data *data;
+        model_data *data;
         if (rank == 0) {
-            data = allocate_integration_managed(N_stag_ghost*size);
+            data = allocate_model_managed(N_stag_ghost*size);
         }
         else {
-            data = new integration_data();
+            data = new model_data();
         }
 
 
@@ -736,22 +736,22 @@ int main(int argc, char **argv ) {
         // for MPI runs that load multiple time steps into memory,
         // communicate the data you've read into our 4D array
 
-        int senderr_u = MPI_Gather(ubuf, N_stag_ghost, MPI_FLOAT, data->u_4d_chunk, N_stag_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_v = MPI_Gather(vbuf, N_stag_ghost, MPI_FLOAT, data->v_4d_chunk, N_stag_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_w = MPI_Gather(wbuf, N_stag_ghost, MPI_FLOAT, data->w_4d_chunk, N_stag_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_kmh = MPI_Gather(kmhbuf, N_stag_ghost, MPI_FLOAT, data->kmh_4d_chunk, N_stag_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_u = MPI_Gather(ubuf, N_stag_ghost, MPI_FLOAT, data->ustag, N_stag_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_v = MPI_Gather(vbuf, N_stag_ghost, MPI_FLOAT, data->vstag, N_stag_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_w = MPI_Gather(wbuf, N_stag_ghost, MPI_FLOAT, data->wstag, N_stag_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_kmh = MPI_Gather(kmhbuf, N_stag_ghost, MPI_FLOAT, data->kmh, N_stag_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
         // Use N_scalar here so that there aren't random zeroes throughout the middle of the array
-        int senderr_p = MPI_Gather(pbuf, N_scal_ghost, MPI_FLOAT, data->pres_4d_chunk, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_t = MPI_Gather(tbuf, N_scal_ghost, MPI_FLOAT, data->t_4d_chunk, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_th = MPI_Gather(thbuf, N_scal_ghost, MPI_FLOAT, data->th_4d_chunk, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_rho = MPI_Gather(rhobuf, N_scal_ghost, MPI_FLOAT, data->rho_4d_chunk, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_qv = MPI_Gather(qvbuf, N_scal_ghost, MPI_FLOAT, data->qv_4d_chunk, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_p = MPI_Gather(pbuf, N_scal_ghost, MPI_FLOAT, data->prespert, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_t = MPI_Gather(tbuf, N_scal_ghost, MPI_FLOAT, data->thetapert, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_th = MPI_Gather(thbuf, N_scal_ghost, MPI_FLOAT, data->thrhopert, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_rho = MPI_Gather(rhobuf, N_scal_ghost, MPI_FLOAT, data->rhopert, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_qv = MPI_Gather(qvbuf, N_scal_ghost, MPI_FLOAT, data->qvpert, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
         /*
-        int senderr_qc = MPI_Gather(qcbuf, N_scal_ghost, MPI_FLOAT, data->qc_4d_chunk, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_qi = MPI_Gather(qibuf, N_scal_ghost, MPI_FLOAT, data->qi_4d_chunk, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_qs = MPI_Gather(qsbuf, N_scal_ghost, MPI_FLOAT, data->qs_4d_chunk, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_qg = MPI_Gather(qgbuf, N_scal_ghost, MPI_FLOAT, data->qg_4d_chunk, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_qc = MPI_Gather(qcbuf, N_scal_ghost, MPI_FLOAT, data->qc, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_qi = MPI_Gather(qibuf, N_scal_ghost, MPI_FLOAT, data->qi, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_qs = MPI_Gather(qsbuf, N_scal_ghost, MPI_FLOAT, data->qs, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_qg = MPI_Gather(qgbuf, N_scal_ghost, MPI_FLOAT, data->qg, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
         */
 
 
@@ -830,7 +830,7 @@ int main(int argc, char **argv ) {
             delete[] qgbuf;
             */
 
-            deallocate_integration_managed(data);
+            deallocate_model_managed(data);
         }
 
         // house keeping for the non-master

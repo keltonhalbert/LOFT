@@ -30,7 +30,7 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
     also a necessary adjustment because the tendency calculations will require multiple
     steps, so transitioning this block of code as a proof of concept for how the programming
     model should work. */
-void doCalcVort(datagrid *grid, integration_data *data, int tStart, int tEnd, dim3 numBlocks, dim3 threadsPerBlock) {
+void doCalcVort(datagrid *grid, model_data *data, int tStart, int tEnd, dim3 numBlocks, dim3 threadsPerBlock) {
     // calculate the three compionents of vorticity
     calcvort<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize() );
@@ -50,7 +50,7 @@ void doCalcVort(datagrid *grid, integration_data *data, int tStart, int tEnd, di
     gpuErrchk( cudaPeekAtLastError() );
 } 
 
-void doCalcVortTend(datagrid *grid, integration_data *data, int tStart, int tEnd, dim3 numBlocks, dim3 threadsPerBlock) {
+void doCalcVortTend(datagrid *grid, model_data *data, int tStart, int tEnd, dim3 numBlocks, dim3 threadsPerBlock) {
 
     doCalcRf<<<numBlocks, threadsPerBlock>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize());
@@ -182,7 +182,7 @@ void doCalcVortTend(datagrid *grid, integration_data *data, int tStart, int tEnd
     gpuErrchk( cudaPeekAtLastError() );
 }
 
-__global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data *data, \
+__global__ void integrate(datagrid *grid, parcel_pos *parcels, model_data *data, \
                           int tStart, int tEnd, int totTime, int direct) {
 
 	int parcel_id = blockIdx.x;
@@ -221,54 +221,54 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             is_ugrd = true;
             is_vgrd = false;
             is_wgrd = false;
-            pcl_u = interp3D(grid, data->u_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-            float pcluturb = interp3D(grid, data->turbu_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-            float pcludiff = interp3D(grid, data->diffu_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            pcl_u = interp3D(grid, data->ustag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pcluturb = interp3D(grid, data->turbu, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pcludiff = interp3D(grid, data->diffu, point, is_ugrd, is_vgrd, is_wgrd, tidx);
 
             is_ugrd = false;
             is_vgrd = true;
             is_wgrd = false;
-            pcl_v = interp3D(grid, data->v_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-            float pclvturb = interp3D(grid, data->turbv_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-            float pclvdiff = interp3D(grid, data->diffv_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            pcl_v = interp3D(grid, data->vstag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclvturb = interp3D(grid, data->turbv, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclvdiff = interp3D(grid, data->diffv, point, is_ugrd, is_vgrd, is_wgrd, tidx);
 
             is_ugrd = false;
             is_vgrd = false;
             is_wgrd = true;
-            pcl_w = interp3D(grid, data->w_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-            float pclwturb = interp3D(grid, data->turbw_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-            float pclwdiff = interp3D(grid, data->diffw_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-            float pclkmh = interp3D(grid, data->kmh_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            pcl_w = interp3D(grid, data->wstag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclwturb = interp3D(grid, data->turbw, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclwdiff = interp3D(grid, data->diffw, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclkmh = interp3D(grid, data->kmh, point, is_ugrd, is_vgrd, is_wgrd, tidx);
 
             // interpolate scalar values to the parcel point
             is_ugrd = false;
             is_vgrd = false;
             is_wgrd = false;
-            float pclxvort = interp3D(grid, data->xvort_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-            float pclyvort = interp3D(grid, data->yvort_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-            float pclzvort = interp3D(grid, data->zvort_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-            float pclxvorttilt = interp3D(grid, data->xvtilt_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-            float pclyvorttilt = interp3D(grid, data->yvtilt_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-            float pclzvorttilt = interp3D(grid, data->zvtilt_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-            float pclxvortstretch = interp3D(grid, data->xvstretch_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-            float pclyvortstretch = interp3D(grid, data->yvstretch_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-            float pclzvortstretch = interp3D(grid, data->zvstretch_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-            float pclxvortturb = interp3D(grid, data->turbxvort_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-            float pclyvortturb = interp3D(grid, data->turbyvort_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-            float pclzvortturb = interp3D(grid, data->turbzvort_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-            float pclxvortdiff = interp3D(grid, data->diffxvort_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-            float pclyvortdiff = interp3D(grid, data->diffyvort_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-            float pclzvortdiff = interp3D(grid, data->diffzvort_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-            float pclxvortsolenoid = interp3D(grid, data->xvort_solenoid_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-            float pclyvortsolenoid = interp3D(grid, data->yvort_solenoid_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-            float pclzvortsolenoid = interp3D(grid, data->zvort_solenoid_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclxvort = interp3D(grid, data->xvort, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclyvort = interp3D(grid, data->yvort, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclzvort = interp3D(grid, data->zvort, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclxvorttilt = interp3D(grid, data->xvtilt, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclyvorttilt = interp3D(grid, data->yvtilt, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclzvorttilt = interp3D(grid, data->zvtilt, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclxvortstretch = interp3D(grid, data->xvstretch, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclyvortstretch = interp3D(grid, data->yvstretch, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclzvortstretch = interp3D(grid, data->zvstretch, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclxvortturb = interp3D(grid, data->turbxvort, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclyvortturb = interp3D(grid, data->turbyvort, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclzvortturb = interp3D(grid, data->turbzvort, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclxvortdiff = interp3D(grid, data->diffxvort, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclyvortdiff = interp3D(grid, data->diffyvort, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclzvortdiff = interp3D(grid, data->diffzvort, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclxvortsolenoid = interp3D(grid, data->xvort_solenoid, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclyvortsolenoid = interp3D(grid, data->yvort_solenoid, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclzvortsolenoid = interp3D(grid, data->zvort_solenoid, point, is_ugrd, is_vgrd, is_wgrd, tidx);
 
             // Now do the scalars
-            float pclppert = interp3D(grid, data->pres_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-            float pclqvpert = interp3D(grid, data->qv_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-            float pclrhopert = interp3D(grid, data->rho_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-            float pclthetapert = interp3D(grid, data->t_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-            float pclthrhopert = interp3D(grid, data->th_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclppert = interp3D(grid, data->prespert, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclqvpert = interp3D(grid, data->qvpert, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclrhopert = interp3D(grid, data->rhopert, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclthetapert = interp3D(grid, data->thetapert, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclthrhopert = interp3D(grid, data->thrhopert, point, is_ugrd, is_vgrd, is_wgrd, tidx);
 
             float pclpbar = interp1D(grid, grid->p0, point, is_wgrd, tidx);
             float pclqvbar = interp1D(grid, grid->qv0, point, is_wgrd, tidx);
@@ -277,10 +277,10 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
             float pclthrhobar = interp1D(grid, grid->th0, point, is_wgrd, tidx);
 
             /*
-            float pclqc = interp3D(grid, data->qc_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-            float pclqi = interp3D(grid, data->qi_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-            float pclqs = interp3D(grid, data->qs_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-            float pclqg = interp3D(grid, data->qg_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclqc = interp3D(grid, data->qc, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclqi = interp3D(grid, data->qi, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclqs = interp3D(grid, data->qs, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            float pclqg = interp3D(grid, data->qg, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             */
 
             parcels->pclu[PCL(tidx,   parcel_id, totTime)] = pcl_u;
@@ -358,17 +358,17 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
                     is_ugrd = true;
                     is_vgrd = false;
                     is_wgrd = false;
-                    pcl_u = interp3D(grid, data->u_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+                    pcl_u = interp3D(grid, data->ustag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
 
                     is_ugrd = false;
                     is_vgrd = true;
                     is_wgrd = false;
-                    pcl_v = interp3D(grid, data->v_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+                    pcl_v = interp3D(grid, data->vstag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
 
                     is_ugrd = false;
                     is_vgrd = false;
                     is_wgrd = true;
-                    pcl_w = interp3D(grid, data->w_4d_chunk, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+                    pcl_w = interp3D(grid, data->wstag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
 
                     // integrate X position forward by the U wind
                     point[0] = pcl_x + (pcl_u + uu1) * dt2 * direct;
@@ -394,7 +394,7 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, integration_data 
 /*This function handles allocating memory on the GPU, transferring the CPU
 arrays to GPU global memory, calling the integrate GPU kernel, and then
 updating the position vectors with the new stuff*/
-void cudaIntegrateParcels(datagrid *grid, integration_data *data, parcel_pos *parcels, int nT, int totTime, int direct) {
+void cudaIntegrateParcels(datagrid *grid, model_data *data, parcel_pos *parcels, int nT, int totTime, int direct) {
 
     int tStart, tEnd;
     tStart = 0;
@@ -438,7 +438,7 @@ void cudaIntegrateParcels(datagrid *grid, integration_data *data, parcel_pos *pa
 
     // Before integrating the trajectories, George Bryan sets some below-grid/surface conditions 
     // that we need to consider. This handles applying those boundary conditions. 
-    applyMomentumBC<<<numBlocks, threadsPerBlock>>>(data->u_4d_chunk, data->v_4d_chunk, data->w_4d_chunk, NX, NY, NZ, tStart, tEnd);
+    applyMomentumBC<<<numBlocks, threadsPerBlock>>>(data->ustag, data->vstag, data->wstag, NX, NY, NZ, tStart, tEnd);
     gpuErrchk(cudaDeviceSynchronize() );
     gpuErrchk( cudaPeekAtLastError() );
 

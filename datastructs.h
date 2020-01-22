@@ -129,7 +129,7 @@ struct model_data {
     float *ustag;
     float *vstag;
     float *wstag;
-    float *pipert;
+    float *pi;
     float *prespert;
     float *thetapert;
     float *thrhopert;
@@ -182,14 +182,12 @@ struct model_data {
 // These functions should only be compiled if 
 // we're actually using a GPU... otherwise
 // only expose the CPU functions
-#ifdef USE_GPU
 datagrid* allocate_grid_managed( int X0, int X1, int Y0, int Y1, int Z0, int Z1 );
 void deallocate_grid_managed(datagrid *grid);
 parcel_pos* allocate_parcels_managed(int NX, int NY, int NZ, int nTotTimes);
 void deallocate_parcels_managed(parcel_pos *parcels);
 model_data* allocate_model_managed(long bufsize);
 void deallocate_model_managed(model_data *data);
-#endif
 
 datagrid* allocate_grid_cpu( int X0, int X1, int Y0, int Y1, int Z0, int Z1 );
 void deallocate_grid_cpu(datagrid *grid);
