@@ -411,29 +411,27 @@ void deallocate_parcels_cpu(parcel_pos *parcels) {
    fields for integration and calculation. This
    only ever gets called by Rank 0, so there 
    should be no need for a CPU counterpart. */
-integration_data* allocate_integration_managed(long bufsize) {
-    integration_data *data;
+integration_data* allocate_model_managed(long bufsize) {
+    model_data *data;
     // create the struct on both the GPU and the CPU.
-    cudaMallocManaged(&data, sizeof(integration_data));
+    cudaMallocManaged(&data, sizeof(model_data));
 
     // allocate the arrays in the struct
-    cudaMallocManaged(&(data->u_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->v_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->w_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->pi_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->pres_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->th_4d_chunk),  bufsize*sizeof(float));
-    cudaMallocManaged(&(data->t_4d_chunk),  bufsize*sizeof(float));
-    cudaMallocManaged(&(data->rho_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->rhof_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->kmh_4d_chunk), bufsize*sizeof(float));
-    /*
-    cudaMallocManaged(&(data->qc_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->qi_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->qs_4d_chunk), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->qg_4d_chunk), bufsize*sizeof(float));
-    */
-    cudaMallocManaged(&(data->qv_4d_chunk), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->ustag), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->vstag), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->wstag), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->pipert), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->prespert), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->thrhopert),  bufsize*sizeof(float));
+    cudaMallocManaged(&(data->thetapert),  bufsize*sizeof(float));
+    cudaMallocManaged(&(data->rhopert), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->rhof), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->kmh), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->qc), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->qi), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->qs), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->qg), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->qvpert), bufsize*sizeof(float));
     cudaMallocManaged(&(data->turbu_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->turbv_4d_chunk), bufsize*sizeof(float));
     cudaMallocManaged(&(data->turbw_4d_chunk), bufsize*sizeof(float));
@@ -465,19 +463,6 @@ integration_data* allocate_integration_managed(long bufsize) {
     cudaMallocManaged(&(data->yvort_solenoid_4d_chunk), bufsize*sizeof(float)); 
     cudaMallocManaged(&(data->zvort_solenoid_4d_chunk), bufsize*sizeof(float)); 
 
-    for (int i = 0; i < bufsize; ++i) {
-        data->u_4d_chunk[i] = 0;
-        data->v_4d_chunk[i] = 0;
-        data->w_4d_chunk[i] = 0;
-        data->pi_4d_chunk[i] = 0;
-        data->pres_4d_chunk[i] = 0;
-        data->th_4d_chunk[i] = 0;
-        data->rho_4d_chunk[i] = 0;
-        data->kmh_4d_chunk[i] = 0;
-        data->u_4d_chunk[i] = 0;
-    }
-    cudaDeviceSynchronize();
-
     return data;
 
 }
@@ -486,54 +471,51 @@ integration_data* allocate_integration_managed(long bufsize) {
    fields for integration and calculation. This 
    only ever gets called by Rank 0, so there
    should be no need for a CPU counterpart. */
-void deallocate_integration_managed(integration_data *data) {
-    cudaFree(data->u_4d_chunk);
-    cudaFree(data->v_4d_chunk);
-    cudaFree(data->w_4d_chunk);
-    cudaFree(data->pi_4d_chunk);
-    cudaFree(data->pres_4d_chunk);
-    cudaFree(data->t_4d_chunk);
-    cudaFree(data->th_4d_chunk);
-    cudaFree(data->rho_4d_chunk);
-    cudaFree(data->rhof_4d_chunk);
-    cudaFree(data->kmh_4d_chunk);
-    /*
-    cudaFree(data->qc_4d_chunk);
-    cudaFree(data->qi_4d_chunk);
-    cudaFree(data->qs_4d_chunk);
-    cudaFree(data->qg_4d_chunk);
-    */
-    cudaFree(data->qv_4d_chunk);
-    cudaFree(data->turbu_4d_chunk);
-    cudaFree(data->turbv_4d_chunk);
-    cudaFree(data->turbw_4d_chunk);
-    cudaFree(data->diffu_4d_chunk);
-    cudaFree(data->diffv_4d_chunk);
-    cudaFree(data->diffw_4d_chunk);
-    cudaFree(data->tem1_4d_chunk);
-    cudaFree(data->tem2_4d_chunk);
-    cudaFree(data->tem3_4d_chunk);
-    cudaFree(data->tem4_4d_chunk);
-    cudaFree(data->tem5_4d_chunk);
-    cudaFree(data->tem6_4d_chunk);
-    cudaFree(data->xvort_4d_chunk);
-    cudaFree(data->yvort_4d_chunk);
-    cudaFree(data->zvort_4d_chunk);
-    cudaFree(data->xvtilt_4d_chunk);
-    cudaFree(data->yvtilt_4d_chunk);
-    cudaFree(data->zvtilt_4d_chunk);
-    cudaFree(data->xvstretch_4d_chunk);
-    cudaFree(data->yvstretch_4d_chunk);
-    cudaFree(data->zvstretch_4d_chunk);
-    cudaFree(data->turbxvort_4d_chunk);
-    cudaFree(data->turbyvort_4d_chunk);
-    cudaFree(data->turbzvort_4d_chunk);
-    cudaFree(data->diffxvort_4d_chunk);
-    cudaFree(data->diffyvort_4d_chunk);
-    cudaFree(data->diffzvort_4d_chunk);
-    cudaFree(data->xvort_solenoid_4d_chunk); 
-    cudaFree(data->yvort_solenoid_4d_chunk); 
-    cudaFree(data->zvort_solenoid_4d_chunk); 
+void deallocate_model_managed(model_data *data) {
+    cudaFree(data->ustag);
+    cudaFree(data->vstag);
+    cudaFree(data->wstag);
+    cudaFree(data->pipert);
+    cudaFree(data->prespert);
+    cudaFree(data->thetapert);
+    cudaFree(data->thrhopert);
+    cudaFree(data->rhopert);
+    cudaFree(data->rhof);
+    cudaFree(data->kmh);
+    
+    cudaFree(data->qc);
+    cudaFree(data->qi);
+    cudaFree(data->qs);
+    cudaFree(data->qg);
+    cudaFree(data->qvpert);
+    cudaFree(data->turbu);
+    cudaFree(data->turbv);
+    cudaFree(data->turbw);
+    cudaFree(data->diffu);
+    cudaFree(data->diffv);
+    cudaFree(data->diffw);
+    cudaFree(data->tem1);
+    cudaFree(data->tem2);
+    cudaFree(data->tem3);
+    cudaFree(data->tem4);
+    cudaFree(data->tem5);
+    cudaFree(data->tem6);
+    cudaFree(data->xvort);
+    cudaFree(data->yvort);
+    cudaFree(data->zvort);
+    cudaFree(data->xvtilt);
+    cudaFree(data->yvtilt);
+    cudaFree(data->zvtilt);
+    cudaFree(data->xvstretch);
+    cudaFree(data->yvstretch);
+    cudaFree(data->zvstretch);
+    cudaFree(data->turbxvort);
+    cudaFree(data->turbyvort);
+    cudaFree(data->turbzvort);
+    cudaFree(data->diffxvort);
+    cudaFree(data->diffyvort);
+    cudaFree(data->diffzvort);
+    cudaFree(data->xvort_solenoid); 
+    cudaFree(data->yvort_solenoid); 
+    cudaFree(data->zvort_solenoid); 
 }
-#endif
-

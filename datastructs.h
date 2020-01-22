@@ -3,7 +3,7 @@
 #ifndef DATASTRUCTS_H
 #define DATASTRUCTS_H
 // this struct helps manage all the different
-// attributes a grid or grib subset may have,
+// attributes a grid or grid subset may have,
 // including the staggered arrays, number of 
 // points in eachd dimension, and the indices
 // of the subset from the larger grid
@@ -124,71 +124,76 @@ struct parcel_pos {
  * and is only ever used by Rank 0. This 
  * means that there shouldn't be any CPU
  * only code for this one. */
-struct integration_data {
+struct model_data {
 
-    float *u_4d_chunk;
-    float *v_4d_chunk;
-    float *w_4d_chunk;
-    float *pi_4d_chunk;
-    float *pres_4d_chunk;
-    float *t_4d_chunk;
-    float *th_4d_chunk;
-    float *rho_4d_chunk;
-    float *rhof_4d_chunk;
-    float *kmh_4d_chunk;
-    float *qv_4d_chunk;
-    float *qc_4d_chunk;
-    float *qi_4d_chunk;
-    float *qs_4d_chunk;
-    float *qg_4d_chunk;
+    float *ustag;
+    float *vstag;
+    float *wstag;
+    float *pipert;
+    float *prespert;
+    float *thetapert;
+    float *thrhopert;
+    float *rhopert;
+    float *rhof;
+    float *kmh;
+    float *qvpert;
+    float *qc;
+    float *qi;
+    float *qs;
+    float *qg;
 
-    float *turbu_4d_chunk;
-    float *turbv_4d_chunk;
-    float *turbw_4d_chunk;
-    float *diffu_4d_chunk;
-    float *diffv_4d_chunk;
-    float *diffw_4d_chunk;
+    float *turbu;
+    float *turbv;
+    float *turbw;
+    float *diffu;
+    float *diffv;
+    float *diffw;
 
+    float *tem1;
+    float *tem2;
+    float *tem3;
+    float *tem4;
+    float *tem5;
+    float *tem6;
 
-    float *tem1_4d_chunk;
-    float *tem2_4d_chunk;
-    float *tem3_4d_chunk;
-    float *tem4_4d_chunk;
-    float *tem5_4d_chunk;
-    float *tem6_4d_chunk;
+    float *xvort;
+    float *yvort;
+    float *zvort;
 
-    float *xvort_4d_chunk;
-    float *yvort_4d_chunk;
-    float *zvort_4d_chunk;
+    float *xvtilt;
+    float *yvtilt;
+    float *zvtilt;
 
-    float *xvtilt_4d_chunk;
-    float *yvtilt_4d_chunk;
-    float *zvtilt_4d_chunk;
-
-    float *xvstretch_4d_chunk;
-    float *yvstretch_4d_chunk;
-    float *zvstretch_4d_chunk;
-    float *turbxvort_4d_chunk;
-    float *turbyvort_4d_chunk;
-    float *turbzvort_4d_chunk;
-    float *diffxvort_4d_chunk;
-    float *diffyvort_4d_chunk;
-    float *diffzvort_4d_chunk;
+    float *xvstretch;
+    float *yvstretch;
+    float *zvstretch;
+    float *turbxvort;
+    float *turbyvort;
+    float *turbzvort;
+    float *diffxvort;
+    float *diffyvort;
+    float *diffzvort;
  
-    float *xvort_solenoid_4d_chunk; 
-    float *yvort_solenoid_4d_chunk; 
-    float *zvort_solenoid_4d_chunk; 
+    float *xvort_solenoid; 
+    float *yvort_solenoid; 
+    float *zvort_solenoid; 
 };
 
-
+// These functions should only be compiled if 
+// we're actually using a GPU... otherwise
+// only expose the CPU functions
+#ifdef USE_GPU
 datagrid* allocate_grid_managed( int X0, int X1, int Y0, int Y1, int Z0, int Z1 );
-datagrid* allocate_grid_cpu( int X0, int X1, int Y0, int Y1, int Z0, int Z1 );
 void deallocate_grid_managed(datagrid *grid);
-void deallocate_grid_cpu(datagrid *grid);
 parcel_pos* allocate_parcels_managed(int NX, int NY, int NZ, int nTotTimes);
-parcel_pos* allocate_parcels_cpu(int NX, int NY, int NZ, int nTotTimes);
 void deallocate_parcels_managed(parcel_pos *parcels);
+model_data* allocate_model_managed(long bufsize);
+void deallocate_model_managed(model_data *data);
+#endif
+
+datagrid* allocate_grid_cpu( int X0, int X1, int Y0, int Y1, int Z0, int Z1 );
+void deallocate_grid_cpu(datagrid *grid);
+parcel_pos* allocate_parcels_cpu(int NX, int NY, int NZ, int nTotTimes);
 void deallocate_parcels_cpu(parcel_pos *parcels);
-integration_data* allocate_integration_managed(long bufsize);
-void deallocate_integration_managed(integration_data *data);
+
 #endif
