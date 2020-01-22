@@ -1,0 +1,30 @@
+## This is a configuration file for running
+## the parcel code. Much easier than using
+## a bunch of command line arguments
+
+## Path to the HDF5 data
+histpath = ./3D
+## The name of the output NetCDF file
+basename = 24May2011-ElRe-SVC
+
+## The parcel seed starting position
+x0 = 0
+y0 = 7500
+z0 = 30
+
+## The number of parcels desired along each axis
+nx = 20
+ny = 20
+nz = 10
+
+## The spacing of the parcels desired along each axis
+dx = 375
+dy = 125
+dz = 15
+
+## Parcel start time, number of time steps 
+## to integrate, and integration direction.
+start_time = 4200.166738
+ntimesteps = 3200
+## 1 means forward, -1 means backward
+time_direction = 1
