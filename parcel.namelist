@@ -80,6 +80,9 @@ output_xvort = 1
 output_yvort = 1
 output_zvort = 1
 
+## MISC
+output_kmh = 1
+
 ##BUDGET VARIABLES
 output_vorticity_budget = 1
 output_momentum_budget = 1
