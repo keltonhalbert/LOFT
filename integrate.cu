@@ -438,9 +438,9 @@ void cudaIntegrateParcels(datagrid *grid, model_data *data, parcel_pos *parcels,
 
     // Before integrating the trajectories, George Bryan sets some below-grid/surface conditions 
     // that we need to consider. This handles applying those boundary conditions. 
-    applyMomentumBC<<<numBlocks, threadsPerBlock>>>(data->ustag, data->vstag, data->wstag, NX, NY, NZ, tStart, tEnd);
-    gpuErrchk(cudaDeviceSynchronize() );
-    gpuErrchk( cudaPeekAtLastError() );
+    //applyMomentumBC<<<numBlocks, threadsPerBlock>>>(data->ustag, data->vstag, data->wstag, NX, NY, NZ, tStart, tEnd);
+    //gpuErrchk(cudaDeviceSynchronize() );
+    //gpuErrchk( cudaPeekAtLastError() );
 
     // integrate the parcels forward in time and interpolate
     // calculations to trajectories. 
