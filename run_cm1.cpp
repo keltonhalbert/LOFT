@@ -111,6 +111,10 @@ void parse_cfg(map<string, string> *usrCfg, string *histpath, string *base, doub
     *time = stod((*usrCfg)["start_time"]);
     *nTimes = stoi((*usrCfg)["ntimesteps"]);
     *direction = stoi((*usrCfg)["time_direction"]);
+
+    // TO-DO: Mark the variables that are requested in the 
+    // model_data struct so that we know what to allocate,
+    // what to write/calculate, and what to ignore.
 }
 
 
