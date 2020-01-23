@@ -318,73 +318,6 @@ void loadDataFromDisk(datagrid *requested_grid, float *ustag, float *vstag, floa
 
 }
 
-/* This handles the vertical dimension offset so that we can
- * include a lower ghost zone later on down the road*/
-void buffer_offset_stag(datagrid *grid, float *ubufin, float *vbufin, float *wbufin, float *kmhbufin, \
-                   float *ubufout, float *vbufout, float *wbufout, float *kmhbufout) {
-    int NX = grid->NX;
-    int NY = grid->NY;
-    int NZ = grid->NZ;
-    for (int i = 0; i < NX+2; i++) {
-        for (int j = 0; j < NY+2; j++) {
-            for (int k = 0; k < NZ; ++k) {
-                if (k == 0) {
-                    // fill the lower ghost zone with zeroes. May consider
-                    // applying the boundary condition here, but makes more
-                    // sense to apply it in GPU land for clarity. 
-                    ubufout[P3(i, j, 0, NX+2, NY+2)] = 0.0;
-                    vbufout[P3(i, j, 0, NX+2, NY+2)] = 0.0;
-                    wbufout[P3(i, j, 0, NX+2, NY+2)] = 0.0;
-                    kmhbufout[P3(i, j, 0, NX+2, NY+2)] = 0.0;
-                }
-                ubufout[P3(i, j, k+1, NX+2, NY+2)] = ubufin[P3(i, j, k, NX+2, NY+2)];
-                vbufout[P3(i, j, k+1, NX+2, NY+2)] = vbufin[P3(i, j, k, NX+2, NY+2)];
-                wbufout[P3(i, j, k+1, NX+2, NY+2)] = wbufin[P3(i, j, k, NX+2, NY+2)];
-                kmhbufout[P3(i, j, k+1, NX+2, NY+2)] = kmhbufin[P3(i, j, k, NX+2, NY+2)];
-            }
-        }
-    }
-}
-
-void buffer_offset_scal(datagrid *grid, float *pbufin, float *tbufin, float *thbufin, float *rhobufin, \
-                        float *qvbufin, float *qcbufin, float *qibufin, float *qsbufin, float *qgbufin, \
-                        float *pbufout, float *tbufout, float *thbufout, float *rhobufout, \
-                        float *qvbufout, float *qcbufout, float *qibufout, float *qsbufout, float *qgbufout) {
-    int NX = grid->NX;
-    int NY = grid->NY;
-    int NZ = grid->NZ;
-    for (int i = 0; i < NX; i++) {
-        for (int j = 0; j < NY; j++) {
-            for (int k = 0; k < NZ; ++k) {
-                if (k == 0) {
-                    pbufout[P3(i, j, 0, NX, NY)] = pbufin[P3(i, j, 0, NX, NY)];
-                    tbufout[P3(i, j, 0, NX, NY)] = tbufin[P3(i, j, 0, NX, NY)];
-                    thbufout[P3(i, j, 0, NX, NY)] = thbufin[P3(i, j, 0, NX, NY)];
-                    rhobufout[P3(i, j, 0, NX, NY)] = rhobufin[P3(i, j, 0, NX, NY)];
-                    qvbufout[P3(i, j, 0, NX, NY)] = qvbufin[P3(i, j, 0, NX, NY)];
-                    /*
-                    qcbufout[P3(i, j, 0, NX, NY)] = qcbufin[P3(i, j, 0, NX, NY)];
-                    qibufout[P3(i, j, 0, NX, NY)] = qibufin[P3(i, j, 0, NX, NY)];
-                    qsbufout[P3(i, j, 0, NX, NY)] = qsbufin[P3(i, j, 0, NX, NY)];
-                    qgbufout[P3(i, j, 0, NX, NY)] = qgbufin[P3(i, j, 0, NX, NY)];
-                    */
-                }
-                pbufout[P3(i, j, k+1, NX, NY)] = pbufin[P3(i, j, k, NX, NY)];
-                tbufout[P3(i, j, k+1, NX, NY)] = tbufin[P3(i, j, k, NX, NY)];
-                thbufout[P3(i, j, k+1, NX, NY)] = thbufin[P3(i, j, k, NX, NY)];
-                rhobufout[P3(i, j, k+1, NX, NY)] = rhobufin[P3(i, j, k, NX, NY)];
-                qvbufout[P3(i, j, k+1, NX, NY)] = qvbufin[P3(i, j, k, NX, NY)];
-                /*
-                qcbufout[P3(i, j, k+1, NX, NY)] = qcbufin[P3(i, j, k, NX, NY)];
-                qibufout[P3(i, j, k+1, NX, NY)] = qibufin[P3(i, j, k, NX, NY)];
-                qsbufout[P3(i, j, k+1, NX, NY)] = qsbufin[P3(i, j, k, NX, NY)];
-                qgbufout[P3(i, j, k+1, NX, NY)] = qgbufin[P3(i, j, k, NX, NY)];
-                */
-            }
-        }
-    }
-}
-
 /* Seed some parcels into the domain
  * in physical gridpoint space, and then
  * fill the remainder of the parcel traces
@@ -535,52 +468,30 @@ int main(int argc, char **argv ) {
         // There's some awkwardness here I have to figure out a better way around,
         // but MPI Scatter/Gather behaves weird if I use the generic large buffer,
         // so I use N_scalar for the MPI calls to non staggered/scalar fields. 
-        N_stag_read = (requested_grid->NX+2)*(requested_grid->NY+2)*(requested_grid->NZ+1);
-        N_stag_ghost = (requested_grid->NX+2)*(requested_grid->NY+2)*(requested_grid->NZ+2);
-
-        N_scal_read = (requested_grid->NX)*(requested_grid->NY)*(requested_grid->NZ);
-        N_scal_ghost = (requested_grid->NX)*(requested_grid->NY)*(requested_grid->NZ+1);
+        N_stag = (requested_grid->NX+2)*(requested_grid->NY+2)*(requested_grid->NZ+1);
+        N_scal = (requested_grid->NX)*(requested_grid->NY)*(requested_grid->NZ);
 
 
         // allocate space for U, V, and W arrays
         // for all ranks, because this is what
         // LOFS will return it's data subset to
-        float *ubuf_tem, *vbuf_tem, *wbuf_tem, *pbuf_tem, *tbuf_tem, *thbuf_tem, *rhobuf_tem, \
-              *qvbuf_tem, *qcbuf_tem, *qibuf_tem, *qsbuf_tem, *qgbuf_tem, *kmhbuf_tem;
         float *ubuf, *vbuf, *wbuf, *pbuf, *tbuf, *thbuf, *rhobuf, *qvbuf, *qcbuf, *qibuf, *qsbuf, *qgbuf, *kmhbuf;
-        // These temporary buffers are our un-offset arrays
-        ubuf_tem = new float[N_stag_read];
-        vbuf_tem = new float[N_stag_read];
-        wbuf_tem = new float[N_stag_read];
-        // khh and kmh are on the staggered W mesh
-        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh) kmhbuf_tem = new float[N_stag_read];
-        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert) pbuf_tem = new float[N_scal_read];
-        if (io->output_thetapert) tbuf_tem = new float[N_scal_read];
-        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhopert) thbuf_tem = new float[N_scal_read];
-        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert) rhobuf_tem = new float[N_scal_read];
-        if (io->output_qvpert) qvbuf_tem = new float[N_scal_read];
-        if (io->output_qc) qcbuf_tem = new float[N_scal_read];
-        if (io->output_qi) qibuf_tem = new float[N_scal_read];
-        if (io->output_qs) qsbuf_tem = new float[N_scal_read];
-        if (io->output_qg) qgbuf_tem = new float[N_scal_read];
 
-        // These non temporary arrays are offset in the vertical by 1
-        // to account for potential ghost zone
-        ubuf = new float[N_stag_ghost];
-        vbuf = new float[N_stag_ghost];
-        wbuf = new float[N_stag_ghost];
+        ubuf = new float[N_stag];
+        vbuf = new float[N_stag];
+        wbuf = new float[N_stag];
         // khh and kmh are on the staggered W mesh
-        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh) kmhbuf = new float[N_stag_ghost];
+        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh) kmhbuf = new float[N_stag];
         // As far as I'm aware, these do not need to be offset
-        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert) pbuf = new float[N_scal_ghost];
+        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert) pbuf = new float[N_scal];
         if (io->output_thetapert) tbuf = new float[N_scal_ghost];
-        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhopert) thbuf = new float[N_scal_ghost];
-        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert) rhobuf = new float[N_scal_ghost];
-        if (io->output_qvpert) qvbuf = new float[N_scal_ghost];
-        if (io->output_qc) qcbuf = new float[N_scal_ghost];
-        if (io->output_qi) qibuf = new float[N_scal_ghost];
-        if (io->output_qs) qsbuf = new float[N_scal_ghost];
-        if (io->output_qg) qgbuf = new float[N_scal_ghost];
+        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhopert) thbuf = new float[N_scal];
+        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert) rhobuf = new float[N_scal];
+        if (io->output_qvpert) qvbuf = new float[N_scal];
+        if (io->output_qc) qcbuf = new float[N_scal];
+        if (io->output_qi) qibuf = new float[N_scal];
+        if (io->output_qs) qsbuf = new float[N_scal];
+        if (io->output_qg) qgbuf = new float[N_scal];
 
 
         // construct a 4D contiguous array to store stuff in.
@@ -592,7 +503,7 @@ int main(int argc, char **argv ) {
         // allocate space for it on Rank 0
         model_data *data;
         if (rank == 0) {
-            data = allocate_model_managed(io, N_stag_ghost*size);
+            data = allocate_model_managed(io, N_stag*size);
         }
         else {
             data = new model_data();
@@ -611,37 +522,40 @@ int main(int argc, char **argv ) {
         printf("TIMESTEP %d/%d %d %f dt= %f\n", rank, size, rank + tChunk*size, alltimes[nearest_tidx + direct*( rank + tChunk*size)], dt);
         requested_grid->dt = dt;
         // load u, v, and w into memory
-        loadDataFromDisk(requested_grid, ubuf_tem, vbuf_tem, wbuf_tem, \
-                         pbuf_tem, tbuf_tem, thbuf_tem, rhobuf_tem, qvbuf_tem, \
-                         qcbuf_tem, qibuf_tem, qsbuf_tem, qgbuf_tem, \
-                         kmhbuf_tem, alltimes[nearest_tidx + direct*(rank + tChunk*size)]);
+        loadDataFromDisk(requested_grid, ubuf, vbuf, wbuf, pbuf, tbuf, thbuf, \
+                         rhobuf, qvbuf, qcbuf, qibuf, qsbuf, qgbuf, kmhbuf, \
+                         alltimes[nearest_tidx + direct*(rank + tChunk*size)]);
 
-        buffer_offset_stag(requested_grid, ubuf_tem, vbuf_tem, wbuf_tem, \
-                           kmhbuf_tem, ubuf, vbuf, wbuf,  kmhbuf);
-        buffer_offset_scal(requested_grid, pbuf_tem, tbuf_tem, thbuf_tem, rhobuf_tem, \
-                        qvbuf_tem, qcbuf_tem, qibuf_tem, qsbuf_tem, qgbuf_tem, \
-                        pbuf, tbuf, thbuf, rhobuf, qvbuf, qcbuf, qibuf, qsbuf, qgbuf);
-        
         // for MPI runs that load multiple time steps into memory,
         // communicate the data you've read into our 4D array
 
-        int senderr_u = MPI_Gather(ubuf, N_stag_ghost, MPI_FLOAT, data->ustag, N_stag_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_v = MPI_Gather(vbuf, N_stag_ghost, MPI_FLOAT, data->vstag, N_stag_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_w = MPI_Gather(wbuf, N_stag_ghost, MPI_FLOAT, data->wstag, N_stag_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_kmh = MPI_Gather(kmhbuf, N_stag_ghost, MPI_FLOAT, data->kmh, N_stag_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_u = MPI_Gather(ubuf, N_stag, MPI_FLOAT, data->ustag, N_stag, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_v = MPI_Gather(vbuf, N_stag, MPI_FLOAT, data->vstag, N_stag, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        int senderr_w = MPI_Gather(wbuf, N_stag, MPI_FLOAT, data->wstag, N_stag, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh) {
+            int senderr_kmh = MPI_Gather(kmhbuf, N_stag, MPI_FLOAT, data->kmh, N_stag, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        }
 
         // Use N_scalar here so that there aren't random zeroes throughout the middle of the array
-        int senderr_p = MPI_Gather(pbuf, N_scal_ghost, MPI_FLOAT, data->prespert, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_t = MPI_Gather(tbuf, N_scal_ghost, MPI_FLOAT, data->thetapert, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_th = MPI_Gather(thbuf, N_scal_ghost, MPI_FLOAT, data->thrhopert, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_rho = MPI_Gather(rhobuf, N_scal_ghost, MPI_FLOAT, data->rhopert, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_qv = MPI_Gather(qvbuf, N_scal_ghost, MPI_FLOAT, data->qvpert, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        /*
-        int senderr_qc = MPI_Gather(qcbuf, N_scal_ghost, MPI_FLOAT, data->qc, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_qi = MPI_Gather(qibuf, N_scal_ghost, MPI_FLOAT, data->qi, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_qs = MPI_Gather(qsbuf, N_scal_ghost, MPI_FLOAT, data->qs, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_qg = MPI_Gather(qgbuf, N_scal_ghost, MPI_FLOAT, data->qg, N_scal_ghost, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        */
+        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert) {
+            int senderr_p = MPI_Gather(pbuf, N_scal, MPI_FLOAT, data->prespert, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        }
+        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thetapert) {
+            int senderr_t = MPI_Gather(tbuf, N_scal, MPI_FLOAT, data->thetapert, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        }
+        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhopert) {
+            int senderr_th = MPI_Gather(thbuf, N_scal, MPI_FLOAT, data->thrhopert, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        }
+        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert) {
+            int senderr_rho = MPI_Gather(rhobuf, N_scal, MPI_FLOAT, data->rhopert, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        }
+        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_qvpert) {
+            int senderr_qv = MPI_Gather(qvbuf, N_scal, MPI_FLOAT, data->qvpert, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        }
+        if (io->output_qc) int senderr_qc = MPI_Gather(qcbuf, N_scal, MPI_FLOAT, data->qc, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        if (io->output_qi) int senderr_qi = MPI_Gather(qibuf, N_scal, MPI_FLOAT, data->qi, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        if (io->output_qs) int senderr_qs = MPI_Gather(qsbuf, N_scal, MPI_FLOAT, data->qs, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        if (io->output_qg) int senderr_qg = MPI_Gather(qgbuf, N_scal, MPI_FLOAT, data->qg, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
 
         if (rank == 0) {
@@ -649,18 +563,29 @@ int main(int argc, char **argv ) {
             cout << "MPI Gather Error U: " << senderr_u << endl;
             cout << "MPI Gather Error V: " << senderr_v << endl;
             cout << "MPI Gather Error W: " << senderr_w << endl;
-            cout << "MPI Gather Error P: " << senderr_p << endl;
-            cout << "MPI Gather Error T: " << senderr_th << endl;
-            cout << "MPI Gather Error TH: " << senderr_th << endl;
-            cout << "MPI Gather Error RHO: " << senderr_rho << endl;
-            cout << "MPI Gather Error KMH: " << senderr_kmh << endl;
-            cout << "MPI Gather Error QV: " << senderr_qv << endl;
-            /*
-            cout << "MPI Gather Error QC: " << senderr_qc << endl;
-            cout << "MPI Gather Error QI: " << senderr_qi << endl;
-            cout << "MPI Gather Error QS: " << senderr_qs << endl;
-            cout << "MPI Gather Error QG: " << senderr_qg << endl;
-            */
+            if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert) {
+                cout << "MPI Gather Error P: " << senderr_p << endl;
+            }
+            if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thetapert) {
+                cout << "MPI Gather Error T: " << senderr_t << endl;
+            }
+            if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhopert) {
+                cout << "MPI Gather Error TH: " << senderr_th << endl;
+            }
+            if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert) {
+                cout << "MPI Gather Error RHO: " << senderr_rho << endl;
+            }
+            if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh) {
+                cout << "MPI Gather Error KMH: " << senderr_kmh << endl;
+            }
+            if (io->output_momentum_budget || io->output_vorticity_budget || io->output_qv) {
+                cout << "MPI Gather Error QV: " << senderr_qv << endl;
+            }
+            if (io->output_qc) cout << "MPI Gather Error QC: " << senderr_qc << endl;
+            if (io->output_qi) cout << "MPI Gather Error QI: " << senderr_qi << endl;
+            if (io->output_qs) cout << "MPI Gather Error QS: " << senderr_qs << endl;
+            if (io->output_qs) cout << "MPI Gather Error QG: " << senderr_qg << endl;
+
             int nParcels = parcels->nParcels;
             cout << "Beginning parcel integration! Heading over to the GPU to do GPU things..." << endl;
             cudaIntegrateParcels(requested_grid, data, parcels, size, nTotTimes, direct); 
@@ -678,10 +603,6 @@ int main(int argc, char **argv ) {
                 parcels->xpos[P2(0, pcl, parcels->nTimes)] = parcels->xpos[P2(size, pcl, parcels->nTimes)];
                 parcels->ypos[P2(0, pcl, parcels->nTimes)] = parcels->ypos[P2(size, pcl, parcels->nTimes)];
                 parcels->zpos[P2(0, pcl, parcels->nTimes)] = parcels->zpos[P2(size, pcl, parcels->nTimes)];
-                // empty out our parcel data arrays too
-                parcels->pclu[P2(0, pcl, parcels->nTimes)] = NC_FILL_FLOAT;
-                parcels->pclv[P2(0, pcl, parcels->nTimes)] = NC_FILL_FLOAT;
-                parcels->pclw[P2(0, pcl, parcels->nTimes)] = NC_FILL_FLOAT;
             }
             cout << "Parcel position arrays reset." << endl;
 
@@ -691,33 +612,28 @@ int main(int argc, char **argv ) {
             delete[] ubuf;
             delete[] vbuf;
             delete[] wbuf;
-            delete[] ubuf_tem;
-            delete[] vbuf_tem;
-            delete[] wbuf_tem;
-            delete[] pbuf_tem;
-            delete[] tbuf_tem;
-            delete[] thbuf_tem;
-            delete[] rhobuf_tem;
-            delete[] kmhbuf_tem;
-            delete[] qvbuf_tem;
-            /*
-            delete[] qcbuf_tem;
-            delete[] qibuf_tem;
-            delete[] qsbuf_tem;
-            delete[] qgbuf_tem;
-            */
-            delete[] pbuf;
-            delete[] tbuf;
-            delete[] thbuf;
-            delete[] rhobuf;
-            delete[] kmhbuf;
-            delete[] qvbuf;
-            /*
-            delete[] qcbuf;
-            delete[] qibuf;
-            delete[] qsbuf;
-            delete[] qgbuf;
-            */
+            if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert) {
+                delete[] pbuf;
+            }
+            if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thetapert) {
+                delete[] tbuf;
+            }
+            if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhopert) {
+                delete[] thbuf;
+            }
+            if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert) {
+                delete[] rhobuf;
+            }
+            if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh) {
+                delete[] kmhbuf;
+            }
+            if (io->output_momentum_budget || io->output_vorticity_budget || io->output_qvpert) {
+                delete[] qvbuf;
+            }
+            if (io->output_qc) delete[] qcbuf;
+            if (io->output_qi) delete[] qibuf;
+            if (io->output_qs) delete[] qsbuf;
+            if (io->output_qg) delete[] qgbuf;
 
             deallocate_model_managed(io, data);
         }
@@ -731,33 +647,28 @@ int main(int argc, char **argv ) {
             delete[] ubuf;
             delete[] vbuf;
             delete[] wbuf;
-            delete[] ubuf_tem;
-            delete[] vbuf_tem;
-            delete[] wbuf_tem;
-            delete[] pbuf_tem;
-            delete[] tbuf_tem;
-            delete[] thbuf_tem;
-            delete[] rhobuf_tem;
-            delete[] kmhbuf_tem;
-            delete[] qvbuf_tem;
-            /*
-            delete[] qcbuf_tem;
-            delete[] qibuf_tem;
-            delete[] qsbuf_tem;
-            delete[] qgbuf_tem;
-            */
-            delete[] pbuf;
-            delete[] tbuf;
-            delete[] thbuf;
-            delete[] rhobuf;
-            delete[] kmhbuf;
-            delete[] qvbuf;
-            /*
-            delete[] qcbuf;
-            delete[] qibuf;
-            delete[] qsbuf;
-            delete[] qgbuf;
-            */
+            if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert) {
+                delete[] pbuf;
+            }
+            if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thetapert) {
+                delete[] tbuf;
+            }
+            if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhopert) {
+                delete[] thbuf;
+            }
+            if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert) {
+                delete[] rhobuf;
+            }
+            if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh) {
+                delete[] kmhbuf;
+            }
+            if (io->output_momentum_budget || io->output_vorticity_budget || io->output_qvpert) {
+                delete[] qvbuf;
+            }
+            if (io->output_qc) delete[] qcbuf;
+            if (io->output_qi) delete[] qibuf;
+            if (io->output_qs) delete[] qsbuf;
+            if (io->output_qg) delete[] qgbuf;
         }
         // receive the updated parcel arrays
         // so that we can do proper subseting. This happens
