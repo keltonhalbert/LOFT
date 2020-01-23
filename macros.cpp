@@ -20,11 +20,10 @@ using namespace std;
 // // copying anyway. I adopt TEM for his tem array, UA for ua etc.
 #define BUF4D(x,y,z,t) buf0[P4(x,y,z,t,NX,NY,NZ+1)]
 #define TEM4D(x,y,z,t) dum0[P4(x+1,y+1,z,t,NX+1,NY+1,NZ+1)]
-#define  UA4D(x,y,z,t) ustag[P4(x+1,y+1,z,t,NX+2,NY+2,NZ+2)]
-#define  VA4D(x,y,z,t) vstag[P4(x+1,y+1,z,t,NX+2,NY+2,NZ+2)]
-#define  WA4D(x,y,z,t) wstag[P4(x+1,y+1,z,t,NX+2,NY+2,NZ+2)]
-#define  KH4D(x,y,z,t) khstag[P4(x+1,y+1,z,t,NX+2,NY+2,NZ+2)]
-#define  KM4D(x,y,z,t) kmstag[P4(x+1,y+1,z,t,NX+2,NY+2,NZ+2)]
+#define  UA4D(x,y,z,t) ustag[P4(x+1,y+1,z,t,NX+2,NY+2,NZ+1)]
+#define  VA4D(x,y,z,t) vstag[P4(x+1,y+1,z,t,NX+2,NY+2,NZ+1)]
+#define  WA4D(x,y,z,t) wstag[P4(x+1,y+1,z,t,NX+2,NY+2,NZ+1)]
+#define  KM4D(x,y,z,t) kmstag[P4(x+1,y+1,z,t,NX+2,NY+2,NZ+1)]
 
 #define PCL(t,p,mt) (((p)*(mt))+(t))
 // stole this define from LOFS
