@@ -143,12 +143,12 @@ __device__ void calc_diffz_u(datagrid *grid, model_data *data, int *idx_4D, int 
     // and storing it in a separate array like CM1 does. Also keep
     // in mind the base state arrays do not have a lower ghost zone,
     // so indexing is offset by 1.
-    float u01 = grid->u0[k-1];
-    float u02 = grid->u0[k-2];
-    float u03 = grid->u0[k+0];
-    float u04 = grid->u0[k-3];
-    float u05 = grid->u0[k+1];
-    float u06 = grid->u0[k-4];
+    float u01 = grid->u0[k-0];
+    float u02 = grid->u0[k-1];
+    float u03 = grid->u0[k+1];
+    float u04 = grid->u0[k-2];
+    float u05 = grid->u0[k+2];
+    float u06 = grid->u0[k-3];
     float pval = ( 10.0*( (UA4D(i, j, k  , t) - u01) - (UA4D(i, j, k-1, t) - u02) ) \
                    -5.0*( (UA4D(i, j, k+1, t) - u03) - (UA4D(i, j, k-2, t) - u04) ) \
                        +( (UA4D(i, j, k+2, t) - u05) - (UA4D(i, j, k-3, t) - u06) ) );
@@ -184,12 +184,12 @@ __device__ void calc_diffz_v(datagrid *grid, model_data *data, int *idx_4D, int 
     // and storing it in a separate array like CM1 does. Also keep
     // in mind the base state arrays do not have a lower ghost zone,
     // so indexing is offset by 1.
-    float v01 = grid->v0[k-1];
-    float v02 = grid->v0[k-2];
-    float v03 = grid->v0[k+0];
-    float v04 = grid->v0[k-3];
-    float v05 = grid->v0[k+1];
-    float v06 = grid->v0[k-4];
+    float v01 = grid->v0[k-0];
+    float v02 = grid->v0[k-1];
+    float v03 = grid->v0[k+1];
+    float v04 = grid->v0[k-2];
+    float v05 = grid->v0[k+2];
+    float v06 = grid->v0[k-3];
     float pval = ( 10.0*( (VA4D(i, j, k  , t) - v01) - (VA4D(i, j, k-1, t) - v02) ) \
                    -5.0*( (VA4D(i, j, k+1, t) - v03) - (VA4D(i, j, k-2, t) - v04) ) \
                        +( (VA4D(i, j, k+2, t) - v05) - (VA4D(i, j, k-3, t) - v06) ) );

@@ -16,11 +16,11 @@ __device__ void calcrf(datagrid *grid, model_data *data, int *idx_4D, int NX, in
     float *buf0 = data->rhopert;
 
     if (k >= 2) {
-        WA4D(i, j, k, t) =  (0.5 * (BUF4D(i, j, k-1, t) + grid->rho0[k-2]) + 0.5 * (BUF4D(i, j, k, t) + grid->rho0[k-1]));
+        WA4D(i, j, k, t) =  (0.5 * (BUF4D(i, j, k-1, t) + grid->rho0[k-1]) + 0.5 * (BUF4D(i, j, k, t) + grid->rho0[k]));
     }
     // k == 1
     else {
-        WA4D(i, j, 1, t) = (1.75*(BUF4D(i, j, 1, t) + grid->rho0[0]) - (BUF4D(i, j, 2, t) +grid->rho0[1]) + 0.25*(BUF4D(i, j, 3, t) + grid->rho0[2]));
+        WA4D(i, j, 1, t) = (1.75*(BUF4D(i, j, 1, t) + grid->rho0[1]) - (BUF4D(i, j, 2, t) +grid->rho0[2]) + 0.25*(BUF4D(i, j, 3, t) + grid->rho0[3]));
     }
 }
 
@@ -107,21 +107,21 @@ __device__ void gettau(datagrid *grid, model_data *data, int *idx_4D, int NX, in
 
     // tau 11
     dum0 = data->tem1;
-    TEM4D(i, j, k, t) = TEM4D(i, j, k, t) * (KM4D(i, j, k, t) + KM4D(i, j, k+1, t))*(BUF4D(i, j, k, t) + grid->rho0[k-1]);
+    TEM4D(i, j, k, t) = TEM4D(i, j, k, t) * (KM4D(i, j, k, t) + KM4D(i, j, k+1, t))*(BUF4D(i, j, k, t) + grid->rho0[k]);
     // tau 22
     dum0 = data->tem3;
-    TEM4D(i, j, k, t) = TEM4D(i, j, k, t) * (KM4D(i, j, k, t) + KM4D(i, j, k+1, t))*(BUF4D(i, j, k, t) + grid->rho0[k-1]);
+    TEM4D(i, j, k, t) = TEM4D(i, j, k, t) * (KM4D(i, j, k, t) + KM4D(i, j, k+1, t))*(BUF4D(i, j, k, t) + grid->rho0[k]);
     // tau 33
     dum0 = data->tem4;
-    TEM4D(i, j, k, t) = TEM4D(i, j, k, t) * (KM4D(i, j, k, t) + KM4D(i, j, k+1, t))*(BUF4D(i, j, k, t) + grid->rho0[k-1]);
+    TEM4D(i, j, k, t) = TEM4D(i, j, k, t) * (KM4D(i, j, k, t) + KM4D(i, j, k+1, t))*(BUF4D(i, j, k, t) + grid->rho0[k]);
 
     // tau 12
     dum0 = data->tem2;
     TEM4D(i, j, k, t) = TEM4D(i, j, k, t) * 0.03125 * \
                         ( ( ( KM4D(i-1, j-1, k, t) + KM4D(i, j, k, t) ) + ( KM4D(i-1, j, k, t) + KM4D(i, j-1, k, t) ) ) \
                          +( ( KM4D(i-1, j-1, k+1, t) + KM4D(i, j, k+1, t) ) + ( KM4D(i-1, j, k+1, t) + KM4D(i, j-1, k+1, t) ) ) ) \
-                         *( ( (BUF4D(i-1, j-1, k, t) + grid->rho0[k-1]) + (BUF4D(i, j, k, t) + grid->rho0[k-1]) ) \
-                           + ((BUF4D(i-1, j, k, t) + grid->rho0[k-1]) + (BUF4D(i, j-1, k, t) + grid->rho0[k-1]) ) );
+                         *( ( (BUF4D(i-1, j-1, k, t) + grid->rho0[k]) + (BUF4D(i, j, k, t) + grid->rho0[k]) ) \
+                           + ((BUF4D(i-1, j, k, t) + grid->rho0[k]) + (BUF4D(i, j-1, k, t) + grid->rho0[k]) ) );
     if (k == 1) {
         // we'll go ahead and apply the zero strain condition on the lower boundary/ghost zone
         // for tau 13 and tau 23
@@ -176,7 +176,7 @@ __device__ void calc_turbu(datagrid *grid, model_data *data, int *idx_4D, int NX
 
     buf0 = data->rhopert;
     // calculate the momentum tendency now
-    float rru0 = 1.0 / (0.5 * ((BUF4D(i-1, j, k, t) + grid->rho0[k-1]) + (BUF4D(i, j, k, t) + grid->rho0[k-1])));
+    float rru0 = 1.0 / (0.5 * ((BUF4D(i-1, j, k, t) + grid->rho0[k]) + (BUF4D(i, j, k, t) + grid->rho0[k])));
     ustag = data->turbu;
     UA4D(i, j, k, t) = ( turbx + turby + turbz ) * rru0; 
 }
@@ -209,7 +209,7 @@ __device__ void calc_turbv(datagrid *grid, model_data *data, int *idx_4D, int NX
 
     buf0 = data->rhopert;
     // calculate the momentum tendency now
-    float rrv0 = 1.0 / (0.5 * ((BUF4D(i, j-1, k, t) + grid->rho0[k-1]) + (BUF4D(i, j, k, t) + grid->rho0[k-1])));
+    float rrv0 = 1.0 / (0.5 * ((BUF4D(i, j-1, k, t) + grid->rho0[k]) + (BUF4D(i, j, k, t) + grid->rho0[k])));
     vstag = data->turbv;
     VA4D(i, j, k, t) = ( turbx + turby + turbz ) * rrv0; 
 }
@@ -242,7 +242,7 @@ __device__ void calc_turbw(datagrid *grid, model_data *data, int *idx_4D, int NX
 
     buf0 = data->rhopert;
     // calculate the momentum tendency now
-    float rrf = 1.0 / (0.5 * (BUF4D(i, j, k-1, t) + grid->rho0[k-1] + BUF4D(i, j, k, t) + grid->rho0[k-1]));
+    float rrf = 1.0 / (0.5 * (BUF4D(i, j, k-1, t) + grid->rho0[k-1] + BUF4D(i, j, k, t) + grid->rho0[k]));
     wstag = data->turbw;
     WA4D(i, j, k, t) = ( turbx + turby + turbz ) * rrf; 
 }
