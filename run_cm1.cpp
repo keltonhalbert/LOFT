@@ -401,7 +401,7 @@ int main(int argc, char **argv ) {
     string outfilename = string(base) + ".nc";
 
     int rank, size;
-    long N_stag_ghost, N_stag_read, N_scal_read, N_scal_ghost, MX, MY, MZ;
+    long N_stag, N_scal, MX, MY, MZ;
 
     // initialize a bunch of MPI stuff.
     // Rank tells you which process
@@ -492,12 +492,11 @@ int main(int argc, char **argv ) {
         wbuf = new float[N_stag];
         // khh and kmh are on the staggered W mesh
         if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh) kmhbuf = new float[N_stag];
-        // As far as I'm aware, these do not need to be offset
         if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert) pbuf = new float[N_scal];
-        if (io->output_thetapert) tbuf = new float[N_scal_ghost];
+        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thetapert) tbuf = new float[N_scal];
         if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhopert) thbuf = new float[N_scal];
         if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert) rhobuf = new float[N_scal];
-        if (io->output_qvpert) qvbuf = new float[N_scal];
+        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_qvpert) qvbuf = new float[N_scal];
         if (io->output_qc) qcbuf = new float[N_scal];
         if (io->output_qi) qibuf = new float[N_scal];
         if (io->output_qs) qsbuf = new float[N_scal];
@@ -538,34 +537,38 @@ int main(int argc, char **argv ) {
 
         // for MPI runs that load multiple time steps into memory,
         // communicate the data you've read into our 4D array
+        
+        int senderr_u, senderr_v, senderr_w, senderr_kmh;
+        int senderr_p, senderr_t, senderr_th, senderr_rho;
+        int senderr_qv, senderr_qc, senderr_qi, senderr_qs, senderr_qg;
 
-        int senderr_u = MPI_Gather(ubuf, N_stag, MPI_FLOAT, data->ustag, N_stag, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_v = MPI_Gather(vbuf, N_stag, MPI_FLOAT, data->vstag, N_stag, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        int senderr_w = MPI_Gather(wbuf, N_stag, MPI_FLOAT, data->wstag, N_stag, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        senderr_u = MPI_Gather(ubuf, N_stag, MPI_FLOAT, data->ustag, N_stag, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        senderr_v = MPI_Gather(vbuf, N_stag, MPI_FLOAT, data->vstag, N_stag, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        senderr_w = MPI_Gather(wbuf, N_stag, MPI_FLOAT, data->wstag, N_stag, MPI_FLOAT, 0, MPI_COMM_WORLD);
         if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh) {
-            int senderr_kmh = MPI_Gather(kmhbuf, N_stag, MPI_FLOAT, data->kmh, N_stag, MPI_FLOAT, 0, MPI_COMM_WORLD);
+            senderr_kmh = MPI_Gather(kmhbuf, N_stag, MPI_FLOAT, data->kmh, N_stag, MPI_FLOAT, 0, MPI_COMM_WORLD);
         }
 
         // Use N_scalar here so that there aren't random zeroes throughout the middle of the array
         if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert) {
-            int senderr_p = MPI_Gather(pbuf, N_scal, MPI_FLOAT, data->prespert, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
+            senderr_p = MPI_Gather(pbuf, N_scal, MPI_FLOAT, data->prespert, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
         }
         if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thetapert) {
-            int senderr_t = MPI_Gather(tbuf, N_scal, MPI_FLOAT, data->thetapert, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
+            senderr_t = MPI_Gather(tbuf, N_scal, MPI_FLOAT, data->thetapert, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
         }
         if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhopert) {
-            int senderr_th = MPI_Gather(thbuf, N_scal, MPI_FLOAT, data->thrhopert, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
+            senderr_th = MPI_Gather(thbuf, N_scal, MPI_FLOAT, data->thrhopert, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
         }
         if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert) {
-            int senderr_rho = MPI_Gather(rhobuf, N_scal, MPI_FLOAT, data->rhopert, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
+            senderr_rho = MPI_Gather(rhobuf, N_scal, MPI_FLOAT, data->rhopert, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
         }
         if (io->output_momentum_budget || io->output_vorticity_budget || io->output_qvpert) {
-            int senderr_qv = MPI_Gather(qvbuf, N_scal, MPI_FLOAT, data->qvpert, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
+            senderr_qv = MPI_Gather(qvbuf, N_scal, MPI_FLOAT, data->qvpert, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
         }
-        if (io->output_qc) int senderr_qc = MPI_Gather(qcbuf, N_scal, MPI_FLOAT, data->qc, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        if (io->output_qi) int senderr_qi = MPI_Gather(qibuf, N_scal, MPI_FLOAT, data->qi, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        if (io->output_qs) int senderr_qs = MPI_Gather(qsbuf, N_scal, MPI_FLOAT, data->qs, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        if (io->output_qg) int senderr_qg = MPI_Gather(qgbuf, N_scal, MPI_FLOAT, data->qg, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        if (io->output_qc) senderr_qc = MPI_Gather(qcbuf, N_scal, MPI_FLOAT, data->qc, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        if (io->output_qi) senderr_qi = MPI_Gather(qibuf, N_scal, MPI_FLOAT, data->qi, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        if (io->output_qs) senderr_qs = MPI_Gather(qsbuf, N_scal, MPI_FLOAT, data->qs, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        if (io->output_qg) senderr_qg = MPI_Gather(qgbuf, N_scal, MPI_FLOAT, data->qg, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
 
         if (rank == 0) {
@@ -588,7 +591,7 @@ int main(int argc, char **argv ) {
             if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh) {
                 cout << "MPI Gather Error KMH: " << senderr_kmh << endl;
             }
-            if (io->output_momentum_budget || io->output_vorticity_budget || io->output_qv) {
+            if (io->output_momentum_budget || io->output_vorticity_budget || io->output_qvpert) {
                 cout << "MPI Gather Error QV: " << senderr_qv << endl;
             }
             if (io->output_qc) cout << "MPI Gather Error QC: " << senderr_qc << endl;
