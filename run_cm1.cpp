@@ -95,8 +95,8 @@ map<string, string> readCfg(string filename) {
 }
 
 /* Parse the user configuration and fill the variables with the necessary values */
-void parse_cfg(map<string, string> *usrCfg, string *histpath, string *base, double *time, int *nTimes, int *direction, \
-            float *X0, float *Y0, float *Z0, int *NX, int *NY, int *NZ, float *DX, float *DY, float *DZ) {
+void parse_cfg(map<string, string> *usrCfg, iocfg *io, string *histpath, string *base, double *time, int *nTimes, \
+            int *direction, float *X0, float *Y0, float *Z0, int *NX, int *NY, int *NZ, float *DX, float *DY, float *DZ) {
     *histpath = ((*usrCfg)["histpath"]);
     *base = ((*usrCfg)["basename"]);
     *X0 = stof((*usrCfg)["x0"]);
@@ -112,9 +112,34 @@ void parse_cfg(map<string, string> *usrCfg, string *histpath, string *base, doub
     *nTimes = stoi((*usrCfg)["ntimesteps"]);
     *direction = stoi((*usrCfg)["time_direction"]);
 
-    // TO-DO: Mark the variables that are requested in the 
-    // model_data struct so that we know what to allocate,
-    // what to write/calculate, and what to ignore.
+    // Determine from the namelist file which variables
+    // we need to read in for calculations or writing
+    // along parcel traces, and store those values. 
+    io->output_pbar = stoi((*usrCfg)["output_pbar"]);
+    io->output_qvbar = stoi((*usrCfg)["output_qvbar"]);
+    io->output_rhobar = stoi((*usrCfg)["output_rhobar"]);
+    io->output_thetabar = stoi((*usrCfg)["output_thetabar"]);
+    io->output_thrhobar = stoi((*usrCfg)["output_thrhobar"]);
+
+    io->output_ppert = stoi((*usrCfg)["output_ppert"]);
+    io->output_qvpert = stoi((*usrCfg)["output_qvpert"]);
+    io->output_rhopert = stoi((*usrCfg)["output_rhopert"]);
+    io->output_thetapert = stoi((*usrCfg)["output_thetapert"]);
+    io->output_thrhopert = stoi((*usrCfg)["output_thrhopert"]);
+
+    io->output_qc = stoi((*usrCfg)["output_qc"]);
+    io->output_qi = stoi((*usrCfg)["output_qi"]);
+    io->output_qs = stoi((*usrCfg)["output_qs"]);
+    io->output_qg = stoi((*usrCfg)["output_qg"]);
+
+    io->output_kmh = stoi((*usrCfg)["output_kmh"]);
+
+    io->output_xvort = stoi((*usrCfg)["output_xvort"]);
+    io->output_yvort = stoi((*usrCfg)["output_yvort"]);
+    io->output_zvort = stoi((*usrCfg)["output_zvort"]);
+
+    io->output_vorticity_budget = stoi((*usrCfg)["output_vorticity_budget"]);
+    io->output_momentum_budget = stoi((*usrCfg)["output_momentum_budget"]);
 }
 
 
@@ -404,6 +429,11 @@ void seed_parcels(parcel_pos *parcels, float X0, float Y0, float Z0, int NX, int
  * data chunks to the GPU, and then proceeds with another time chunk.
  */
 int main(int argc, char **argv ) {
+    // our parcel struct containing 
+    // the position arrays
+    iocfg *io = new iocfg();
+    datagrid *requested_grid;
+    parcel_pos *parcels;
     // variables for parcel seed locations,
     // amount, and spacing
     float pX0, pDX, pY0, pDY, pZ0, pDZ;
@@ -421,19 +451,14 @@ int main(int argc, char **argv ) {
     
     // parse the namelist options into the appropriate variables
     map<string, string> usrCfg = readCfg("parcel.namelist");
-    parse_cfg(&usrCfg, &histpath, &base, &time, &nTimeSteps, &direct, &pX0, &pY0, &pZ0, &pNX, &pNY, &pNZ, &pDX, &pDY, &pDZ );
+    parse_cfg(&usrCfg, io, &histpath, &base, &time, &nTimeSteps, &direct, \
+              &pX0, &pY0, &pZ0, &pNX, &pNY, &pNZ, &pDX, &pDY, &pDZ );
 
-    // convert the char arrays to strings
-    // because this is C++ and we can use
-    // objects in the 21st centuryc
-    string base_dir = string(histpath);
+    string base_dir = histpath;
     string outfilename = string(base) + ".nc";
-    // get rid of useless dead weight
-    // because we're good programmers
 
     int rank, size;
     long N_stag_ghost, N_stag_read, N_scal_read, N_scal_ghost, MX, MY, MZ;
-    //int nTimeChunks = 120*2;
 
     // initialize a bunch of MPI stuff.
     // Rank tells you which process
@@ -465,10 +490,6 @@ int main(int argc, char **argv ) {
     // runtime directory. If it hasn't been run,
     // this step can take fair amount of time.
     lofs_get_dataset_structure(base_dir);
-    // our parcel struct containing 
-    // the position arrays
-    datagrid *requested_grid;
-    parcel_pos *parcels;
 
     // This is the main loop that does the data reading and eventually
     // calls the CUDA code to integrate forward.
@@ -479,12 +500,12 @@ int main(int argc, char **argv ) {
             cout << "SEEDING PARCELS" << endl;
             if (rank == 0) {
                 // allocate parcels on both CPU and GPU
-                parcels = allocate_parcels_managed(pNX, pNY, pNZ, nTotTimes);
+                parcels = allocate_parcels_managed(io, pNX, pNY, pNZ, nTotTimes);
             }
             else {
                 // for all other ranks, only
                 // allocate on CPU
-                parcels = allocate_parcels_cpu(pNX, pNY, pNZ, nTotTimes);
+                parcels = allocate_parcels_cpu(io, pNX, pNY, pNZ, nTotTimes);
             }
             
             // seed the parcel starting positions based on the command line
@@ -575,7 +596,7 @@ int main(int argc, char **argv ) {
         // allocate space for it on Rank 0
         model_data *data;
         if (rank == 0) {
-            data = allocate_model_managed(N_stag_ghost*size);
+            data = allocate_model_managed(io, N_stag_ghost*size);
         }
         else {
             data = new model_data();

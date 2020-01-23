@@ -2,6 +2,39 @@
 // stuffs
 #ifndef DATASTRUCTS_H
 #define DATASTRUCTS_H
+
+// This data structure stores the I/O
+// settings for which variables to read/write
+// based on the desired calculations and output
+struct iocfg {
+
+    int output_pbar = 0;
+    int output_qvbar = 0;
+    int output_rhobar = 0;
+    int output_thetabar = 0;
+    int output_thrhobar = 0;
+
+    int output_ppert = 0;
+    int output_qvpert = 0;
+    int output_rhopert = 0;
+    int output_thetapert = 0;
+    int output_thrhopert = 0;
+
+    int output_qc = 0;
+    int output_qi = 0;
+    int output_qs = 0;
+    int output_qg = 0;
+
+    int output_kmh = 0;
+
+    int output_xvort = 0;
+    int output_yvort = 0;
+    int output_zvort = 0;
+
+    int output_vorticity_budget = 0;
+    int output_momentum_budget = 0;
+};
+
 // this struct helps manage all the different
 // attributes a grid or grid subset may have,
 // including the staggered arrays, number of 
@@ -113,6 +146,7 @@ struct parcel_pos {
 
     int nParcels;
     int nTimes;
+    iocfg *io;
 };
 
 
@@ -177,6 +211,7 @@ struct model_data {
     float *xvort_solenoid; 
     float *yvort_solenoid; 
     float *zvort_solenoid; 
+    iocfg *io;
 };
 
 // These functions should only be compiled if 
@@ -184,14 +219,14 @@ struct model_data {
 // only expose the CPU functions
 datagrid* allocate_grid_managed( int X0, int X1, int Y0, int Y1, int Z0, int Z1 );
 void deallocate_grid_managed(datagrid *grid);
-parcel_pos* allocate_parcels_managed(int NX, int NY, int NZ, int nTotTimes);
-void deallocate_parcels_managed(parcel_pos *parcels);
-model_data* allocate_model_managed(long bufsize);
-void deallocate_model_managed(model_data *data);
+parcel_pos* allocate_parcels_managed(iocfg *io, int NX, int NY, int NZ, int nTotTimes);
+void deallocate_parcels_managed(iocfg* io, parcel_pos *parcels);
+model_data* allocate_model_managed(iocfg* io, long bufsize);
+void deallocate_model_managed(iocfg* io, model_data *data);
 
 datagrid* allocate_grid_cpu( int X0, int X1, int Y0, int Y1, int Z0, int Z1 );
 void deallocate_grid_cpu(datagrid *grid);
-parcel_pos* allocate_parcels_cpu(int NX, int NY, int NZ, int nTotTimes);
-void deallocate_parcels_cpu(parcel_pos *parcels);
+parcel_pos* allocate_parcels_cpu(iocfg *io, int NX, int NY, int NZ, int nTotTimes);
+void deallocate_parcels_cpu(iocfg *io, parcel_pos *parcels);
 
 #endif

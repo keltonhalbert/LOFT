@@ -159,12 +159,14 @@ void deallocate_grid_cpu(datagrid *grid) {
 /* Allocate arrays for parcel info on both the CPU and GPU.
    This function should only be called by MPI Rank 0, so
    be sure to use the CPU function for Rank >= 1. */
-parcel_pos* allocate_parcels_managed(int NX, int NY, int NZ, int nTotTimes) {
+parcel_pos* allocate_parcels_managed(iocfg *io, int NX, int NY, int NZ, int nTotTimes) {
     int nParcels = NX*NY*NZ;
     parcel_pos *parcels;
     // create the struct on both the GPU and the CPU.
     cudaMallocManaged(&parcels, sizeof(parcel_pos));
-
+    cudaMallocManaged(&(parcels->io), sizeof(iocfg));
+    parcels->io = io;
+    
     // allocate memory for the parcels
     // we are integrating for the entirety 
     // of the simulation.
@@ -174,50 +176,52 @@ parcel_pos* allocate_parcels_managed(int NX, int NY, int NZ, int nTotTimes) {
     cudaMallocManaged(&(parcels->pclu), nParcels*nTotTimes*sizeof(float)); 
     cudaMallocManaged(&(parcels->pclv), nParcels*nTotTimes*sizeof(float)); 
     cudaMallocManaged(&(parcels->pclw), nParcels*nTotTimes*sizeof(float)); 
-    cudaMallocManaged(&(parcels->pclkmh), nParcels*nTotTimes*sizeof(float)); 
-    cudaMallocManaged(&(parcels->pcluturb), nParcels*nTotTimes*sizeof(float)); 
-    cudaMallocManaged(&(parcels->pclvturb), nParcels*nTotTimes*sizeof(float)); 
-    cudaMallocManaged(&(parcels->pclwturb), nParcels*nTotTimes*sizeof(float)); 
-    cudaMallocManaged(&(parcels->pcludiff), nParcels*nTotTimes*sizeof(float)); 
-    cudaMallocManaged(&(parcels->pclvdiff), nParcels*nTotTimes*sizeof(float)); 
-    cudaMallocManaged(&(parcels->pclwdiff), nParcels*nTotTimes*sizeof(float)); 
-    cudaMallocManaged(&(parcels->pclxvort), nParcels*nTotTimes*sizeof(float)); 
-    cudaMallocManaged(&(parcels->pclyvort), nParcels*nTotTimes*sizeof(float)); 
-    cudaMallocManaged(&(parcels->pclzvort), nParcels*nTotTimes*sizeof(float)); 
-    cudaMallocManaged(&(parcels->pclxvorttilt), nParcels*nTotTimes*sizeof(float)); 
-    cudaMallocManaged(&(parcels->pclyvorttilt), nParcels*nTotTimes*sizeof(float)); 
-    cudaMallocManaged(&(parcels->pclzvorttilt), nParcels*nTotTimes*sizeof(float)); 
-    cudaMallocManaged(&(parcels->pclxvortstretch), nParcels*nTotTimes*sizeof(float)); 
-    cudaMallocManaged(&(parcels->pclyvortstretch), nParcels*nTotTimes*sizeof(float)); 
-    cudaMallocManaged(&(parcels->pclzvortstretch), nParcels*nTotTimes*sizeof(float)); 
-    cudaMallocManaged(&(parcels->pclxvortturb), nParcels*nTotTimes*sizeof(float)); 
-    cudaMallocManaged(&(parcels->pclyvortturb), nParcels*nTotTimes*sizeof(float)); 
-    cudaMallocManaged(&(parcels->pclzvortturb), nParcels*nTotTimes*sizeof(float)); 
-    cudaMallocManaged(&(parcels->pclxvortdiff), nParcels*nTotTimes*sizeof(float)); 
-    cudaMallocManaged(&(parcels->pclyvortdiff), nParcels*nTotTimes*sizeof(float)); 
-    cudaMallocManaged(&(parcels->pclzvortdiff), nParcels*nTotTimes*sizeof(float)); 
-    cudaMallocManaged(&(parcels->pclxvortsolenoid), nParcels*nTotTimes*sizeof(float));
-    cudaMallocManaged(&(parcels->pclyvortsolenoid), nParcels*nTotTimes*sizeof(float));
-    cudaMallocManaged(&(parcels->pclzvortsolenoid), nParcels*nTotTimes*sizeof(float));
+    if (io->output_kmh ) cudaMallocManaged(&(parcels->pclkmh), nParcels*nTotTimes*sizeof(float)); 
+    if (io->output_momentum_budget) {
+        cudaMallocManaged(&(parcels->pcluturb), nParcels*nTotTimes*sizeof(float)); 
+        cudaMallocManaged(&(parcels->pclvturb), nParcels*nTotTimes*sizeof(float)); 
+        cudaMallocManaged(&(parcels->pclwturb), nParcels*nTotTimes*sizeof(float)); 
+        cudaMallocManaged(&(parcels->pcludiff), nParcels*nTotTimes*sizeof(float)); 
+        cudaMallocManaged(&(parcels->pclvdiff), nParcels*nTotTimes*sizeof(float)); 
+        cudaMallocManaged(&(parcels->pclwdiff), nParcels*nTotTimes*sizeof(float)); 
+    }
+    if (io->output_xvort || io->output_vorticity_budget) cudaMallocManaged(&(parcels->pclxvort), nParcels*nTotTimes*sizeof(float)); 
+    if (io->output_yvort || io->output_vorticity_budget) cudaMallocManaged(&(parcels->pclyvort), nParcels*nTotTimes*sizeof(float)); 
+    if (io->output_zvort || io->output_vorticity_budget) cudaMallocManaged(&(parcels->pclzvort), nParcels*nTotTimes*sizeof(float)); 
+    if (io->output_vorticity_budget) {
+        cudaMallocManaged(&(parcels->pclxvorttilt), nParcels*nTotTimes*sizeof(float)); 
+        cudaMallocManaged(&(parcels->pclyvorttilt), nParcels*nTotTimes*sizeof(float)); 
+        cudaMallocManaged(&(parcels->pclzvorttilt), nParcels*nTotTimes*sizeof(float)); 
+        cudaMallocManaged(&(parcels->pclxvortstretch), nParcels*nTotTimes*sizeof(float)); 
+        cudaMallocManaged(&(parcels->pclyvortstretch), nParcels*nTotTimes*sizeof(float)); 
+        cudaMallocManaged(&(parcels->pclzvortstretch), nParcels*nTotTimes*sizeof(float)); 
+        cudaMallocManaged(&(parcels->pclxvortturb), nParcels*nTotTimes*sizeof(float)); 
+        cudaMallocManaged(&(parcels->pclyvortturb), nParcels*nTotTimes*sizeof(float)); 
+        cudaMallocManaged(&(parcels->pclzvortturb), nParcels*nTotTimes*sizeof(float)); 
+        cudaMallocManaged(&(parcels->pclxvortdiff), nParcels*nTotTimes*sizeof(float)); 
+        cudaMallocManaged(&(parcels->pclyvortdiff), nParcels*nTotTimes*sizeof(float)); 
+        cudaMallocManaged(&(parcels->pclzvortdiff), nParcels*nTotTimes*sizeof(float)); 
+        cudaMallocManaged(&(parcels->pclxvortsolenoid), nParcels*nTotTimes*sizeof(float));
+        cudaMallocManaged(&(parcels->pclyvortsolenoid), nParcels*nTotTimes*sizeof(float));
+        cudaMallocManaged(&(parcels->pclzvortsolenoid), nParcels*nTotTimes*sizeof(float));
+    }
 
-    cudaMallocManaged(&(parcels->pclppert), nParcels*nTotTimes*sizeof(float)); 
-    cudaMallocManaged(&(parcels->pclqvpert), nParcels*nTotTimes*sizeof(float)); 
-    cudaMallocManaged(&(parcels->pclrhopert), nParcels*nTotTimes*sizeof(float)); 
-    cudaMallocManaged(&(parcels->pclthetapert), nParcels*nTotTimes*sizeof(float)); 
-    cudaMallocManaged(&(parcels->pclthrhopert), nParcels*nTotTimes*sizeof(float)); 
+    if (io->output_ppert) cudaMallocManaged(&(parcels->pclppert), nParcels*nTotTimes*sizeof(float)); 
+    if (io->output_qvpert) cudaMallocManaged(&(parcels->pclqvpert), nParcels*nTotTimes*sizeof(float)); 
+    if (io->output_rhopert) cudaMallocManaged(&(parcels->pclrhopert), nParcels*nTotTimes*sizeof(float)); 
+    if (io->output_thetapert) cudaMallocManaged(&(parcels->pclthetapert), nParcels*nTotTimes*sizeof(float)); 
+    if (io->output_thrhopert) cudaMallocManaged(&(parcels->pclthrhopert), nParcels*nTotTimes*sizeof(float)); 
 
-    cudaMallocManaged(&(parcels->pclpbar), nParcels*nTotTimes*sizeof(float)); 
-    cudaMallocManaged(&(parcels->pclqvbar), nParcels*nTotTimes*sizeof(float)); 
-    cudaMallocManaged(&(parcels->pclrhobar), nParcels*nTotTimes*sizeof(float)); 
-    cudaMallocManaged(&(parcels->pclthetabar), nParcels*nTotTimes*sizeof(float)); 
-    cudaMallocManaged(&(parcels->pclthrhobar), nParcels*nTotTimes*sizeof(float)); 
+    if (io->output_pbar) cudaMallocManaged(&(parcels->pclpbar), nParcels*nTotTimes*sizeof(float)); 
+    if (io->output_qvbar) cudaMallocManaged(&(parcels->pclqvbar), nParcels*nTotTimes*sizeof(float)); 
+    if (io->output_rhobar) cudaMallocManaged(&(parcels->pclrhobar), nParcels*nTotTimes*sizeof(float)); 
+    if (io->output_thetabar) cudaMallocManaged(&(parcels->pclthetabar), nParcels*nTotTimes*sizeof(float)); 
+    if (io->output_thrhobar) cudaMallocManaged(&(parcels->pclthrhobar), nParcels*nTotTimes*sizeof(float)); 
 
-    /*
-    cudaMallocManaged(&(parcels->pclqc), nParcels*nTotTimes*sizeof(float)); 
-    cudaMallocManaged(&(parcels->pclqi), nParcels*nTotTimes*sizeof(float)); 
-    cudaMallocManaged(&(parcels->pclqs), nParcels*nTotTimes*sizeof(float)); 
-    cudaMallocManaged(&(parcels->pclqg), nParcels*nTotTimes*sizeof(float)); 
-    */
+    if (io->output_qc) cudaMallocManaged(&(parcels->pclqc), nParcels*nTotTimes*sizeof(float)); 
+    if (io->output_qi) cudaMallocManaged(&(parcels->pclqi), nParcels*nTotTimes*sizeof(float)); 
+    if (io->output_qs) cudaMallocManaged(&(parcels->pclqs), nParcels*nTotTimes*sizeof(float)); 
+    if (io->output_qg) cudaMallocManaged(&(parcels->pclqg), nParcels*nTotTimes*sizeof(float)); 
 
     // set the static variables
     parcels->nParcels = nParcels;
@@ -230,9 +234,10 @@ parcel_pos* allocate_parcels_managed(int NX, int NY, int NZ, int nTotTimes) {
 /* Allocate arrays only on the CPU for the grid. This is important
    for using with MPI, as only 1 rank should be allocating memory
    on the GPU */
-parcel_pos* allocate_parcels_cpu(int NX, int NY, int NZ, int nTotTimes) {
+parcel_pos* allocate_parcels_cpu(iocfg* io, int NX, int NY, int NZ, int nTotTimes) {
     int nParcels = NX*NY*NZ;
     parcel_pos *parcels = new parcel_pos();
+    parcels->io = io;
 
     // allocate memory for the parcels
     // we are integrating for the entirety 
@@ -243,50 +248,52 @@ parcel_pos* allocate_parcels_cpu(int NX, int NY, int NZ, int nTotTimes) {
     parcels->pclu = new float[nParcels*nTotTimes]; 
     parcels->pclv = new float[nParcels*nTotTimes]; 
     parcels->pclw = new float[nParcels*nTotTimes]; 
-    parcels->pclkmh = new float[nParcels*nTotTimes]; 
-    parcels->pcluturb = new float[nParcels*nTotTimes]; 
-    parcels->pclvturb = new float[nParcels*nTotTimes]; 
-    parcels->pclwturb = new float[nParcels*nTotTimes]; 
-    parcels->pcludiff = new float[nParcels*nTotTimes]; 
-    parcels->pclvdiff = new float[nParcels*nTotTimes]; 
-    parcels->pclwdiff = new float[nParcels*nTotTimes]; 
-    parcels->pclxvort = new float[nParcels*nTotTimes]; 
-    parcels->pclyvort = new float[nParcels*nTotTimes]; 
-    parcels->pclzvort = new float[nParcels*nTotTimes]; 
-    parcels->pclxvorttilt = new float[nParcels*nTotTimes]; 
-    parcels->pclyvorttilt = new float[nParcels*nTotTimes]; 
-    parcels->pclzvorttilt = new float[nParcels*nTotTimes]; 
-    parcels->pclxvortstretch = new float[nParcels*nTotTimes]; 
-    parcels->pclyvortstretch = new float[nParcels*nTotTimes]; 
-    parcels->pclzvortstretch = new float[nParcels*nTotTimes]; 
-    parcels->pclxvortturb = new float[nParcels*nTotTimes]; 
-    parcels->pclyvortturb = new float[nParcels*nTotTimes]; 
-    parcels->pclzvortturb = new float[nParcels*nTotTimes]; 
-    parcels->pclxvortdiff = new float[nParcels*nTotTimes]; 
-    parcels->pclyvortdiff = new float[nParcels*nTotTimes]; 
-    parcels->pclzvortdiff = new float[nParcels*nTotTimes]; 
-    parcels->pclxvortsolenoid = new float[nParcels*nTotTimes];
-    parcels->pclyvortsolenoid = new float[nParcels*nTotTimes];
-    parcels->pclzvortsolenoid = new float[nParcels*nTotTimes];
+    if (io->output_kmh) parcels->pclkmh = new float[nParcels*nTotTimes]; 
+    if (io->output_momentum_budget) {
+        parcels->pcluturb = new float[nParcels*nTotTimes]; 
+        parcels->pclvturb = new float[nParcels*nTotTimes]; 
+        parcels->pclwturb = new float[nParcels*nTotTimes]; 
+        parcels->pcludiff = new float[nParcels*nTotTimes]; 
+        parcels->pclvdiff = new float[nParcels*nTotTimes]; 
+        parcels->pclwdiff = new float[nParcels*nTotTimes]; 
+    }
+    if (io->output_vorticity_budget || io->output_xvort) parcels->pclxvort = new float[nParcels*nTotTimes]; 
+    if (io->output_vorticity_budget || io->output_yvort) parcels->pclyvort = new float[nParcels*nTotTimes]; 
+    if (io->output_vorticity_budget || io->output_zvort) parcels->pclzvort = new float[nParcels*nTotTimes]; 
+    if (io->output_vorticity_budget) {
+        parcels->pclxvorttilt = new float[nParcels*nTotTimes]; 
+        parcels->pclyvorttilt = new float[nParcels*nTotTimes]; 
+        parcels->pclzvorttilt = new float[nParcels*nTotTimes]; 
+        parcels->pclxvortstretch = new float[nParcels*nTotTimes]; 
+        parcels->pclyvortstretch = new float[nParcels*nTotTimes]; 
+        parcels->pclzvortstretch = new float[nParcels*nTotTimes]; 
+        parcels->pclxvortturb = new float[nParcels*nTotTimes]; 
+        parcels->pclyvortturb = new float[nParcels*nTotTimes]; 
+        parcels->pclzvortturb = new float[nParcels*nTotTimes]; 
+        parcels->pclxvortdiff = new float[nParcels*nTotTimes]; 
+        parcels->pclyvortdiff = new float[nParcels*nTotTimes]; 
+        parcels->pclzvortdiff = new float[nParcels*nTotTimes]; 
+        parcels->pclxvortsolenoid = new float[nParcels*nTotTimes];
+        parcels->pclyvortsolenoid = new float[nParcels*nTotTimes];
+        parcels->pclzvortsolenoid = new float[nParcels*nTotTimes];
+    }
 
-    parcels->pclppert = new float[nParcels*nTotTimes];
-    parcels->pclqvpert = new float[nParcels*nTotTimes];
-    parcels->pclrhopert = new float[nParcels*nTotTimes];
-    parcels->pclthetapert = new float[nParcels*nTotTimes];
-    parcels->pclthrhopert = new float[nParcels*nTotTimes];
+    if (io->output_ppert) parcels->pclppert = new float[nParcels*nTotTimes];
+    if (io->output_qvpert) parcels->pclqvpert = new float[nParcels*nTotTimes];
+    if (io->output_rhopert) parcels->pclrhopert = new float[nParcels*nTotTimes];
+    if (io->output_thetapert) parcels->pclthetapert = new float[nParcels*nTotTimes];
+    if (io->output_thrhopert) parcels->pclthrhopert = new float[nParcels*nTotTimes];
 
-    parcels->pclpbar = new float[nParcels*nTotTimes];
-    parcels->pclqvbar = new float[nParcels*nTotTimes];
-    parcels->pclrhobar = new float[nParcels*nTotTimes];
-    parcels->pclthetabar = new float[nParcels*nTotTimes];
-    parcels->pclthrhobar = new float[nParcels*nTotTimes];
+    if (io->output_pbar) parcels->pclpbar = new float[nParcels*nTotTimes];
+    if (io->output_qvbar) parcels->pclqvbar = new float[nParcels*nTotTimes];
+    if (io->output_rhobar) parcels->pclrhobar = new float[nParcels*nTotTimes];
+    if (io->output_thetabar) parcels->pclthetabar = new float[nParcels*nTotTimes];
+    if (io->output_thrhobar) parcels->pclthrhobar = new float[nParcels*nTotTimes];
 
-    /*
-    parcels->pclqc = new float[nParcels*nTotTimes];
-    parcels->pclqi = new float[nParcels*nTotTimes];
-    parcels->pclqs = new float[nParcels*nTotTimes];
-    parcels->pclqg = new float[nParcels*nTotTimes];
-    */
+    if (io->output_qc) parcels->pclqc = new float[nParcels*nTotTimes];
+    if (io->output_qi) parcels->pclqi = new float[nParcels*nTotTimes];
+    if (io->output_qs) parcels->pclqs = new float[nParcels*nTotTimes];
+    if (io->output_qg) parcels->pclqg = new float[nParcels*nTotTimes];
     // set the static variables
     parcels->nParcels = nParcels;
     parcels->nTimes = nTotTimes;
@@ -296,114 +303,119 @@ parcel_pos* allocate_parcels_cpu(int NX, int NY, int NZ, int nTotTimes) {
 
 /* Deallocate parcel arrays on both the CPU and the
    GPU */
-void deallocate_parcels_managed(parcel_pos *parcels) {
+void deallocate_parcels_managed(iocfg* io, parcel_pos *parcels) {
     cudaFree(parcels->xpos);
     cudaFree(parcels->ypos);
     cudaFree(parcels->zpos);
     cudaFree(parcels->pclu);
     cudaFree(parcels->pclv);
     cudaFree(parcels->pclw);
-    cudaFree(parcels->pclkmh);
-    cudaFree(parcels->pcluturb);
-    cudaFree(parcels->pclvturb);
-    cudaFree(parcels->pclwturb);
-    cudaFree(parcels->pcludiff);
-    cudaFree(parcels->pclvdiff);
-    cudaFree(parcels->pclwdiff);
-    cudaFree(parcels->pclxvort);
-    cudaFree(parcels->pclyvort);
-    cudaFree(parcels->pclzvort);
-    cudaFree(parcels->pclxvorttilt);
-    cudaFree(parcels->pclyvorttilt);
-    cudaFree(parcels->pclzvorttilt);
-    cudaFree(parcels->pclxvortstretch);
-    cudaFree(parcels->pclyvortstretch);
-    cudaFree(parcels->pclzvortstretch);
-    cudaFree(parcels->pclxvortturb);
-    cudaFree(parcels->pclyvortturb);
-    cudaFree(parcels->pclzvortturb);
-    cudaFree(parcels->pclxvortdiff);
-    cudaFree(parcels->pclyvortdiff);
-    cudaFree(parcels->pclzvortdiff);
-    cudaFree(parcels->pclxvortsolenoid);
-    cudaFree(parcels->pclyvortsolenoid);
-    cudaFree(parcels->pclzvortsolenoid);
+    if (io->output_khm) cudaFree(parcels->pclkmh);
+    if (io->output_momentum_budget) {
+        cudaFree(parcels->pcluturb);
+        cudaFree(parcels->pclvturb);
+        cudaFree(parcels->pclwturb);
+        cudaFree(parcels->pcludiff);
+        cudaFree(parcels->pclvdiff);
+        cudaFree(parcels->pclwdiff);
+    }
+    if (io->output_vorticity_budget || io->output_xvort) cudaFree(parcels->pclxvort);
+    if (io->output_vorticity_budget || io->output_yvort) cudaFree(parcels->pclyvort);
+    if (io->output_vorticity_budget || io->output_zvort) cudaFree(parcels->pclzvort);
+    if (io->output_vorticity_budget) {
+        cudaFree(parcels->pclxvorttilt);
+        cudaFree(parcels->pclyvorttilt);
+        cudaFree(parcels->pclzvorttilt);
+        cudaFree(parcels->pclxvortstretch);
+        cudaFree(parcels->pclyvortstretch);
+        cudaFree(parcels->pclzvortstretch);
+        cudaFree(parcels->pclxvortturb);
+        cudaFree(parcels->pclyvortturb);
+        cudaFree(parcels->pclzvortturb);
+        cudaFree(parcels->pclxvortdiff);
+        cudaFree(parcels->pclyvortdiff);
+        cudaFree(parcels->pclzvortdiff);
+        cudaFree(parcels->pclxvortsolenoid);
+        cudaFree(parcels->pclyvortsolenoid);
+        cudaFree(parcels->pclzvortsolenoid);
+    }
 
+    if (io->output_ppert) cudaFree(parcels->pclppert);
+    if (io->output_qvpert) cudaFree(parcels->pclqvpert);
+    if (io->output_rhopert) cudaFree(parcels->pclrhopert);
+    if (io->output_thetapert) cudaFree(parcels->pclthetapert);
+    if (io->output_rhopert) cudaFree(parcels->pclthrhopert);
 
-    cudaFree(parcels->pclppert);
-    cudaFree(parcels->pclqvpert);
-    cudaFree(parcels->pclrhopert);
-    cudaFree(parcels->pclthetapert);
-    cudaFree(parcels->pclthrhopert);
+    if (io->output_pbar) cudaFree(parcels->pclpbar);
+    if (io->output_qvbar) cudaFree(parcels->pclqvbar);
+    if (io->output_rhobar) cudaFree(parcels->pclrhobar);
+    if (io->output_thetabar) cudaFree(parcels->pclthetabar);
+    if (io->output_thrhobar) cudaFree(parcels->pclthrhobar);
 
-    cudaFree(parcels->pclpbar);
-    cudaFree(parcels->pclqvbar);
-    cudaFree(parcels->pclrhobar);
-    cudaFree(parcels->pclthetabar);
-    cudaFree(parcels->pclthrhobar);
+    if (io->output_qc) cudaFree(parcels->pclqc);
+    if (io->output_qi) cudaFree(parcels->pclqi);
+    if (io->output_qs) cudaFree(parcels->pclqs);
+    if (io->output_qg) cudaFree(parcels->pclqg);
 
-    /*
-    cudaFree(parcels->pclqc);
-    cudaFree(parcels->pclqi);
-    cudaFree(parcels->pclqs);
-    cudaFree(parcels->pclqg);
-    */
     cudaFree(parcels);
     cudaDeviceSynchronize();
 }
 
 /* Deallocate parcel arrays only on the CPU */
-void deallocate_parcels_cpu(parcel_pos *parcels) {
+void deallocate_parcels_cpu(iocfg *io, parcel_pos *parcels) {
     delete[] parcels->xpos;
     delete[] parcels->ypos;
     delete[] parcels->zpos;
     delete[] parcels->pclu;
     delete[] parcels->pclv;
     delete[] parcels->pclw;
-    delete[] parcels->pclkmh;
-    delete[] parcels->pcluturb;
-    delete[] parcels->pclvturb;
-    delete[] parcels->pclwturb;
-    delete[] parcels->pcludiff;
-    delete[] parcels->pclvdiff;
-    delete[] parcels->pclwdiff;
-    delete[] parcels->pclxvort;
-    delete[] parcels->pclyvort;
-    delete[] parcels->pclzvort;
-    delete[] parcels->pclxvorttilt;
-    delete[] parcels->pclyvorttilt;
-    delete[] parcels->pclzvorttilt;
-    delete[] parcels->pclxvortstretch;
-    delete[] parcels->pclyvortstretch;
-    delete[] parcels->pclzvortstretch;
-    delete[] parcels->pclxvortturb;
-    delete[] parcels->pclyvortturb;
-    delete[] parcels->pclzvortturb;
-    delete[] parcels->pclxvortdiff;
-    delete[] parcels->pclyvortdiff;
-    delete[] parcels->pclzvortdiff;
-    delete[] parcels->pclxvortsolenoid;
-    delete[] parcels->pclyvortsolenoid;
-    delete[] parcels->pclzvortsolenoid;
+    if (io->output_kmh) delete[] parcels->pclkmh;
+    if (io->output_momentum_budget) {
+        delete[] parcels->pcluturb;
+        delete[] parcels->pclvturb;
+        delete[] parcels->pclwturb;
+        delete[] parcels->pcludiff;
+        delete[] parcels->pclvdiff;
+        delete[] parcels->pclwdiff;
+    }
+    if (io->output_vorticity_budget || io->output_xvort) delete[] parcels->pclxvort;
+    if (io->output_vorticity_budget || io->output_yvort) delete[] parcels->pclyvort;
+    if (io->output_vorticity_budget || io->output_zvort) delete[] parcels->pclzvort;
+    if (io->output_vorticity_budget) {
+        delete[] parcels->pclxvorttilt;
+        delete[] parcels->pclyvorttilt;
+        delete[] parcels->pclzvorttilt;
+        delete[] parcels->pclxvortstretch;
+        delete[] parcels->pclyvortstretch;
+        delete[] parcels->pclzvortstretch;
+        delete[] parcels->pclxvortturb;
+        delete[] parcels->pclyvortturb;
+        delete[] parcels->pclzvortturb;
+        delete[] parcels->pclxvortdiff;
+        delete[] parcels->pclyvortdiff;
+        delete[] parcels->pclzvortdiff;
+        delete[] parcels->pclxvortsolenoid;
+        delete[] parcels->pclyvortsolenoid;
+        delete[] parcels->pclzvortsolenoid;
+    }
 
-    delete[] parcels->pclppert;
-    delete[] parcels->pclqvpert;
-    delete[] parcels->pclrhopert;
-    delete[] parcels->pclthetapert;
-    delete[] parcels->pclthrhopert;
+    if (io->output_ppert) delete[] parcels->pclppert;
+    if (io->output_qvpert) delete[] parcels->pclqvpert;
+    if (io->output_rhopert) delete[] parcels->pclrhopert;
+    if (io->output_thetapert) delete[] parcels->pclthetapert;
+    if (io->output_thrhopert) delete[] parcels->pclthrhopert;
 
-    delete[] parcels->pclpbar;
-    delete[] parcels->pclqvbar;
-    delete[] parcels->pclrhobar;
-    delete[] parcels->pclthetabar;
-    delete[] parcels->pclthrhobar;
+    if (io->output_pbar) delete[] parcels->pclpbar;
+    if (io->output_qvbar) delete[] parcels->pclqvbar;
+    if (io->output_rhobar) delete[] parcels->pclrhobar;
+    if (io->output_thetabar) delete[] parcels->pclthetabar;
+    if (io->output_thrhobar) delete[] parcels->pclthrhobar;
 
-    /*
-    delete[] parcels->pclqc;
-    delete[] parcels->pclqi;
-    delete[] parcels->pclqs;
-    delete[] parcels->pclqg;
-    */
+    if (io->output_qc) delete[] parcels->pclqc;
+    if (io->output_qi) delete[] parcels->pclqi;
+    if (io->output_qs) delete[] parcels->pclqs;
+    if (io->output_qg) delete[] parcels->pclqg;
+
     delete[] parcels;
 }
 
@@ -411,57 +423,76 @@ void deallocate_parcels_cpu(parcel_pos *parcels) {
    fields for integration and calculation. This
    only ever gets called by Rank 0, so there 
    should be no need for a CPU counterpart. */
-model_data* allocate_model_managed(long bufsize) {
+model_data* allocate_model_managed(iocfg *io, long bufsize) {
     model_data *data;
     // create the struct on both the GPU and the CPU.
     cudaMallocManaged(&data, sizeof(model_data));
+    cudaMallocManaged(&(data->io), sizeof(iocfg));
+    parcels->io = io;
 
-    // allocate the arrays in the struct
+    // Now, here we only allocate the arrays that we need based on the
+    // user supplied namelist configuration. This should help with a)
+    // not having to manually comment out the microphysics variables
+    // every time, and b) save on memory load when possible. 
+
+    // These are arrays that are 100% necessary for parcel integration.
+    // The temporary arrays are included in this because pretty much any
+    // secondary calculation requires at least one or more of these
+    // arrays. So, better to just have them up front. 
     cudaMallocManaged(&(data->ustag), bufsize*sizeof(float));
     cudaMallocManaged(&(data->vstag), bufsize*sizeof(float));
     cudaMallocManaged(&(data->wstag), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->pi), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->prespert), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->thrhopert),  bufsize*sizeof(float));
-    cudaMallocManaged(&(data->thetapert),  bufsize*sizeof(float));
-    cudaMallocManaged(&(data->rhopert), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->rhof), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->kmh), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->qc), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->qi), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->qs), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->qg), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->qvpert), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->turbu), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->turbv), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->turbw), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->diffu), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->diffv), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->diffw), bufsize*sizeof(float));
     cudaMallocManaged(&(data->tem1), bufsize*sizeof(float));
     cudaMallocManaged(&(data->tem2), bufsize*sizeof(float));
     cudaMallocManaged(&(data->tem3), bufsize*sizeof(float));
     cudaMallocManaged(&(data->tem4), bufsize*sizeof(float));
     cudaMallocManaged(&(data->tem5), bufsize*sizeof(float));
     cudaMallocManaged(&(data->tem6), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->xvort), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->yvort), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->zvort), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->xvtilt), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->yvtilt), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->zvtilt), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->xvstretch), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->yvstretch), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->zvstretch), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->turbxvort), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->turbyvort), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->turbzvort), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->diffxvort), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->diffyvort), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->diffzvort), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->xvort_solenoid), bufsize*sizeof(float)); 
-    cudaMallocManaged(&(data->yvort_solenoid), bufsize*sizeof(float)); 
-    cudaMallocManaged(&(data->zvort_solenoid), bufsize*sizeof(float)); 
+    
+    // Arrays that are optional depending on if they need to be tracked along
+    // a parcel, or are part of a calculation/budget. 
+    if (io->output_qc) cudaMallocManaged(&(data->qc), bufsize*sizeof(float));
+    if (io->output_qi) cudaMallocManaged(&(data->qi), bufsize*sizeof(float));
+    if (io->output_qs) cudaMallocManaged(&(data->qs), bufsize*sizeof(float));
+    if (io->output_qg) cudaMallocManaged(&(data->qg), bufsize*sizeof(float));
+
+    if (io->output_vorticity_budget || io->output_xvort) cudaMallocManaged(&(data->xvort), bufsize*sizeof(float));
+    if (io->output_vorticity_budget || io->output_yvort) cudaMallocManaged(&(data->yvort), bufsize*sizeof(float));
+    if (io->output_vorticity_budget || io->output_zvort) cudaMallocManaged(&(data->zvort), bufsize*sizeof(float));
+
+    if (io->output_vorticity_budget || io->output_momentum_budget || io->output_ppert) cudaMallocManaged(&(data->pi), bufsize*sizeof(float));
+    if (io->output_vorticity_budget || io->output_momentum_budget || io->output_ppert) cudaMallocManaged(&(data->prespert), bufsize*sizeof(float));
+    if (io->output_vorticity_budget || io->output_momentum_budget || io->output_thrhopert) cudaMallocManaged(&(data->thrhopert),  bufsize*sizeof(float));
+    if (io->output_vorticity_budget || io->output_momentum_budget || io->output_thetapert) cudaMallocManaged(&(data->thetapert),  bufsize*sizeof(float));
+    if (io->output_vorticity_budget || io->output_momentum_budget || io->output_rhopert) cudaMallocManaged(&(data->rhopert), bufsize*sizeof(float));
+    if (io->output_vorticity_budget || io->output_momentum_budget || io->output_kmh) cudaMallocManaged(&(data->kmh), bufsize*sizeof(float));
+    if (io->output_vorticity_budget || io->output_momentum_budget || io->output_qvpert) cudaMallocManaged(&(data->qvpert), bufsize*sizeof(float));
+    if (io->output_vorticity_budget || io->output_momentum_budget) {
+        cudaMallocManaged(&(data->rhof), bufsize*sizeof(float));
+        cudaMallocManaged(&(data->turbu), bufsize*sizeof(float));
+        cudaMallocManaged(&(data->turbv), bufsize*sizeof(float));
+        cudaMallocManaged(&(data->turbw), bufsize*sizeof(float));
+        cudaMallocManaged(&(data->diffu), bufsize*sizeof(float));
+        cudaMallocManaged(&(data->diffv), bufsize*sizeof(float));
+        cudaMallocManaged(&(data->diffw), bufsize*sizeof(float));
+    }
+    if (io->output_vorticity_budget) {
+        cudaMallocManaged(&(data->xvtilt), bufsize*sizeof(float));
+        cudaMallocManaged(&(data->yvtilt), bufsize*sizeof(float));
+        cudaMallocManaged(&(data->zvtilt), bufsize*sizeof(float));
+        cudaMallocManaged(&(data->xvstretch), bufsize*sizeof(float));
+        cudaMallocManaged(&(data->yvstretch), bufsize*sizeof(float));
+        cudaMallocManaged(&(data->zvstretch), bufsize*sizeof(float));
+        cudaMallocManaged(&(data->turbxvort), bufsize*sizeof(float));
+        cudaMallocManaged(&(data->turbyvort), bufsize*sizeof(float));
+        cudaMallocManaged(&(data->turbzvort), bufsize*sizeof(float));
+        cudaMallocManaged(&(data->diffxvort), bufsize*sizeof(float));
+        cudaMallocManaged(&(data->diffyvort), bufsize*sizeof(float));
+        cudaMallocManaged(&(data->diffzvort), bufsize*sizeof(float));
+        cudaMallocManaged(&(data->xvort_solenoid), bufsize*sizeof(float)); 
+        cudaMallocManaged(&(data->yvort_solenoid), bufsize*sizeof(float)); 
+        cudaMallocManaged(&(data->zvort_solenoid), bufsize*sizeof(float)); 
+    }
 
     return data;
 
@@ -471,52 +502,58 @@ model_data* allocate_model_managed(long bufsize) {
    fields for integration and calculation. This 
    only ever gets called by Rank 0, so there
    should be no need for a CPU counterpart. */
-void deallocate_model_managed(model_data *data) {
+void deallocate_model_managed(iocfg *io, model_data *data) {
     cudaFree(data->ustag);
     cudaFree(data->vstag);
     cudaFree(data->wstag);
-    cudaFree(data->pi);
-    cudaFree(data->prespert);
-    cudaFree(data->thetapert);
-    cudaFree(data->thrhopert);
-    cudaFree(data->rhopert);
-    cudaFree(data->rhof);
-    cudaFree(data->kmh);
-    
-    cudaFree(data->qc);
-    cudaFree(data->qi);
-    cudaFree(data->qs);
-    cudaFree(data->qg);
-    cudaFree(data->qvpert);
-    cudaFree(data->turbu);
-    cudaFree(data->turbv);
-    cudaFree(data->turbw);
-    cudaFree(data->diffu);
-    cudaFree(data->diffv);
-    cudaFree(data->diffw);
     cudaFree(data->tem1);
     cudaFree(data->tem2);
     cudaFree(data->tem3);
     cudaFree(data->tem4);
     cudaFree(data->tem5);
     cudaFree(data->tem6);
-    cudaFree(data->xvort);
-    cudaFree(data->yvort);
-    cudaFree(data->zvort);
-    cudaFree(data->xvtilt);
-    cudaFree(data->yvtilt);
-    cudaFree(data->zvtilt);
-    cudaFree(data->xvstretch);
-    cudaFree(data->yvstretch);
-    cudaFree(data->zvstretch);
-    cudaFree(data->turbxvort);
-    cudaFree(data->turbyvort);
-    cudaFree(data->turbzvort);
-    cudaFree(data->diffxvort);
-    cudaFree(data->diffyvort);
-    cudaFree(data->diffzvort);
-    cudaFree(data->xvort_solenoid); 
-    cudaFree(data->yvort_solenoid); 
-    cudaFree(data->zvort_solenoid); 
+
+    if (io->output_qc) cudaFree(data->qc);
+    if (io->output_qi) cudaFree(data->qi);
+    if (io->output_qs) cudaFree(data->qs);
+    if (io->output_qg) cudaFree(data->qg);
+
+    if (io->output_vorticity_budget || output_xvort) cudaFree(data->xvort);
+    if (io->output_vorticity_budget || output_yvort) cudaFree(data->yvort);
+    if (io->output_vorticity_budget || output_zvort) cudaFree(data->zvort);
+
+    if (io->output_vorticity_budget || io->output_momentum_budget || io->output_ppert) cudaFree(data->pi);
+    if (io->output_vorticity_budget || io->output_momentum_budget || io->output_ppert) cudaFree(data->prespert);
+    if (io->output_vorticity_budget || io->output_momentum_budget || io->output_thrhopert) cudaFree(data->thrhopert);
+    if (io->output_vorticity_budget || io->output_momentum_budget || io->output_thetapert) cudaFree(data->thetapert);
+    if (io->output_vorticity_budget || io->output_momentum_budget || io->output_rhopert) cudaFree(data->rhopert);
+    if (io->output_vorticity_budget || io->output_momentum_budget || io->output_kmh) cudaFree(data->kmh);
+    if (io->output_vorticity_budget || io->output_momentum_budget || io->output_qvpert) cudaFree(data->qvpert);
+    if (io->output_vorticity_budget || io->output_momentum_budget) {
+        cudaFree(data->rhof);
+        cudaFree(data->turbu);
+        cudaFree(data->turbv);
+        cudaFree(data->turbw);
+        cudaFree(data->diffu);
+        cudaFree(data->diffv);
+        cudaFree(data->diffw);
+    }
+    if (io->output_vorticity_budget) {
+        cudaFree(data->xvtilt);
+        cudaFree(data->yvtilt);
+        cudaFree(data->zvtilt);
+        cudaFree(data->xvstretch);
+        cudaFree(data->yvstretch);
+        cudaFree(data->zvstretch);
+        cudaFree(data->turbxvort);
+        cudaFree(data->turbyvort);
+        cudaFree(data->turbzvort);
+        cudaFree(data->diffxvort);
+        cudaFree(data->diffyvort);
+        cudaFree(data->diffzvort);
+        cudaFree(data->xvort_solenoid); 
+        cudaFree(data->yvort_solenoid); 
+        cudaFree(data->zvort_solenoid); 
+    }
 }
 #endif
