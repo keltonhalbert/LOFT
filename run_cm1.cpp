@@ -556,7 +556,7 @@ int main(int argc, char **argv ) {
         if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh) kmhbuf_tem = new float[N_stag_read];
         if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert) pbuf_tem = new float[N_scal_read];
         if (io->output_thetapert) tbuf_tem = new float[N_scal_read];
-        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhoper) thbuf_tem = new float[N_scal_read];
+        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhopert) thbuf_tem = new float[N_scal_read];
         if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert) rhobuf_tem = new float[N_scal_read];
         if (io->output_qvpert) qvbuf_tem = new float[N_scal_read];
         if (io->output_qc) qcbuf_tem = new float[N_scal_read];
@@ -576,7 +576,7 @@ int main(int argc, char **argv ) {
         if (io->output_thetapert) tbuf = new float[N_scal_ghost];
         if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhopert) thbuf = new float[N_scal_ghost];
         if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert) rhobuf = new float[N_scal_ghost];
-        if (io->output_qv) qvbuf = new float[N_scal_ghost];
+        if (io->output_qvpert) qvbuf = new float[N_scal_ghost];
         if (io->output_qc) qcbuf = new float[N_scal_ghost];
         if (io->output_qi) qibuf = new float[N_scal_ghost];
         if (io->output_qs) qsbuf = new float[N_scal_ghost];
@@ -719,7 +719,7 @@ int main(int argc, char **argv ) {
             delete[] qgbuf;
             */
 
-            deallocate_model_managed(data);
+            deallocate_model_managed(io, data);
         }
 
         // house keeping for the non-master

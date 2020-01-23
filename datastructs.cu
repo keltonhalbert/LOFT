@@ -310,7 +310,7 @@ void deallocate_parcels_managed(iocfg* io, parcel_pos *parcels) {
     cudaFree(parcels->pclu);
     cudaFree(parcels->pclv);
     cudaFree(parcels->pclw);
-    if (io->output_khm) cudaFree(parcels->pclkmh);
+    if (io->output_kmh) cudaFree(parcels->pclkmh);
     if (io->output_momentum_budget) {
         cudaFree(parcels->pcluturb);
         cudaFree(parcels->pclvturb);
@@ -428,7 +428,7 @@ model_data* allocate_model_managed(iocfg *io, long bufsize) {
     // create the struct on both the GPU and the CPU.
     cudaMallocManaged(&data, sizeof(model_data));
     cudaMallocManaged(&(data->io), sizeof(iocfg));
-    parcels->io = io;
+    data->io = io;
 
     // Now, here we only allocate the arrays that we need based on the
     // user supplied namelist configuration. This should help with a)
@@ -518,9 +518,9 @@ void deallocate_model_managed(iocfg *io, model_data *data) {
     if (io->output_qs) cudaFree(data->qs);
     if (io->output_qg) cudaFree(data->qg);
 
-    if (io->output_vorticity_budget || output_xvort) cudaFree(data->xvort);
-    if (io->output_vorticity_budget || output_yvort) cudaFree(data->yvort);
-    if (io->output_vorticity_budget || output_zvort) cudaFree(data->zvort);
+    if (io->output_vorticity_budget || io->output_xvort) cudaFree(data->xvort);
+    if (io->output_vorticity_budget || io->output_yvort) cudaFree(data->yvort);
+    if (io->output_vorticity_budget || io->output_zvort) cudaFree(data->zvort);
 
     if (io->output_vorticity_budget || io->output_momentum_budget || io->output_ppert) cudaFree(data->pi);
     if (io->output_vorticity_budget || io->output_momentum_budget || io->output_ppert) cudaFree(data->prespert);
