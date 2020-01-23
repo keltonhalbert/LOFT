@@ -553,18 +553,16 @@ int main(int argc, char **argv ) {
         vbuf_tem = new float[N_stag_read];
         wbuf_tem = new float[N_stag_read];
         // khh and kmh are on the staggered W mesh
-        kmhbuf_tem = new float[N_stag_read];
-        pbuf_tem = new float[N_scal_read];
-        tbuf_tem = new float[N_scal_read];
-        thbuf_tem = new float[N_scal_read];
-        rhobuf_tem = new float[N_scal_read];
-        qvbuf_tem = new float[N_scal_read];
-        /*
-        qcbuf_tem = new float[N_scal_read];
-        qibuf_tem = new float[N_scal_read];
-        qsbuf_tem = new float[N_scal_read];
-        qgbuf_tem = new float[N_scal_read];
-        */
+        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh) kmhbuf_tem = new float[N_stag_read];
+        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert) pbuf_tem = new float[N_scal_read];
+        if (io->output_thetapert) tbuf_tem = new float[N_scal_read];
+        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhoper) thbuf_tem = new float[N_scal_read];
+        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert) rhobuf_tem = new float[N_scal_read];
+        if (io->output_qvpert) qvbuf_tem = new float[N_scal_read];
+        if (io->output_qc) qcbuf_tem = new float[N_scal_read];
+        if (io->output_qi) qibuf_tem = new float[N_scal_read];
+        if (io->output_qs) qsbuf_tem = new float[N_scal_read];
+        if (io->output_qg) qgbuf_tem = new float[N_scal_read];
 
         // These non temporary arrays are offset in the vertical by 1
         // to account for potential ghost zone
@@ -572,19 +570,17 @@ int main(int argc, char **argv ) {
         vbuf = new float[N_stag_ghost];
         wbuf = new float[N_stag_ghost];
         // khh and kmh are on the staggered W mesh
-        kmhbuf = new float[N_stag_ghost];
+        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh) kmhbuf = new float[N_stag_ghost];
         // As far as I'm aware, these do not need to be offset
-        pbuf = new float[N_scal_ghost];
-        tbuf = new float[N_scal_ghost];
-        thbuf = new float[N_scal_ghost];
-        rhobuf = new float[N_scal_ghost];
-        qvbuf = new float[N_scal_ghost];
-        /*
-        qcbuf = new float[N_scal_ghost];
-        qibuf = new float[N_scal_ghost];
-        qsbuf = new float[N_scal_ghost];
-        qgbuf = new float[N_scal_ghost];
-        */
+        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert) pbuf = new float[N_scal_ghost];
+        if (io->output_thetapert) tbuf = new float[N_scal_ghost];
+        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhopert) thbuf = new float[N_scal_ghost];
+        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert) rhobuf = new float[N_scal_ghost];
+        if (io->output_qv) qvbuf = new float[N_scal_ghost];
+        if (io->output_qc) qcbuf = new float[N_scal_ghost];
+        if (io->output_qi) qibuf = new float[N_scal_ghost];
+        if (io->output_qs) qsbuf = new float[N_scal_ghost];
+        if (io->output_qg) qgbuf = new float[N_scal_ghost];
 
 
         // construct a 4D contiguous array to store stuff in.
