@@ -284,7 +284,7 @@ datagrid* loadMetadataAndGrid(string base_dir, parcel_pos *parcels, int rank) {
  * from the disk, provided previously allocated memory buffers
  * and the time requested in the dataset. 
  */
-void loadDataFromDisk(datagrid *requested_grid, float *ustag, float *vstag, float *wstag, \
+void loadDataFromDisk(iocfg *io, datagrid *requested_grid, float *ustag, float *vstag, float *wstag, \
                         float *pbuffer, float *tbuffer, float *thbuffer, float *rhobuffer, \
                         float *qvbuffer, float *qcbuffer, float *qibuffer, float *qsbuffer, \
                         float *qgbuffer, float*kmhbuffer, double t0) {
@@ -300,21 +300,31 @@ void loadDataFromDisk(datagrid *requested_grid, float *ustag, float *vstag, floa
     lofs_read_3dvar(requested_grid, ustag, (char *)"u", istag, t0);
     lofs_read_3dvar(requested_grid, vstag, (char *)"v", istag, t0);
     lofs_read_3dvar(requested_grid, wstag, (char *)"w", istag, t0);
-    lofs_read_3dvar(requested_grid, kmhbuffer, (char *)"kmh", istag, t0);
+    if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh ) {
+        lofs_read_3dvar(requested_grid, kmhbuffer, (char *)"kmh", istag, t0);
+    }
 
     // request additional fields for calculations
     istag = false;
-    lofs_read_3dvar(requested_grid, pbuffer, (char *)"prespert", istag, t0);
-    lofs_read_3dvar(requested_grid, tbuffer, (char *)"thpert", istag, t0);
-    lofs_read_3dvar(requested_grid, thbuffer, (char *)"thrhopert", istag, t0);
-    lofs_read_3dvar(requested_grid, rhobuffer, (char *)"rhopert", istag, t0);
-    lofs_read_3dvar(requested_grid, qvbuffer, (char *)"qvpert", istag, t0);
-    /*
-    lofs_read_3dvar(requested_grid, qcbuffer, (char *)"qc", istag, t0);
-    lofs_read_3dvar(requested_grid, qsbuffer, (char *)"qs", istag, t0);
-    lofs_read_3dvar(requested_grid, qibuffer, (char *)"qi", istag, t0);
-    lofs_read_3dvar(requested_grid, qgbuffer, (char *)"qg", istag, t0);
-    */
+    if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert ) {
+        lofs_read_3dvar(requested_grid, pbuffer, (char *)"prespert", istag, t0);
+    }
+    if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thetapert ) {
+        lofs_read_3dvar(requested_grid, tbuffer, (char *)"thpert", istag, t0);
+    }
+    if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhopert ) {
+        lofs_read_3dvar(requested_grid, thbuffer, (char *)"thrhopert", istag, t0);
+    }
+    if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert ) {
+        lofs_read_3dvar(requested_grid, rhobuffer, (char *)"rhopert", istag, t0);
+    }
+    if (io->output_momentum_budget || io->output_vorticity_budget || io->output_qvpert ) {
+        lofs_read_3dvar(requested_grid, qvbuffer, (char *)"qvpert", istag, t0);
+    }
+    if (io->output_qc) lofs_read_3dvar(requested_grid, qcbuffer, (char *)"qc", istag, t0);
+    if (io->output_qs) lofs_read_3dvar(requested_grid, qsbuffer, (char *)"qs", istag, t0);
+    if (io->output_qi) lofs_read_3dvar(requested_grid, qibuffer, (char *)"qi", istag, t0);
+    if (io->output_qg) lofs_read_3dvar(requested_grid, qgbuffer, (char *)"qg", istag, t0);
 
 }
 
@@ -522,7 +532,7 @@ int main(int argc, char **argv ) {
         printf("TIMESTEP %d/%d %d %f dt= %f\n", rank, size, rank + tChunk*size, alltimes[nearest_tidx + direct*( rank + tChunk*size)], dt);
         requested_grid->dt = dt;
         // load u, v, and w into memory
-        loadDataFromDisk(requested_grid, ubuf, vbuf, wbuf, pbuf, tbuf, thbuf, \
+        loadDataFromDisk(io, requested_grid, ubuf, vbuf, wbuf, pbuf, tbuf, thbuf, \
                          rhobuf, qvbuf, qcbuf, qibuf, qsbuf, qgbuf, kmhbuf, \
                          alltimes[nearest_tidx + direct*(rank + tChunk*size)]);
 
