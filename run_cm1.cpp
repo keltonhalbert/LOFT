@@ -1,6 +1,8 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <algorithm>
+#include <map>
 
 #include "mpi.h"
 #include "datastructs.h"
@@ -69,178 +71,48 @@ void nearest_grid_idx(float *point, datagrid *grid, int *idx_4D) {
 	return;
 }
 
-// this was stolen from LOFS/cm1tools-3.0 hdf2.c
-// under the parce_cmdline_hdf2nc function. I could
-// have just linked to it, but I want the LOFS dependency
-// to only be I/O so that other backends can be used, hence
-// copying it here.
-
-/* The command line parser takes information from the user
- * on where to put the parcel initial seeds, how many parcels,
- * and the spacing between parcels. It also is where the user
- * specifies the integration start time and duration.
- */
-void parse_cmdline(int argc, char **argv, \
-	char *histpath, char *base, double *time, int *nTimes, int *direction, \
-	float *X0, float *Y0, float *Z0, int *NX, int *NY, int *NZ, \
-    float *DX, float *DY, float *DZ )
-{
-	int got_histpath,got_base,got_time,got_ntimes,got_X0,got_NX,got_Y0,got_NY,got_Z0,got_NZ,got_DX,got_DY,got_DZ;
-    int optcount=0;
-	enum { OPT_HISTPATH = 1000, OPT_BASE, OPT_TIME, OPT_NTIMES, OPT_X0, OPT_Y0, OPT_Z0, OPT_NX, OPT_NY, OPT_NZ, OPT_DX,
-		OPT_DY, OPT_DZ, OPT_DEBUG, OPT_DIRECTION };
-	// see https://stackoverflow.com/questions/23758570/c-getopt-long-only-without-alias
-	static struct option long_options[] =
-	{
-		{"histpath", required_argument, 0, OPT_HISTPATH},
-		{"base",     required_argument, 0, OPT_BASE},
-		{"time",     required_argument, 0, OPT_TIME},
-		{"ntimes",   required_argument, 0, OPT_NTIMES},
-		{"x0",       required_argument, 0, OPT_X0},
-		{"y0",       required_argument, 0, OPT_Y0},
-		{"z0",       required_argument, 0, OPT_Z0},
-		{"nx",       required_argument, 0, OPT_NX},
-		{"ny",       required_argument, 0, OPT_NY},
-		{"nz",       required_argument, 0, OPT_NZ},
-		{"dx",       required_argument, 0, OPT_DX},
-		{"dy",       required_argument, 0, OPT_DY},
-		{"dz",       required_argument, 0, OPT_DZ},
-		{"direction",optional_argument, 0, OPT_DIRECTION},
-		{"debug",    optional_argument, 0, OPT_DEBUG},
-		{0, 0, 0, 0}//sentinel, needed!
-	};
-
-	got_histpath=got_base=got_time=got_ntimes=got_X0=got_NX=got_DX=got_Y0=got_NY=got_DY=got_Z0=got_NZ=got_DZ=0;
-
-	int bail = 0;
-
-    // print the usage information for the
-    // command line options
-	if (argc == 1)
-	{
-		fprintf(stderr,
-		"Usage: %s --histpath=[histpath] --base=[base] --x0=[X0] --y0=[Y0] --z0=[Z0] --nx=[NX] --ny=[NY] --nz=[NZ] --dx=[DX] --dy=[DY] --dz=[DZ] --direction=[-1|1] --time=[time] --ntimes[nTimes]\n\
-        --direction=-1 specifies backward trajectory, forward is default\n",argv[0]);
-		exit(0);
-	}
-
-	while (1)
-	{
-		int r;
-		int option_index = 0;
-		r = getopt_long_only (argc, argv,"",long_options,&option_index);
-		if (r == -1) break;
-
-		switch(r)
-		{
-			case OPT_HISTPATH:
-				strcpy(histpath,optarg);
-				got_histpath=1;
-				printf("histpath = %s\n",histpath);
-				break;
-			case OPT_BASE:
-				strcpy(base,optarg);
-				got_base=1;
-				printf("base = %s\n",base);
-				break;
-			case OPT_TIME:
-				*time = atof(optarg);
-				got_time=1;
-				printf("parcel start time time = %f\n",*time);
-				break;
-			case OPT_NTIMES:
-				*nTimes = atoi(optarg);
-				got_ntimes=1;
-				printf("number of steps to integrate ntimes = %i\n",*nTimes);
-				break;
-			case OPT_X0:
-				*X0 = atof(optarg);
-				got_X0=1;
-				optcount++;
-				printf("parcel seed start X0 = %f\n",*X0);
-				break;
-			case OPT_Y0:
-				*Y0 = atof(optarg);
-				got_Y0=1;
-				optcount++;
-				printf("parcel seed start Y0 = %f\n",*Y0);
-				break;
-			case OPT_Z0:
-				*Z0 = atof(optarg);
-				got_Z0=1;
-				optcount++;
-				printf("parcel seed start Z0 = %f\n",*Z0);
-				break;
-			case OPT_NX:
-				*NX = atoi(optarg);
-				got_NX=1;
-				optcount++;
-				printf("number of parcels NX = %i\n",*NX);
-				break;
-			case OPT_NY:
-				*NY = atoi(optarg);
-				got_NY=1;
-				optcount++;
-				printf("number of parcels NY = %i\n",*NY);
-				break;
-			case OPT_NZ:
-				*NZ = atoi(optarg);
-				got_NZ=1;
-				optcount++;
-				printf("number of parcels NZ = %i\n",*NZ);
-				break;
-			case OPT_DX:
-				*DX = atof(optarg);
-				got_DX=1;
-				optcount++;
-				printf("spacing of parcels DX = %f\n",*DX);
-				break;
-			case OPT_DY:
-				*DY = atof(optarg);
-				got_DY=1;
-				optcount++;
-				printf("spacing of parcels DY = %f\n",*DY);
-				break;
-			case OPT_DZ:
-				*DZ = atof(optarg);
-				got_DZ=1;
-				optcount++;
-				printf("spacing of parcels DZ = %f\n",*DZ);
-				break;
-			case OPT_DEBUG:
-				debug=1;
-				optcount++;
-				break;
-			case OPT_DIRECTION:
-				*direction = atoi(optarg);
-				optcount++;
-                printf("integration direction = %i\n", *direction);
-				break;
-			case '?':
-				fprintf(stderr,"Exiting: unknown command line option.\n");
-				exit(0);
-				break;
-		}
-	}
-
-		if (got_histpath==0) { fprintf(stderr,"--histpath not specified; I need to know where your data resides!\n"); bail = 1; }
-		if (got_base==0)   { fprintf(stderr,"--base not specified; I need to know what you want your saved data called!\n"); bail = 1; }
-		if (got_time==0)   { fprintf(stderr,"--time not specified; I need to know when to start integration!\n"); bail = 1; }
-		if (got_ntimes==0)   { fprintf(stderr,"--ntimes not specified; I need to know how long to integrate for!\n"); bail = 1; }
-
-/* These are now optional */
-		if (!got_X0)      fprintf(stderr,"--x0 not specified; where do you want your parcels?\n");
-		if (!got_Y0)      fprintf(stderr,"--y0 not specified; where do you want your parcels?\n");
-		if (!got_Z0)      fprintf(stderr,"--z0 not specified; where do you want your parcels?\n");
-		if (!got_NX)      fprintf(stderr,"--nx not specified; how many parcels do you want?\n");
-		if (!got_NY)      fprintf(stderr,"--ny not specified; how many parcels do you want?\n");
-		if (!got_NZ)      fprintf(stderr,"--nz not specified; how many parcels do you want?\n");
-		if (!got_DX)      fprintf(stderr,"--dx not specified; how dense do you want your parcels?\n");
-		if (!got_DY)      fprintf(stderr,"--dy not specified; how dense do you want your parcels?\n");
-		if (!got_DZ)      fprintf(stderr,"--dz not specified; how dense do you want your parcels?\n");
-
-		if (bail)           { fprintf(stderr,"Insufficient arguments to %s, exiting.\n",argv[0]); exit(-1); }
+/* Read a user supplied config/namelist file
+ * used for specifying details about the parcel
+ * seeds, data location, and variables to write. */
+map<string, string> readCfg(string filename) {
+    map<string, string> usrCfg;
+    ifstream cFile(filename);
+    if (cFile.is_open()) {
+        string line;
+        while(getline(cFile, line)) {
+            line.erase(remove_if(line.begin(), line.end(), ::isspace), line.end());
+            if (line[0] == '#' || line.empty()) continue;
+            auto delimiterPos = line.find("=");
+            auto name = line.substr(0, delimiterPos);
+            auto value = line.substr(delimiterPos + 1);
+            usrCfg[name] = value;
+        }
+    }
+    else {
+        cerr << "Couldn't open namelist file for reading." << endl;
+    }
+    return usrCfg;
 }
+
+/* Parse the user configuration and fill the variables with the necessary values */
+void parse_cfg(map<string, string> *usrCfg, string *histpath, string *base, double *time, int *nTimes, int *direction, \
+            float *X0, float *Y0, float *Z0, int *NX, int *NY, int *NZ, float *DX, float *DY, float *DZ) {
+    *histpath = ((*usrCfg)["histpath"]);
+    *base = ((*usrCfg)["basename"]);
+    *X0 = stof((*usrCfg)["x0"]);
+    *Y0 = stof((*usrCfg)["y0"]);
+    *Z0 = stof((*usrCfg)["z0"]);
+    *NX = stoi((*usrCfg)["nx"]);
+    *NY = stoi((*usrCfg)["ny"]);
+    *NZ = stoi((*usrCfg)["nz"]);
+    *DX = stof((*usrCfg)["dx"]);
+    *DY = stof((*usrCfg)["dy"]);
+    *DZ = stof((*usrCfg)["dz"]);
+    *time = stod((*usrCfg)["start_time"]);
+    *nTimes = stoi((*usrCfg)["ntimesteps"]);
+    *direction = stoi((*usrCfg)["time_direction"]);
+}
+
 
 /* Load the grid metadata and request a domain subset based on the 
  * current parcel positioning for the current time step. The idea is that 
@@ -540,14 +412,12 @@ int main(int argc, char **argv ) {
     // variables for specifying our
     // data path and our output data 
     // path
-    char *base = new char[256];
-    char *histpath = new char[256];
+    string base;
+    string histpath;
     
-    // call the command line parser and store the user input in the
-    // appropriate variables. Stole this and modified it from LOFS
-    // because I'm too lazy to write my own and using a library I
-    // have to link to sounds really cumbersome. 
-    parse_cmdline(argc, argv, histpath, base, &time, &nTimeSteps, &direct, &pX0, &pY0, &pZ0, &pNX, &pNY, &pNZ, &pDX, &pDY, &pDZ );
+    // parse the namelist options into the appropriate variables
+    map<string, string> usrCfg = readCfg("parcel.namelist");
+    parse_cfg(&usrCfg, &histpath, &base, &time, &nTimeSteps, &direct, &pX0, &pY0, &pZ0, &pNX, &pNY, &pNZ, &pDX, &pDY, &pDZ );
 
     // convert the char arrays to strings
     // because this is C++ and we can use
@@ -556,8 +426,6 @@ int main(int argc, char **argv ) {
     string outfilename = string(base) + ".nc";
     // get rid of useless dead weight
     // because we're good programmers
-    delete[] base;
-    delete[] histpath;
 
     int rank, size;
     long N_stag_ghost, N_stag_read, N_scal_read, N_scal_ghost, MX, MY, MZ;
