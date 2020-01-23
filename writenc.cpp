@@ -11,6 +11,8 @@ using namespace netCDF;
 using namespace netCDF::exceptions;
 
 void init_nc(string filename, parcel_pos *parcels) {
+    // get the io configurations from the user
+    iocfg *io = parcels->io;
     // Create the file.
     NcFile output(filename, NcFile::replace);
 
@@ -24,170 +26,149 @@ void init_nc(string filename, parcel_pos *parcels) {
     NcVar xVar = output.addVar("xpos", ncFloat, gridDimVector);
     NcVar yVar = output.addVar("ypos", ncFloat, gridDimVector);
     NcVar zVar = output.addVar("zpos", ncFloat, gridDimVector);
-
-    NcVar uVar = output.addVar("u", ncFloat, gridDimVector);
-    NcVar vVar = output.addVar("v", ncFloat, gridDimVector);
-    NcVar wVar = output.addVar("w", ncFloat, gridDimVector);
-    NcVar uturbVar = output.addVar("uturb", ncFloat, gridDimVector);
-    NcVar vturbVar = output.addVar("vturb", ncFloat, gridDimVector);
-    NcVar wturbVar = output.addVar("wturb", ncFloat, gridDimVector);
-    NcVar udiffVar = output.addVar("udiff", ncFloat, gridDimVector);
-    NcVar vdiffVar = output.addVar("vdiff", ncFloat, gridDimVector);
-    NcVar wdiffVar = output.addVar("wdiff", ncFloat, gridDimVector);
-    NcVar kmhVar = output.addVar("kmh", ncFloat, gridDimVector);
-
-    NcVar xvortVar = output.addVar("xvort", ncFloat, gridDimVector);
-    NcVar yvortVar = output.addVar("yvort", ncFloat, gridDimVector);
-    NcVar zvortVar = output.addVar("zvort", ncFloat, gridDimVector);
-    NcVar xvorttiltVar = output.addVar("xvorttilt", ncFloat, gridDimVector);
-    NcVar yvorttiltVar = output.addVar("yvorttilt", ncFloat, gridDimVector);
-    NcVar zvorttiltVar = output.addVar("zvorttilt", ncFloat, gridDimVector);
-    NcVar xvortstretchVar = output.addVar("xvortstretch", ncFloat, gridDimVector);
-    NcVar yvortstretchVar = output.addVar("yvortstretch", ncFloat, gridDimVector);
-    NcVar zvortstretchVar = output.addVar("zvortstretch", ncFloat, gridDimVector);
-    NcVar xvortsolenoidVar = output.addVar("xvortsolenoid", ncFloat, gridDimVector);
-    NcVar yvortsolenoidVar = output.addVar("yvortsolenoid", ncFloat, gridDimVector);
-    NcVar zvortsolenoidVar = output.addVar("zvortsolenoid", ncFloat, gridDimVector);
-    NcVar xvortturbVar = output.addVar("xvortturb", ncFloat, gridDimVector);
-    NcVar yvortturbVar = output.addVar("yvortturb", ncFloat, gridDimVector);
-    NcVar zvortturbVar = output.addVar("zvortturb", ncFloat, gridDimVector);
-    NcVar xvortdiffVar = output.addVar("xvortdiff", ncFloat, gridDimVector);
-    NcVar yvortdiffVar = output.addVar("yvortdiff", ncFloat, gridDimVector);
-    NcVar zvortdiffVar = output.addVar("zvortdiff", ncFloat, gridDimVector);
-
-    NcVar ppertVar = output.addVar("prespert", ncFloat, gridDimVector);
-    NcVar qvpertVar = output.addVar("qvpert", ncFloat, gridDimVector);
-    NcVar rhopertVar = output.addVar("rhopert", ncFloat, gridDimVector);
-    NcVar thetapertVar = output.addVar("thetapert", ncFloat, gridDimVector);
-    NcVar thrhopertVar = output.addVar("thrhopert", ncFloat, gridDimVector);
-
-    NcVar pbarVar = output.addVar("presbar", ncFloat, gridDimVector);
-    NcVar qvbarVar = output.addVar("qvbar", ncFloat, gridDimVector);
-    NcVar rhobarVar = output.addVar("rhobar", ncFloat, gridDimVector);
-    NcVar thetabarVar = output.addVar("thetabar", ncFloat, gridDimVector);
-    NcVar thrhobarVar = output.addVar("thrhobar", ncFloat, gridDimVector);
-
-    /*
-    NcVar qcVar = output.addVar("qc", ncFloat, gridDimVector);
-    NcVar qiVar = output.addVar("qi", ncFloat, gridDimVector);
-    NcVar qsVar = output.addVar("qs", ncFloat, gridDimVector);
-    NcVar qgVar = output.addVar("qg", ncFloat, gridDimVector);
-    */
-
-    // Define the units attributes for coordinate vars. This
-    // attatches a test attribute to each of the coordinate 
-    // cariables containing the units
     xVar.putAtt("units", "meters");
     yVar.putAtt("units", "meters");
     zVar.putAtt("units", "meters");
 
+    NcVar uVar = output.addVar("u", ncFloat, gridDimVector);
+    NcVar vVar = output.addVar("v", ncFloat, gridDimVector);
+    NcVar wVar = output.addVar("w", ncFloat, gridDimVector);
     uVar.putAtt("units", "meters / second");
     vVar.putAtt("units", "meters / second");
     wVar.putAtt("units", "meters / second");
-    uturbVar.putAtt("units", "meters / second^2");
-    vturbVar.putAtt("units", "meters / second^2");
-    wturbVar.putAtt("units", "meters / second^2");
-    udiffVar.putAtt("units", "meters / second^2");
-    vdiffVar.putAtt("units", "meters / second^2");
-    wdiffVar.putAtt("units", "meters / second^2");
-    kmhVar.putAtt("units", "Unknown");
 
-    xvortVar.putAtt("units", "s^-1");
-    yvortVar.putAtt("units", "s^-1");
-    zvortVar.putAtt("units", "s^-1");
-    xvorttiltVar.putAtt("units", "s^-2");
-    yvorttiltVar.putAtt("units", "s^-2");
-    zvorttiltVar.putAtt("units", "s^-2");
-    xvortstretchVar.putAtt("units", "s^-2");
-    yvortstretchVar.putAtt("units", "s^-2");
-    zvortstretchVar.putAtt("units", "s^-2");
-    xvortsolenoidVar.putAtt("units", "s^-2");
-    yvortsolenoidVar.putAtt("units", "s^-2");
-    zvortsolenoidVar.putAtt("units", "s^-2");
-    xvortturbVar.putAtt("units", "s^-2");
-    yvortturbVar.putAtt("units", "s^-2");
-    zvortturbVar.putAtt("units", "s^-2");
-    xvortdiffVar.putAtt("units", "s^-2");
-    yvortdiffVar.putAtt("units", "s^-2");
-    zvortdiffVar.putAtt("units", "s^-2");
+    if (io->output_momentum_budget) {
+        NcVar uturbVar = output.addVar("uturb", ncFloat, gridDimVector);
+        NcVar vturbVar = output.addVar("vturb", ncFloat, gridDimVector);
+        NcVar wturbVar = output.addVar("wturb", ncFloat, gridDimVector);
+        NcVar udiffVar = output.addVar("udiff", ncFloat, gridDimVector);
+        NcVar vdiffVar = output.addVar("vdiff", ncFloat, gridDimVector);
+        NcVar wdiffVar = output.addVar("wdiff", ncFloat, gridDimVector);
 
-    ppertVar.putAtt("units", "Pa");
-    qvpertVar.putAtt("units", "g kg^-1");
-    rhopertVar.putAtt("units", "kg m^-3");
-    thetapertVar.putAtt("units", "K");
-    thrhopertVar.putAtt("units", "K");
+        uturbVar.putAtt("units", "meters / second^2");
+        vturbVar.putAtt("units", "meters / second^2");
+        wturbVar.putAtt("units", "meters / second^2");
+        udiffVar.putAtt("units", "meters / second^2");
+        vdiffVar.putAtt("units", "meters / second^2");
+        wdiffVar.putAtt("units", "meters / second^2");
+    }
 
-    pbarVar.putAtt("units", "Pa");
-    qvbarVar.putAtt("units", "g kg^-1");
-    rhobarVar.putAtt("units", "kg m^-3");
-    thetabarVar.putAtt("units", "K");
-    thrhobarVar.putAtt("units", "K");
+    if (io->output_kmh) {
+        NcVar kmhVar = output.addVar("kmh", ncFloat, gridDimVector);
+        kmhVar.putAtt("units", "Unknown");
+    }
 
-    /*
-    qcVar.putAtt("units", "g kg^-1");
-    qiVar.putAtt("units", "g kg^-1");
-    qsVar.putAtt("units", "g kg^-1");
-    qgVar.putAtt("units", "g kg^-1");
-    */
+    if (io->output_vorticity_budget || io->output_xvort) {
+        NcVar xvortVar = output.addVar("xvort", ncFloat, gridDimVector);
+        xvortVar.putAtt("units", "s^-1");
+    }
+    if (io->output_vorticity_budget || io->output_yvort) {
+        NcVar yvortVar = output.addVar("yvort", ncFloat, gridDimVector);
+        yvortVar.putAtt("units", "s^-1");
+    }
+    if (io->output_vorticity_budget || io->output_zvort) {
+        NcVar zvortVar = output.addVar("zvort", ncFloat, gridDimVector);
+        zvortVar.putAtt("units", "s^-1");
+    }
+    if (io->output_vorticity_budget) {
+        NcVar xvorttiltVar = output.addVar("xvorttilt", ncFloat, gridDimVector);
+        NcVar yvorttiltVar = output.addVar("yvorttilt", ncFloat, gridDimVector);
+        NcVar zvorttiltVar = output.addVar("zvorttilt", ncFloat, gridDimVector);
+        NcVar xvortstretchVar = output.addVar("xvortstretch", ncFloat, gridDimVector);
+        NcVar yvortstretchVar = output.addVar("yvortstretch", ncFloat, gridDimVector);
+        NcVar zvortstretchVar = output.addVar("zvortstretch", ncFloat, gridDimVector);
+        NcVar xvortsolenoidVar = output.addVar("xvortsolenoid", ncFloat, gridDimVector);
+        NcVar yvortsolenoidVar = output.addVar("yvortsolenoid", ncFloat, gridDimVector);
+        NcVar zvortsolenoidVar = output.addVar("zvortsolenoid", ncFloat, gridDimVector);
+        NcVar xvortturbVar = output.addVar("xvortturb", ncFloat, gridDimVector);
+        NcVar yvortturbVar = output.addVar("yvortturb", ncFloat, gridDimVector);
+        NcVar zvortturbVar = output.addVar("zvortturb", ncFloat, gridDimVector);
+        NcVar xvortdiffVar = output.addVar("xvortdiff", ncFloat, gridDimVector);
+        NcVar yvortdiffVar = output.addVar("yvortdiff", ncFloat, gridDimVector);
+        NcVar zvortdiffVar = output.addVar("zvortdiff", ncFloat, gridDimVector);
+
+        xvorttiltVar.putAtt("units", "s^-2");
+        yvorttiltVar.putAtt("units", "s^-2");
+        zvorttiltVar.putAtt("units", "s^-2");
+        xvortstretchVar.putAtt("units", "s^-2");
+        yvortstretchVar.putAtt("units", "s^-2");
+        zvortstretchVar.putAtt("units", "s^-2");
+        xvortsolenoidVar.putAtt("units", "s^-2");
+        yvortsolenoidVar.putAtt("units", "s^-2");
+        zvortsolenoidVar.putAtt("units", "s^-2");
+        xvortturbVar.putAtt("units", "s^-2");
+        yvortturbVar.putAtt("units", "s^-2");
+        zvortturbVar.putAtt("units", "s^-2");
+        xvortdiffVar.putAtt("units", "s^-2");
+        yvortdiffVar.putAtt("units", "s^-2");
+        zvortdiffVar.putAtt("units", "s^-2");
+    }
+
+    if (io->output_ppert) {
+        NcVar ppertVar = output.addVar("prespert", ncFloat, gridDimVector);
+        ppertVar.putAtt("units", "Pa");
+    }
+    if (io->output_qvpert) {
+        NcVar qvpertVar = output.addVar("qvpert", ncFloat, gridDimVector);
+        qvpertVar.putAtt("units", "g kg^-1");
+    }
+    if (io->output_rhopert) {
+        NcVar rhopertVar = output.addVar("rhopert", ncFloat, gridDimVector);
+        rhopertVar.putAtt("units", "kg m^-3");
+    }
+    if (io->output_thetapert) {
+        NcVar thetapertVar = output.addVar("thetapert", ncFloat, gridDimVector);
+        thetapertVar.putAtt("units", "K");
+    }
+    if (io->output_thrhopert) {
+        NcVar thrhopertVar = output.addVar("thrhopert", ncFloat, gridDimVector);
+        thrhopertVar.putAtt("units", "K");
+    }
+
+    if (io->output_pbar) {
+        NcVar pbarVar = output.addVar("presbar", ncFloat, gridDimVector);
+        pbarVar.putAtt("units", "Pa");
+    }
+    if (io->output_qvbar) {
+        NcVar qvbarVar = output.addVar("qvbar", ncFloat, gridDimVector);
+        qvbarVar.putAtt("units", "g kg^-1");
+    }
+    if (io->output_rhobar) {
+        NcVar rhobarVar = output.addVar("rhobar", ncFloat, gridDimVector);
+        rhobarVar.putAtt("units", "kg m^-3");
+    }
+    if (io->output_thetabar) {
+        NcVar thetabarVar = output.addVar("thetabar", ncFloat, gridDimVector);
+        thetabarVar.putAtt("units", "K");
+    }
+    if (io->output_thrhobar) {
+        NcVar thrhobarVar = output.addVar("thrhobar", ncFloat, gridDimVector);
+        thrhobarVar.putAtt("units", "K");
+    }
+
+    if (io->output_qc) {
+        NcVar qcVar = output.addVar("qc", ncFloat, gridDimVector);
+        qcVar.putAtt("units", "g kg^-1");
+    }
+    if (io->output_qi) {
+        NcVar qiVar = output.addVar("qi", ncFloat, gridDimVector);
+        qiVar.putAtt("units", "g kg^-1");
+    }
+    if (io->output_qs) {
+        NcVar qsVar = output.addVar("qs", ncFloat, gridDimVector);
+        qsVar.putAtt("units", "g kg^-1");
+    }
+    if (io->output_qg) {
+        NcVar qgVar = output.addVar("qg", ncFloat, gridDimVector);
+        qgVar.putAtt("units", "g kg^-1");
+    }
 }
  
 void write_parcels(string filename, parcel_pos *parcels, int writeIters ) { 
-    NcFile output(filename, NcFile::write);
-
-    NcVar xVar = output.getVar("xpos");
-    NcVar yVar = output.getVar("ypos");
-    NcVar zVar = output.getVar("zpos");
-
-    NcVar uVar = output.getVar("u");
-    NcVar vVar = output.getVar("v");
-    NcVar wVar = output.getVar("w");
-    NcVar uturbVar = output.getVar("uturb");
-    NcVar vturbVar = output.getVar("vturb");
-    NcVar wturbVar = output.getVar("wturb");
-    NcVar udiffVar = output.getVar("udiff");
-    NcVar vdiffVar = output.getVar("vdiff");
-    NcVar wdiffVar = output.getVar("wdiff");
-    NcVar kmhVar = output.getVar("khh");
-
-
-    NcVar xvortVar = output.getVar("xvort");
-    NcVar yvortVar = output.getVar("yvort");
-    NcVar zvortVar = output.getVar("zvort");
-    NcVar xvorttiltVar = output.getVar("xvorttilt");
-    NcVar yvorttiltVar = output.getVar("yvorttilt");
-    NcVar zvorttiltVar = output.getVar("zvorttilt");
-    NcVar xvortstretchVar = output.getVar("xvortstretch");
-    NcVar yvortstretchVar = output.getVar("yvortstretch");
-    NcVar zvortstretchVar = output.getVar("zvortstretch");
-    NcVar xvortsolenoidVar = output.getVar("xvortsolenoid");
-    NcVar yvortsolenoidVar = output.getVar("yvortsolenoid");
-    NcVar zvortsolenoidVar = output.getVar("zvortsolenoid");
-    NcVar xvortturbVar = output.getVar("xvortturb");
-    NcVar yvortturbVar = output.getVar("yvortturb");
-    NcVar zvortturbVar = output.getVar("zvortturb");
-    NcVar xvortdiffVar = output.getVar("xvortdiff");
-    NcVar yvortdiffVar = output.getVar("yvortdiff");
-    NcVar zvortdiffVar = output.getVar("zvortdiff");
-
-    NcVar ppertVar = output.getVar("prespert");
-    NcVar qvpertVar = output.getVar("qvpert");
-    NcVar rhopertVar = output.getVar("rhopert");
-    NcVar thetapertVar = output.getVar("thetapert");
-    NcVar thrhopertVar = output.getVar("thrhopert");
-
-    NcVar pbarVar = output.getVar("presbar");
-    NcVar qvbarVar = output.getVar("qvbar");
-    NcVar rhobarVar = output.getVar("rhobar");
-    NcVar thetabarVar = output.getVar("thetabar");
-    NcVar thrhobarVar = output.getVar("thrhobar");
-
-    /*
-    NcVar qcVar = output.getVar("qc");
-    NcVar qiVar = output.getVar("qi");
-    NcVar qsVar = output.getVar("qs");
-    NcVar qgVar = output.getVar("qg");
-    */
-
+    // get the io configurations from the user
+    iocfg *io = parcels->io;
+    // These vectors define the starting write positions
+    // and the number of bits to write
     vector<size_t> startp,countp;
     startp.push_back(0);
     if (writeIters == 0) startp.push_back(0);
@@ -195,58 +176,149 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
     countp.push_back(parcels->nParcels);
     countp.push_back(parcels->nTimes);
 
-    // Write the coordinate variable data to the file
+    // open the file for writing
+    NcFile output(filename, NcFile::write);
+
+    NcVar xVar = output.getVar("xpos");
+    NcVar yVar = output.getVar("ypos");
+    NcVar zVar = output.getVar("zpos");
     xVar.putVar(startp,countp,parcels->xpos);
     yVar.putVar(startp,countp,parcels->ypos);
     zVar.putVar(startp,countp,parcels->zpos);
 
+    NcVar uVar = output.getVar("u");
+    NcVar vVar = output.getVar("v");
+    NcVar wVar = output.getVar("w");
     uVar.putVar(startp,countp,parcels->pclu);
     vVar.putVar(startp,countp,parcels->pclv);
     wVar.putVar(startp,countp,parcels->pclw);
-    uturbVar.putVar(startp,countp,parcels->pcluturb);
-    vturbVar.putVar(startp,countp,parcels->pclvturb);
-    wturbVar.putVar(startp,countp,parcels->pclwturb);
-    udiffVar.putVar(startp,countp,parcels->pcludiff);
-    vdiffVar.putVar(startp,countp,parcels->pclvdiff);
-    wdiffVar.putVar(startp,countp,parcels->pclwdiff);
 
-    ppertVar.putVar(startp,countp,parcels->pclppert);
-    qvpertVar.putVar(startp,countp,parcels->pclqvpert);
-    rhopertVar.putVar(startp,countp,parcels->pclrhopert);
-    thetapertVar.putVar(startp,countp,parcels->pclthetapert);
-    thrhopertVar.putVar(startp,countp,parcels->pclthrhopert);
+    if (io->output_momentum_budget) {
+        NcVar uturbVar = output.getVar("uturb");
+        NcVar vturbVar = output.getVar("vturb");
+        NcVar wturbVar = output.getVar("wturb");
+        NcVar udiffVar = output.getVar("udiff");
+        NcVar vdiffVar = output.getVar("vdiff");
+        NcVar wdiffVar = output.getVar("wdiff");
 
-    pbarVar.putVar(startp,countp,parcels->pclpbar);
-    qvbarVar.putVar(startp,countp,parcels->pclqvbar);
-    rhobarVar.putVar(startp,countp,parcels->pclrhobar);
-    thetabarVar.putVar(startp,countp,parcels->pclthetabar);
-    thrhobarVar.putVar(startp,countp,parcels->pclthrhobar);
+        uturbVar.putVar(startp,countp,parcels->pcluturb);
+        vturbVar.putVar(startp,countp,parcels->pclvturb);
+        wturbVar.putVar(startp,countp,parcels->pclwturb);
+        udiffVar.putVar(startp,countp,parcels->pcludiff);
+        vdiffVar.putVar(startp,countp,parcels->pclvdiff);
+        wdiffVar.putVar(startp,countp,parcels->pclwdiff);
+    }
+    if (io->output_kmh) {
+        NcVar kmhVar = output.getVar("khh");
+        kmhVar.putVar(startp,countp,parcels->pclkmh);
+    }
 
-    /*
-    qcVar.putVar(startp,countp,parcels->pclqc);
-    qiVar.putVar(startp,countp,parcels->pclqi);
-    qsVar.putVar(startp,countp,parcels->pclqs);
-    qgVar.putVar(startp,countp,parcels->pclqg);
-    */
 
-    xvortVar.putVar(startp,countp,parcels->pclxvort);
-    yvortVar.putVar(startp,countp,parcels->pclyvort);
-    zvortVar.putVar(startp,countp,parcels->pclzvort);
-    xvorttiltVar.putVar(startp,countp,parcels->pclxvorttilt);
-    yvorttiltVar.putVar(startp,countp,parcels->pclyvorttilt);
-    zvorttiltVar.putVar(startp,countp,parcels->pclzvorttilt);
-    xvortstretchVar.putVar(startp,countp,parcels->pclxvortstretch);
-    yvortstretchVar.putVar(startp,countp,parcels->pclyvortstretch);
-    zvortstretchVar.putVar(startp,countp,parcels->pclzvortstretch);
-    xvortsolenoidVar.putVar(startp,countp,parcels->pclxvortsolenoid);
-    yvortsolenoidVar.putVar(startp,countp,parcels->pclyvortsolenoid);
-    zvortsolenoidVar.putVar(startp,countp,parcels->pclzvortsolenoid);
-    xvortturbVar.putVar(startp,countp,parcels->pclxvortturb);
-    yvortturbVar.putVar(startp,countp,parcels->pclyvortturb);
-    zvortturbVar.putVar(startp,countp,parcels->pclzvortturb);
-    xvortdiffVar.putVar(startp,countp,parcels->pclxvortdiff);
-    yvortdiffVar.putVar(startp,countp,parcels->pclyvortdiff);
-    zvortdiffVar.putVar(startp,countp,parcels->pclzvortdiff);
+    if (io->output_vorticity_budget || io->output_xvort) {
+        NcVar xvortVar = output.getVar("xvort");
+        xvortVar.putVar(startp,countp,parcels->pclxvort);
+    }
+    if (io->output_vorticity_budget || io->output_yvort) {
+        NcVar yvortVar = output.getVar("yvort");
+        yvortVar.putVar(startp,countp,parcels->pclyvort);
+    }
+    if (io->output_vorticity_budget || io->output_zvort) {
+        NcVar zvortVar = output.getVar("zvort");
+        zvortVar.putVar(startp,countp,parcels->pclzvort);
+    }
+    if (io->output_vorticity_budget) {
+        NcVar xvorttiltVar = output.getVar("xvorttilt");
+        NcVar yvorttiltVar = output.getVar("yvorttilt");
+        NcVar zvorttiltVar = output.getVar("zvorttilt");
+        NcVar xvortstretchVar = output.getVar("xvortstretch");
+        NcVar yvortstretchVar = output.getVar("yvortstretch");
+        NcVar zvortstretchVar = output.getVar("zvortstretch");
+        NcVar xvortsolenoidVar = output.getVar("xvortsolenoid");
+        NcVar yvortsolenoidVar = output.getVar("yvortsolenoid");
+        NcVar zvortsolenoidVar = output.getVar("zvortsolenoid");
+        NcVar xvortturbVar = output.getVar("xvortturb");
+        NcVar yvortturbVar = output.getVar("yvortturb");
+        NcVar zvortturbVar = output.getVar("zvortturb");
+        NcVar xvortdiffVar = output.getVar("xvortdiff");
+        NcVar yvortdiffVar = output.getVar("yvortdiff");
+        NcVar zvortdiffVar = output.getVar("zvortdiff");
+
+        xvorttiltVar.putVar(startp,countp,parcels->pclxvorttilt);
+        yvorttiltVar.putVar(startp,countp,parcels->pclyvorttilt);
+        zvorttiltVar.putVar(startp,countp,parcels->pclzvorttilt);
+        xvortstretchVar.putVar(startp,countp,parcels->pclxvortstretch);
+        yvortstretchVar.putVar(startp,countp,parcels->pclyvortstretch);
+        zvortstretchVar.putVar(startp,countp,parcels->pclzvortstretch);
+        xvortsolenoidVar.putVar(startp,countp,parcels->pclxvortsolenoid);
+        yvortsolenoidVar.putVar(startp,countp,parcels->pclyvortsolenoid);
+        zvortsolenoidVar.putVar(startp,countp,parcels->pclzvortsolenoid);
+        xvortturbVar.putVar(startp,countp,parcels->pclxvortturb);
+        yvortturbVar.putVar(startp,countp,parcels->pclyvortturb);
+        zvortturbVar.putVar(startp,countp,parcels->pclzvortturb);
+        xvortdiffVar.putVar(startp,countp,parcels->pclxvortdiff);
+        yvortdiffVar.putVar(startp,countp,parcels->pclyvortdiff);
+        zvortdiffVar.putVar(startp,countp,parcels->pclzvortdiff);
+    }
+
+    if (io->output_ppert) {
+        NcVar ppertVar = output.getVar("prespert");
+        ppertVar.putVar(startp,countp,parcels->pclppert);
+    }
+    if (io->output_qvpert) {
+        NcVar qvpertVar = output.getVar("qvpert");
+        qvpertVar.putVar(startp,countp,parcels->pclqvpert);
+    }
+    if (io->output_rhopert) {
+        NcVar rhopertVar = output.getVar("rhopert");
+        rhopertVar.putVar(startp,countp,parcels->pclrhopert);
+    }
+    if (io->output_thetapert) {
+        NcVar thetapertVar = output.getVar("thetapert");
+        thetapertVar.putVar(startp,countp,parcels->pclthetapert);
+    }
+    if (io->output_thrhopert) {
+        NcVar thrhopertVar = output.getVar("thrhopert");
+        thrhopertVar.putVar(startp,countp,parcels->pclthrhopert);
+    }
+
+    if (io->output_pbar) {
+        NcVar pbarVar = output.getVar("presbar");
+        pbarVar.putVar(startp,countp,parcels->pclpbar);
+    }
+    if (io->output_qvbar) {
+        NcVar qvbarVar = output.getVar("qvbar");
+        qvbarVar.putVar(startp,countp,parcels->pclqvbar);
+    }
+    if (io->output_rhobar) {
+        NcVar rhobarVar = output.getVar("rhobar");
+        rhobarVar.putVar(startp,countp,parcels->pclrhobar);
+    }
+    if (io->output_thetabar) {
+        NcVar thetabarVar = output.getVar("thetabar");
+        thetabarVar.putVar(startp,countp,parcels->pclthetabar);
+    }
+    if (io->output_thrhobar) {
+        NcVar thrhobarVar = output.getVar("thrhobar");
+        thrhobarVar.putVar(startp,countp,parcels->pclthrhobar);
+    }
+
+    if (io->output_qc) {
+        NcVar qcVar = output.getVar("qc");
+        qcVar.putVar(startp,countp,parcels->pclqc);
+    }
+    if (io->output_qi) {
+        NcVar qiVar = output.getVar("qi");
+        qiVar.putVar(startp,countp,parcels->pclqi);
+    }
+    if (io->output_qs) {
+        NcVar qsVar = output.getVar("qs");
+        qsVar.putVar(startp,countp,parcels->pclqs);
+    }
+    if (io->output_qg) {
+        NcVar qgVar = output.getVar("qg");
+        qgVar.putVar(startp,countp,parcels->pclqg);
+    }
+
     cout << "*** SUCCESS writing file " << filename << "!" << endl;
     return;
 }
