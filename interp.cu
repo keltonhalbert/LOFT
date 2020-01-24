@@ -43,8 +43,6 @@ __device__ __host__ void _nearest_grid_idx(float *point, datagrid *grid, int *id
 
 	// if a nearest index was not found, set all indices to -1 to flag
 	// that the point is not in the domain
-    if (near_i == -1 || near_j == -1 || near_k == -1) printf("%d,%f %d,%f %d,%f\n", near_i, pt_x, near_j, pt_y, near_k, pt_z);
-    //assert(near_i == -1 || near_j == -1 || near_k == -1);
 	if ((near_i == -1) || (near_j == -1) || (near_k == -1)) {
 		near_i = -1; near_j = -1; near_k = -1;
 	}
@@ -57,10 +55,10 @@ __device__ __host__ void _nearest_grid_idx(float *point, datagrid *grid, int *id
 // Returns an array full of -1 if the requested poit is out of the domain bounds
 __host__ __device__ void _calc_weights(datagrid *grid, float *weights, float *point, \
                                        int *idx_4D, bool ugrd, bool vgrd, bool wgrd) {
-	int i, j, k;
-	float rx, ry, rz;
-	float w1, w2, w3, w4;
-	float w5, w6, w7, w8;
+    int i, j, k;
+    float rx, ry, rz;
+    float w1, w2, w3, w4;
+    float w5, w6, w7, w8;
 
     float x_pt = point[0]; float y_pt = point[1]; float z_pt = point[2];
 	
@@ -96,9 +94,8 @@ __host__ __device__ void _calc_weights(datagrid *grid, float *weights, float *po
 
         rx = (x_pt - xf(i)) / (xf(i)   - xf(i-1)); 
         ry = (y_pt - yh(j)) / (yh(j)   - yh(j-1)); 
-        rz = (z_pt - zh(k)) / (zh(k+1) - zh(k)); 
-        
-	}
+        rz = (z_pt - zh(k)) / (zh(k+1) - zh(k));  
+    }
 
     else if (vgrd) {
         if (x_pt < xh(idx_4D[0])) {
@@ -110,11 +107,11 @@ __host__ __device__ void _calc_weights(datagrid *grid, float *weights, float *po
         i = idx_4D[0]; j = idx_4D[1]; k = idx_4D[2];
 
 
-        rx = (x_pt - xh(i)) / (xh(i) - xh(i-1)); 
-        ry = (y_pt - yf(j)) / (yf(j) - yf(j-1)); 
-        rz = (z_pt - zh(k)) / (zh(k) - zh(k)); 
+        rx = (x_pt - xh(i)) / (xh(i+1) - xh(i)); 
+        ry = (y_pt - yf(j)) / (yf(j+1) - yf(j)); 
+        rz = (z_pt - zh(k)) / (zh(k+1) - zh(k)); 
 
-	}
+    }
 
     else if (wgrd) {
         if (x_pt < xh(idx_4D[0])) {
@@ -124,11 +121,11 @@ __host__ __device__ void _calc_weights(datagrid *grid, float *weights, float *po
             idx_4D[1] = idx_4D[1] - 1;
         }
         i = idx_4D[0]; j = idx_4D[1]; k = idx_4D[2];
-        rx = (x_pt - xh(i)) / (xh(i) - xh(i-1)); 
-        ry = (y_pt - yh(j)) / (yh(j) - yh(j-1)); 
-        rz = (z_pt - zf(k)) / (zf(k) - zf(k-1)); 
+        rx = (x_pt - xh(i)) / (xh(i+1) - xh(i)); 
+        ry = (y_pt - yh(j)) / (yh(j+1) - yh(j)); 
+        rz = (z_pt - zf(k)) / (zf(k+1) - zf(k)); 
 
-	}
+    }
 
     // data is on scalar grid
     else {
@@ -142,10 +139,10 @@ __host__ __device__ void _calc_weights(datagrid *grid, float *weights, float *po
             idx_4D[2] = idx_4D[2] - 1;
         }
         i = idx_4D[0]; j = idx_4D[1]; k = idx_4D[2];
-    
-        rx = (x_pt - xh(i)) / (xh(i) - xh(i-1)); 
-        ry = (y_pt - yh(j)) / (yh(j) - yh(j-1)); 
-        rz = (z_pt - zh(k)) / (zh(k) - zh(k-1)); 
+
+        rx = (x_pt - xh(i)) / (xh(i+1) - xh(i)); 
+        ry = (y_pt - yh(j)) / (yh(j+1) - yh(j)); 
+        rz = (z_pt - zh(k)) / (zh(k+1) - zh(k)); 
     }
 
 

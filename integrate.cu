@@ -385,7 +385,7 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, model_data *data,
             // Now we use an RK2 scheme to integrate forward
             // in time. Values are interpolated to the parcel 
             // at the beginning of the next data time step. 
-            for (int nkrp = 1; nkrp <= 1; ++nkrp) {        
+            for (int nkrp = 1; nkrp <= 2; ++nkrp) {        
                 if (nkrp == 1) {
                     // integrate X position forward by the U wind
                     point[0] = pcl_x + pcl_u * dt * direct;
@@ -393,7 +393,6 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, model_data *data,
                     point[1] = pcl_y + pcl_v * dt * direct;
                     // integrate Z position forward by the W wind
                     point[2] = pcl_z + pcl_w * dt * direct;
-                    if (isnan(point[0]) || isnan(point[1]) || isnan(point[2])) printf("%f %f %f\n", pcl_u, pcl_v, pcl_w);
                     if ((pcl_u == -999.0) || (pcl_v == -999.0) || (pcl_w == -999.0)) {
                         printf("Warning: missing values detected at x: %f y:%f z:%f with ground bounds X0: %f Y0: %f Z0: %f X1: %f Y1: %f Z1: %f\n", \
                             point[0], point[1], point[2], xh(0), yh(0), zh(0), xh(grid->NX-1), yh(grid->NY-1), zh(grid->NZ-1));
