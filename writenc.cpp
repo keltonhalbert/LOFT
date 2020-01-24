@@ -209,7 +209,7 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
         wdiffVar.putVar(startp,countp,parcels->pclwdiff);
     }
     if (io->output_kmh) {
-        NcVar kmhVar = output.getVar("khh");
+        NcVar kmhVar = output.getVar("kmh");
         kmhVar.putVar(startp,countp,parcels->pclkmh);
     }
 
