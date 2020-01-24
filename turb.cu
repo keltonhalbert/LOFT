@@ -20,7 +20,7 @@ __device__ void calcrf(datagrid *grid, model_data *data, int *idx_4D, int NX, in
     }
     // k == 1
     else {
-        WA4D(i, j, 1, t) = (1.75*(BUF4D(i, j, 1, t) + grid->rho0[1]) - (BUF4D(i, j, 2, t) +grid->rho0[2]) + 0.25*(BUF4D(i, j, 3, t) + grid->rho0[3]));
+        WA4D(i, j, 0, t) = (1.75*(BUF4D(i, j, 1, t) + grid->rho0[1]) - (BUF4D(i, j, 2, t) +grid->rho0[2]) + 0.25*(BUF4D(i, j, 3, t) + grid->rho0[3]));
     }
 }
 
@@ -39,9 +39,9 @@ __device__ void calcdef(datagrid *grid, model_data *data, int *idx_4D, int NX, i
     vstag = data->vstag;
     wstag = data->wstag;
 
-    float dx = grid->xf[i+1] - grid->xf[i];
-    float dy = grid->yf[j+1] - grid->yf[j];
-    float dz = grid->zf[k+1] - grid->zf[k];
+    float dx = xf(i) - xf(i-1);
+    float dy = yf(j) - yf(j-1);
+    float dz = zf(k+1) - zf(k);
 
     // apply the zero strain condition for free slip to out subsurface/ghost zone
     // tau 11. Derivative is du/dx and therefore the derivative on the staggered mesh results on the scalar point.
@@ -133,7 +133,7 @@ __device__ void gettau(datagrid *grid, model_data *data, int *idx_4D, int NX, in
         TEM4D(i, j, 0, t) = 0.0;
     }
 
-    if ((k >= 2)) {
+    if ((k >= 1)) {
         // tau 13
         dum0 = data->tem5;
         wstag = data->rhof; // rather than make a new maro, we'll just use the WA4D macro
@@ -158,9 +158,9 @@ __device__ void calc_turbu(datagrid *grid, model_data *data, int *idx_4D, int NX
     // so we will use the stagger macros to store the data in order to maintain
     // consistency
     float *ustag, *buf0, *dum0;
-    float dx = grid->xf[i+1] - grid->xf[i];
-    float dy = grid->yf[j+1] - grid->yf[j];
-    float dz = grid->zf[k+1] - grid->zf[k];
+    float dx = xf(i) - xf(i-1);
+    float dy = yf(j) - yf(j-1);
+    float dz = zf(k+1) - zf(k);
 
     // tau 11
     dum0 = data->tem1;
@@ -191,9 +191,9 @@ __device__ void calc_turbv(datagrid *grid, model_data *data, int *idx_4D, int NX
     // so we will use the stagger macros to store the data in order to maintain
     // consistency
     float *vstag, *buf0, *dum0;
-    float dx = grid->xf[i+1] - grid->xf[i];
-    float dy = grid->yf[j+1] - grid->yf[j];
-    float dz = grid->zf[k+1] - grid->zf[k];
+    float dx = xf(i) - xf(i-1);
+    float dy = yf(j) - yf(j-1);
+    float dz = zf(k+1) - zf(k);
 
     // tau 12
     dum0 = data->tem2;
@@ -224,9 +224,9 @@ __device__ void calc_turbw(datagrid *grid, model_data *data, int *idx_4D, int NX
     // so we will use the stagger macros to store the data in order to maintain
     // consistency
     float *wstag, *buf0, *dum0;
-    float dx = grid->xf[i+1] - grid->xf[i];
-    float dy = grid->yf[j+1] - grid->yf[j];
-    float dz = grid->zf[k+1] - grid->zf[k];
+    float dx = xf(i) - xf(i-1);
+    float dy = yf(j) - yf(j-1);
+    float dz = zf(k+1) - zf(k);
 
     // tau 13
     dum0 = data->tem5;
@@ -258,7 +258,7 @@ __global__ void doCalcRf(datagrid *grid, model_data *data, int tStart, int tEnd)
     int NZ = grid->NZ;
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX) && (j < NY) && (k < NZ+1) && (k >=1)) {
+    if ((i < NX) && (j < NY) && (k < NZ+1)) {
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calcrf(grid, data, idx_4D, NX, NY, NZ);
@@ -276,7 +276,7 @@ __global__ void doCalcDef(datagrid *grid, model_data *data, int tStart, int tEnd
     int NZ = grid->NZ;
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX) && (j < NY) && (k < NZ+1) && (i > 0) && (j > 0) && (k >=1)) {
+    if ((i < NX) && (j < NY) && (k < NZ) && (i > 0) && (j > 0)) {
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calcdef(grid, data, idx_4D, NX, NY, NZ);
@@ -295,7 +295,7 @@ __global__ void doGetTau(datagrid *grid, model_data *data, int tStart, int tEnd)
     int NZ = grid->NZ;
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX) && (j < NY) && (k < NZ+1) && (i > 0) && (j > 0) && (k >=1)) {
+    if ((i < NX) && (j < NY) && (k < NZ) && (i > 0) && (j > 0)) {
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             gettau(grid, data, idx_4D, NX, NY, NZ);
@@ -313,19 +313,19 @@ __global__ void doCalcTurb(datagrid *grid, model_data *data, int tStart, int tEn
     int NZ = grid->NZ;
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX) && (j < NY) && (k < NZ+1) && (i > 0) && (j > 0) && (k >=1)) {
+    if ((i < NX) && (j < NY) && (k < NZ) && (i > 0) && (j > 0)) {
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calc_turbu(grid, data, idx_4D, NX, NY, NZ);
         }
     }
-    if ((i < NX) && (j < NY) && (k < NZ+1) && (j > 0) && (i > 0) && (k >=1)) {
+    if ((i < NX) && (j < NY) && (k < NZ) && (j > 0) && (i > 0)) {
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calc_turbv(grid, data, idx_4D, NX, NY, NZ);
         }
     }
-    if ((i < NX) && (j < NY) && (k < NZ+1) && (k >=2) && (i > 0) && (j > 0)) {
+    if ((i < NX) && (j < NY) && (k < NZ+1) && (k > 0) && (i > 0) && (j > 0)) {
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calc_turbw(grid, data, idx_4D, NX, NY, NZ);

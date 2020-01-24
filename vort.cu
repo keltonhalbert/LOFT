@@ -16,7 +16,7 @@ __device__ void calc_pi(datagrid *grid, model_data *data, int *idx_4D, int NX, i
     // this is actually the pressure
     // perturbation, not the full pressure
     float *buf0 = data->prespert;
-    float p = BUF4D(i, j, k, t) + grid->p0[k-1]; 
+    float p = BUF4D(i, j, k, t) + grid->p0[k]; 
     buf0 = data->pi;
     BUF4D(i, j, k, t) = powf( p / 100000., 0.28571426);
 }
@@ -33,14 +33,14 @@ __device__ void calc_xvort(datagrid *grid, model_data *data, int *idx_4D, int NX
     float *vstag = data->vstag;
     float *wstag = data->wstag;
     float *dum0 = data->tem1;
-    float dy = grid->yf[j+1] - grid->yf[j];
-    float dz = grid->zf[k+1] - grid->zf[k];
+    float dy = yf(j) - yf(j-1);
+    float dz = zf(k) - zf(k-1);
 
     float dwdy = ( ( WA4D(i, j, k, t) - WA4D(i, j-1, k, t) )/dy );
     float dvdz = ( ( VA4D(i, j, k, t) - VA4D(i, j, k-1, t) )/dz );
     TEM4D(i, j, k, t) = dwdy - dvdz; 
-    if (k == 2) {
-        TEM4D(i, j, 1, t) = dwdy - dvdz; 
+    if (k == 1) {
+        TEM4D(i, j, 0, t) = dwdy - dvdz; 
     }
 }
 
@@ -56,14 +56,14 @@ __device__ void calc_yvort(datagrid *grid, model_data *data, int *idx_4D, int NX
     float *ustag = data->ustag;
     float *wstag = data->wstag;
     float *dum0 = data->tem2;
-    float dx = grid->xf[i+1] - grid->xf[i];
-    float dz = grid->zf[k+1] - grid->zf[k];
+    float dx = xf(i) - xf(i-1);
+    float dz = zf(k) - zf(k-1);
 
     float dwdx = ( ( WA4D(i, j, k, t) - WA4D(i-1, j, k, t) )/dx );
     float dudz = ( ( UA4D(i, j, k, t) - UA4D(i, j, k-1, t) )/dz );
     TEM4D(i, j, k, t) = dudz - dwdx;
-    if (k == 2) {
-        TEM4D(i, j, 1, t) = dudz - dwdx;
+    if (k == 1) {
+        TEM4D(i, j, 0, t) = dudz - dwdx;
     }
 }
 
@@ -79,8 +79,8 @@ __device__ void calc_zvort(datagrid *grid, model_data *data, int *idx_4D, int NX
     float *ustag = data->ustag;
     float *vstag = data->vstag;
     float *dum0 = data->tem3;
-    float dx = grid->xf[i+1] - grid->xf[i];
-    float dy = grid->yf[j+1] - grid->yf[j];
+    float dx = xf(i) - xf(i-1);
+    float dy = yf(j) - yf(j-1);
 
     float dvdx = ( ( VA4D(i, j, k, t) - VA4D(i-1, j, k, t) )/dx);
     float dudy = ( ( UA4D(i, j, k, t) - UA4D(i, j-1, k, t) )/dy);
@@ -97,25 +97,25 @@ __device__ void calc_xvort_tilt(datagrid *grid, model_data *data, int *idx_4D, i
 
     float *ustag = data->ustag;
     float *dum0;
-    float dy = grid->yf[j+1] - grid->yf[j];
-    float dz = grid->zf[k+1] - grid->zf[k];
+    float dy = yf(j) - yf(j-1);
+    float dz = zf(k) - zf(k-1);
 
-    if (k >= 1) {
+    if (k >= 0) {
         // dudy in tem1
         dum0 = data->tem1;
         TEM4D(i, j, k, t) = ( ( UA4D(i, j, k, t) - UA4D(i, j-1, k, t) ) / dy );
     }
 
-    if (k >= 2) {
+    if (k >= 1) {
         // dudz in tem2
         dum0 = data->tem2;
         TEM4D(i, j, k, t) = ( ( UA4D(i, j, k, t) - UA4D(i, j, k-1, t) ) / dz );
     }
     // This is the equivalent of our zero strain lower boundary
-    if (k == 2) {
+    if (k == 1) {
         // dudz in tem2
         dum0 = data->tem2;
-        TEM4D(i, j, 1, t) = ( ( UA4D(i, j, 2, t) - UA4D(i, j, 1, t) ) / dz );
+        TEM4D(i, j, 0, t) = ( ( UA4D(i, j, 1, t) - UA4D(i, j, 0, t) ) / dz );
     }    
 }
 
@@ -129,25 +129,25 @@ __device__ void calc_yvort_tilt(datagrid *grid, model_data *data, int *idx_4D, i
 
     float *vstag = data->vstag;
     float *dum0;
-    float dx = grid->xf[i+1] - grid->xf[i];
-    float dz = grid->zf[k+1] - grid->zf[k];
+    float dx = xf(i) - xf(i-1);
+    float dz = zf(k) - zf(k-1);
     
-    if (k >=1) {
+    if (k >=0) {
         // dvdx in tem1
         dum0 = data->tem1;
         TEM4D(i, j, k, t) = ( ( VA4D(i, j, k, t) - VA4D(i-1, j, k, t) ) / dx );
     }
 
-    if (k >= 2) {
+    if (k >= 1) {
         // dvdz in tem2
         dum0 = data->tem2;
         TEM4D(i, j, k, t) = ( ( VA4D(i, j, k, t) - VA4D(i, j, k-1, t) ) / dz );
     }
     // This is the equivalent of our zero strain lower boundary
-    if (k == 2) {
+    if (k == 1) {
         // dvdz in tem2
         dum0 = data->tem2;
-        TEM4D(i, j, 1, t) = ( ( VA4D(i, j, 2, t) - VA4D(i, j, 1, t) ) / dz );
+        TEM4D(i, j, 0, t) = ( ( VA4D(i, j, 1, t) - VA4D(i, j, 0, t) ) / dz );
     }
 }
 
@@ -160,13 +160,13 @@ __device__ void calc_zvort_tilt(datagrid *grid, model_data *data, int *idx_4D, i
     int t = idx_4D[3];
 
     float *wstag = data->wstag;
-    float dx = grid->xf[i+1] - grid->xf[i];
-    float dy = grid->yf[j+1] - grid->yf[j];
+    float dx = xf(i) - xf(i-1);
+    float dy = yf(j) - yf(j-1);
 
     // Compute dw/dx and put it in the tem1 array. The derivatives
     // land on weird places so we have to average each derivative back
     // to the scalar grid, resulting in this clunky approach
-    if (k >= 1) {
+    if (k >= 0) {
         float *dum0 = data->tem1;
         TEM4D(i, j, k, t) = ( ( WA4D(i, j, k, t) - WA4D(i-1, j, k, t) ) / dx );
 
@@ -189,18 +189,18 @@ __device__ void calc_xvort_stretch(datagrid *grid, model_data *data, int *idx_4D
     float *vstag = data->vstag;
     float *xvort = data->xvort;
     float *xvort_stretch = data->xvstretch;
-    float dy = grid->yf[j+1] - grid->yf[j];
-    float dz = grid->zf[k+1] - grid->zf[k];
+    float dy = yf(j+1) - yf(j);
+    float dz = zf(k+1) - zf(k);
 
-    float rrv = grid->rho0[k-1];
+    float rrv = grid->rho0[k];
     float rrw1, rrw2;
-    if ( k == 1 ) {
-        rrw1 = 1.75*grid->rho0[0] - grid->rho0[1] + 0.25*grid->rho0[2];
-        rrw2 = 0.5*grid->rho0[1] + 0.5*grid->rho0[2];
+    if ( k == 0 ) {
+        rrw1 = 1.75*grid->rho0[1] - grid->rho0[2] + 0.25*grid->rho0[3];
+        rrw2 = 0.5*grid->rho0[2] + 0.5*grid->rho0[3];
     }
     else {
-        rrw1 = 0.5*grid->rho0[k-2] + 0.5*grid->rho0[k-1];
-        rrw2 = 0.5*grid->rho0[k-1] + 0.5*grid->rho0[k  ];
+        rrw1 = 0.5*grid->rho0[k-1] + 0.5*grid->rho0[k  ];
+        rrw2 = 0.5*grid->rho0[k  ] + 0.5*grid->rho0[k+1];
     }
 
     // this stencil conveniently lands itself on the scalar grid,
@@ -228,18 +228,18 @@ __device__ void calc_yvort_stretch(datagrid *grid, model_data *data, int *idx_4D
     float *wstag = data->wstag;
     float *yvort = data->yvort;
     float *yvort_stretch = data->yvstretch;
-    float dx = grid->xf[i+1] - grid->xf[i];
-    float dz = grid->zf[k+1] - grid->zf[k];
+    float dx = xf(i+1) - xf(i);
+    float dz = zf(k+1) - zf(k);
 
-    float rru = grid->rho0[k-1];
+    float rru = grid->rho0[k];
     float rrw1, rrw2;
-    if ( k == 1 ) {
-        rrw1 = 1.75*grid->rho0[0] - grid->rho0[1] + 0.25*grid->rho0[2];
-        rrw2 = 0.5*grid->rho0[1] + 0.5*grid->rho0[2];
+    if ( k == 0 ) {
+        rrw1 = 1.75*grid->rho0[1] - grid->rho0[2] + 0.25*grid->rho0[3];
+        rrw2 = 0.5*grid->rho0[2] + 0.5*grid->rho0[3];
     }
     else {
-        rrw1 = 0.5*grid->rho0[k-2] + 0.5*grid->rho0[k-1];
-        rrw2 = 0.5*grid->rho0[k-1] + 0.5*grid->rho0[k  ];
+        rrw1 = 0.5*grid->rho0[k-1] + 0.5*grid->rho0[k  ];
+        rrw2 = 0.5*grid->rho0[k  ] + 0.5*grid->rho0[k+1];
     }
 
     // this stencil conveniently lands itself on the scalar grid,
@@ -267,8 +267,8 @@ __device__ void calc_zvort_stretch(datagrid *grid, model_data *data, int *idx_4D
     float *wstag = data->wstag;
     float *zvort = data->zvort;
     float *zvort_stretch = data->zvstretch;
-    float dx = grid->xf[i+1] - grid->xf[i];
-    float dy = grid->yf[j+1] - grid->yf[j];
+    float dx = xf(i+1) - xf(i);
+    float dy = yf(j+1) - yf(j);
 
     // this stencil conveniently lands itself on the scalar grid,
     // so we won't have to worry about doing any averaging. I think.
@@ -291,14 +291,14 @@ __device__ void calc_xvortturb_ten(datagrid *grid, model_data *data, int *idx_4D
     float *vstag = data->turbv;
     float *wstag = data->turbw;
     float *dum0 = data->tem1;
-    float dy = grid->yf[j+1] - grid->yf[j];
-    float dz = grid->zf[k+1] - grid->zf[k];
+    float dy = yf(j) - yf(j-1);
+    float dz = zf(k) - zf(k-1);
 
     float dwdy = ( ( WA4D(i, j, k, t) - WA4D(i, j-1, k, t) )/dy );
     float dvdz = ( ( VA4D(i, j, k, t) - VA4D(i, j, k-1, t) )/dz );
     TEM4D(i, j, k, t) = dwdy - dvdz; 
-    if (k == 2) {
-        TEM4D(i, j, 1, t) = dwdy - dvdz; 
+    if (k == 1) {
+        TEM4D(i, j, 0, t) = dwdy - dvdz; 
     }
 }
 
@@ -312,14 +312,14 @@ __device__ void calc_yvortturb_ten(datagrid *grid, model_data *data, int *idx_4D
     float *ustag = data->turbu;
     float *wstag = data->turbw;
     float *dum0 = data->tem2;
-    float dx = grid->xf[i+1] - grid->xf[i];
-    float dz = grid->zf[k+1] - grid->zf[k];
+    float dx = xf(i) - xf(i-1);
+    float dz = zf(k) - zf(k-1);
 
     float dwdx = ( ( WA4D(i, j, k, t) - WA4D(i-1, j, k, t) )/dx );
     float dudz = ( ( UA4D(i, j, k, t) - UA4D(i, j, k-1, t) )/dz );
     TEM4D(i, j, k, t) = dudz - dwdx;
-    if (k == 2) {
-        TEM4D(i, j, 1, t) = dudz - dwdx;
+    if (k == 1) {
+        TEM4D(i, j, 0, t) = dudz - dwdx;
     }
 }
 
@@ -333,8 +333,8 @@ __device__ void calc_zvortturb_ten(datagrid *grid, model_data *data, int *idx_4D
     float *ustag = data->turbu;
     float *vstag = data->turbv;
     float *dum0 = data->tem3;
-    float dx = grid->xf[i+1] - grid->xf[i];
-    float dy = grid->yf[j+1] - grid->yf[j];
+    float dx = xf(i) - xf(i-1);
+    float dy = yf(j) - yf(j-1);
 
     float dvdx = ( ( VA4D(i, j, k, t) - VA4D(i-1, j, k, t) )/dx);
     float dudy = ( ( UA4D(i, j, k, t) - UA4D(i, j-1, k, t) )/dy);
@@ -352,14 +352,14 @@ __device__ void calc_xvortdiff_ten(datagrid *grid, model_data *data, int *idx_4D
     float *vstag = data->diffv;
     float *wstag = data->diffw;
     float *dum0 = data->tem1;
-    float dy = grid->yf[j+1] - grid->yf[j];
-    float dz = grid->zf[k+1] - grid->zf[k];
+    float dy = yf(j) - yf(j-1);
+    float dz = zf(k) - zf(k-1);
 
     float dwdy = ( ( WA4D(i, j, k, t) - WA4D(i, j-1, k, t) )/dy );
     float dvdz = ( ( VA4D(i, j, k, t) - VA4D(i, j, k-1, t) )/dz );
     TEM4D(i, j, k, t) = dwdy - dvdz; 
-    if (k == 2) {
-        TEM4D(i, j, 1, t) = dwdy - dvdz; 
+    if (k == 1) {
+        TEM4D(i, j, 0, t) = dwdy - dvdz; 
     }
 }
 
@@ -373,14 +373,14 @@ __device__ void calc_yvortdiff_ten(datagrid *grid, model_data *data, int *idx_4D
     float *ustag = data->diffu;
     float *wstag = data->diffw;
     float *dum0 = data->tem2;
-    float dx = grid->xf[i+1] - grid->xf[i];
-    float dz = grid->zf[k+1] - grid->zf[k];
+    float dx = xf(i) - xf(i-1);
+    float dz = zf(k) - zf(k-1);
 
     float dwdx = ( ( WA4D(i, j, k, t) - WA4D(i-1, j, k, t) )/dx );
     float dudz = ( ( UA4D(i, j, k, t) - UA4D(i, j, k-1, t) )/dz );
     TEM4D(i, j, k, t) = dudz - dwdx;
-    if (k == 2) {
-        TEM4D(i, j, 1, t) = dudz - dwdx;
+    if (k == 1) {
+        TEM4D(i, j, 0, t) = dudz - dwdx;
     }
 }
 
@@ -394,8 +394,8 @@ __device__ void calc_zvortdiff_ten(datagrid *grid, model_data *data, int *idx_4D
     float *ustag = data->diffu;
     float *vstag = data->diffv;
     float *dum0 = data->tem3;
-    float dx = grid->xf[i+1] - grid->xf[i];
-    float dy = grid->yf[j+1] - grid->yf[j];
+    float dx = xf(i) - xf(i-1);
+    float dy = yf(j) - yf(j-1);
 
     float dvdx = ( ( VA4D(i, j, k, t) - VA4D(i-1, j, k, t) )/dx);
     float dudy = ( ( UA4D(i, j, k, t) - UA4D(i, j-1, k, t) )/dy);
@@ -409,8 +409,8 @@ __device__ void calc_xvort_solenoid(datagrid *grid, model_data *data, int *idx_4
     int t = idx_4D[3];
 
     float cp = 1005.7;
-    float dy = grid->yf[j+1] - grid->yf[j];
-    float dz = grid->zf[k+1] - grid->zf[k];
+    float dy = yf(j) - yf(j-1);
+    float dz = zf(k) - zf(k-1);
 
     float *buf0 = data->pi;
     // dPi/dz
@@ -430,12 +430,12 @@ __device__ void calc_xvort_solenoid(datagrid *grid, model_data *data, int *idx_4
     // compute and save to the array
     buf0 = data->xvort_solenoid; 
     BUF4D(i, j, k, t) = -cp*(dthdy*dpidz - dthdz*dpidy); 
-    if (k == 2) {
+    if (k == 1) {
         // the d/dy terms are defined at k = 1,
         // go get those
-        dpidy = ( ( BUF4D(i, j+1, 1, t) - BUF4D(i, j-1, 1, t) ) / (2*dy) );
-        dthdy = ( (BUF4D(i, j+1, 1, t) - BUF4D(i, j-1, 1, t)) / ( 2*dy ) );
-        BUF4D(i, j, 1, t) = -cp*(dthdy*dpidz - dthdz*dpidy); 
+        dpidy = ( ( BUF4D(i, j+1, 0, t) - BUF4D(i, j-1, 0, t) ) / (2*dy) );
+        dthdy = ( (BUF4D(i, j+1, 0, t) - BUF4D(i, j-1, 0, t)) / ( 2*dy ) );
+        BUF4D(i, j, 0, t) = -cp*(dthdy*dpidz - dthdz*dpidy); 
     }
 }
 
@@ -446,8 +446,8 @@ __device__ void calc_yvort_solenoid(datagrid *grid, model_data *data, int *idx_4
     int t = idx_4D[3];
 
     float cp = 1005.7;
-    float dx = grid->xf[i+1] - grid->xf[i];
-    float dz = grid->zf[k+1] - grid->zf[k];
+    float dx = xf(i) - xf(i-1);
+    float dz = zf(k) - zf(k-1);
 
     float *buf0 = data->pi;
     // dPi/dz
@@ -467,12 +467,12 @@ __device__ void calc_yvort_solenoid(datagrid *grid, model_data *data, int *idx_4
     // compute and save to the array
     buf0 = data->yvort_solenoid; 
     BUF4D(i, j, k, t) = -cp*(dthdz*dpidx - dthdx*dpidz); 
-    if (k == 2) {
+    if (k == 1) {
         // the d/dx terms are defined at k = 1,
         // go get those
-        dpidx = ( (BUF4D(i+1, j, 1, t) - BUF4D(i-1, j, 1, t)) / ( 2*dx ) );
-        dthdx = ( (BUF4D(i+1, j, 1, t) - BUF4D(i-1, j, 1, t)) / ( 2*dx ) );
-        BUF4D(i, j, 1, t) = -cp*(dthdz*dpidx - dthdx*dpidz); 
+        dpidx = ( (BUF4D(i+1, j, 0, t) - BUF4D(i-1, j, 0, t)) / ( 2*dx ) );
+        dthdx = ( (BUF4D(i+1, j, 0, t) - BUF4D(i-1, j, 0, t)) / ( 2*dx ) );
+        BUF4D(i, j, 0, t) = -cp*(dthdz*dpidx - dthdx*dpidz); 
     }
 }
 
@@ -483,8 +483,8 @@ __device__ void calc_zvort_solenoid(datagrid *grid, model_data *data, int *idx_4
     int t = idx_4D[3];
 
     float cp = 1005.7;
-    float dx = grid->xf[i+1] - grid->xf[i];
-    float dy = grid->yf[j+1] - grid->yf[j];
+    float dx = xf(i) - xf(i-1);
+    float dy = yf(j) - yf(j-1);
 
     float *buf0 = data->pi;
     // dPi/dx
@@ -502,11 +502,6 @@ __device__ void calc_zvort_solenoid(datagrid *grid, model_data *data, int *idx_4
     // compute and save to the array
     buf0 = data->yvort_solenoid; 
     BUF4D(i, j, k, t) = -cp*(dthdx*dpidy - dthdy*dpidx); 
-    /*
-    if (k == 2) {
-        BUF4D(i, j, 1, t) = -cp*(dthdx*dpidy - dthdy*dpidx); 
-    }
-    */
 }
 
 /* When doing the parcel trajectory integration, George Bryan does
@@ -568,7 +563,7 @@ __global__ void doTurbVort(datagrid *grid, model_data *data, int tStart, int tEn
     // BAD.
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX) && (j < NY+1) && (k > 1) && (k < NZ+1)) {
+    if ((i < NX) && (j < NY+1) && (k > 0) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -576,14 +571,14 @@ __global__ void doTurbVort(datagrid *grid, model_data *data, int tStart, int tEn
         }
     }
 
-    if ((i < NX+1) && (j < NY) && (k > 1) && (k < NZ+1)) {
+    if ((i < NX+1) && (j < NY) && (k > 0) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calc_yvortturb_ten(grid, data, idx_4D, NX, NY, NZ);
         }
     }
-    if ((i <= NX+1) && (j <= NY+1) && (k > 0) && (k < NZ+1)) {
+    if ((i < NX+1) && (j < NY+1) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -609,7 +604,7 @@ __global__ void doDiffVort(datagrid *grid, model_data *data, int tStart, int tEn
     // BAD.
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX) && (j < NY+1) && (k > 1) && (k < NZ+1)) {
+    if ((i < NX) && (j < NY+1) && (k > 0) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -617,14 +612,14 @@ __global__ void doDiffVort(datagrid *grid, model_data *data, int tStart, int tEn
         }
     }
 
-    if ((i < NX+1) && (j < NY) && (k > 1) && (k < NZ+1)) {
+    if ((i < NX+1) && (j < NY) && (k > 0) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calc_yvortdiff_ten(grid, data, idx_4D, NX, NY, NZ);
         }
     }
-    if ((i <= NX+1) && (j <= NY+1) && (k > 0) && (k < NZ+1)) {
+    if ((i < NX+1) && (j < NY+1) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -644,7 +639,7 @@ __global__ void calcpi(datagrid *grid, model_data *data, int tStart, int tEnd) {
     int NZ = grid->NZ;
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX) && (j < NY) && (k >= 1) && (k < NZ+1) && (i > 0) && (j > 0)) {
+    if ((i < NX+1) && (j < NY+1) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -670,7 +665,7 @@ __global__ void calcvort(datagrid *grid, model_data *data, int tStart, int tEnd)
     // BAD.
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX) && (j < NY+1) && (k > 1) && (k < NZ+1)) {
+    if ((i < NX) && (j < NY+1) && (k > 0) && (k < NZ)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -678,14 +673,14 @@ __global__ void calcvort(datagrid *grid, model_data *data, int tStart, int tEnd)
         }
     }
 
-    if ((i < NX+1) && (j < NY) && (k > 1) && (k < NZ+1)) {
+    if ((i < NX+1) && (j < NY) && (k > 0) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calc_yvort(grid, data, idx_4D, NX, NY, NZ);
         }
     }
-    if ((i <= NX+1) && (j <= NY+1) && (k > 0) && (k < NZ+1)) {
+    if ((i < NX+1) && (j < NY+1) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -707,7 +702,7 @@ __global__ void calcvortstretch(datagrid *grid, model_data *data, int tStart, in
     //printf("%i, %i, %i\n", i, j, k);
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX) && (j < NY) && (k > 0) && (k < NZ)) {
+    if ((i < NX) && (j < NY) && (k < NZ)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -715,14 +710,14 @@ __global__ void calcvortstretch(datagrid *grid, model_data *data, int tStart, in
         }
     }
 
-    if ((i < NX) && (j < NY) && (k > 0) && (k < NZ)) {
+    if ((i < NX) && (j < NY) && (k < NZ)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calc_yvort_stretch(grid, data, idx_4D, NX, NY, NZ);
         }
     }
-    if ((i < NX) && (j < NY) && (k > 0) && (k < NZ)) {
+    if ((i < NX) && (j < NY) && (k < NZ)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -812,14 +807,14 @@ __global__ void calcvortsolenoid(datagrid *grid, model_data *data, int tStart, i
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
     // Even though there are NZ points, it's a center difference
     // and we reach out NZ+1 points to get the derivatives
-    if ((i < NX-1) && (j < NY-1) && (k < NZ) && ( i > 0 ) && (j > 0) && (k >= 1)) {
+    if ((i < NX-1) && (j < NY-1) && (k < NZ) && ( i > 0 ) && (j > 0)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calc_zvort_solenoid(grid, data, idx_4D, NX, NY, NZ);
         }
     }
-    if ((i < NX-1) && (j < NY-1) && (k < NZ) && ( i > 0 ) && (j > 0) && (k > 1)) {
+    if ((i < NX-1) && (j < NY-1) && (k < NZ) && ( i > 0 ) && (j > 0) && (k > 0)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -885,7 +880,7 @@ __global__ void doVortAvg(datagrid *grid, model_data *data, int tStart, int tEnd
     int NZ = grid->NZ;
     float *buf0, *dum0;
 
-    if ((i < NX) && (j < NY) && (k < NZ) && (k > 0)) {
+    if ((i < NX) && (j < NY) && (k < NZ)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             // average the temporary arrays into the result arrays
@@ -919,7 +914,7 @@ __global__ void doTurbVortAvg(datagrid *grid, model_data *data, int tStart, int 
     int NZ = grid->NZ;
     float *buf0, *dum0;
 
-    if ((i < NX) && (j < NY) && (k < NZ) && (k > 0)) {
+    if ((i < NX) && (j < NY) && (k < NZ)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             // average the temporary arrays into the result arrays
@@ -954,7 +949,7 @@ __global__ void doDiffVortAvg(datagrid *grid, model_data *data, int tStart, int 
     int NZ = grid->NZ;
     float *buf0, *dum0;
 
-    if ((i < NX) && (j < NY) && (k < NZ) && (k > 0)) {
+    if ((i < NX) && (j < NY) && (k < NZ)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             // average the temporary arrays into the result arrays
@@ -994,7 +989,7 @@ __global__ void doXVortTiltAvg(datagrid *grid, model_data *data, int tStart, int
 
     // We do the average for each array at a given point
     // and then finish the computation for the zvort tilt
-    if ((i < NX) && (j < NY) && (k < NZ) && (k > 0)) {
+    if ((i < NX) && (j < NY) && (k < NZ)) {
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             dum0 = data->tem1;
             //dudy = TEM4D(i, j, k, tidx);
@@ -1035,7 +1030,7 @@ __global__ void doYVortTiltAvg(datagrid *grid, model_data *data, int tStart, int
 
     // We do the average for each array at a given point
     // and then finish the computation for the zvort tilt
-    if ((i < NX) && (j < NY) && (k < NZ) && (k > 0)) {
+    if ((i < NX) && (j < NY) && (k < NZ)) {
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             dum0 = data->tem1;
             //dvdx = TEM4D(i, j, k, tidx);
@@ -1076,7 +1071,7 @@ __global__ void doZVortTiltAvg(datagrid *grid, model_data *data, int tStart, int
 
     // We do the average for each array at a given point
     // and then finish the computation for the zvort tilt
-    if ((i < NX) && (j < NY) && (k < NZ) && (k > 0)) {
+    if ((i < NX) && (j < NY) && (k < NZ)) {
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             dum0 = data->tem1;
             //dwdx = TEM4D(i, j, k, tidx);

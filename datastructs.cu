@@ -28,11 +28,11 @@ datagrid* allocate_grid_managed( int X0, int X1, int Y0, int Y1, int Z0, int Z1 
     grid->NZ = NZ;
 
     // allocage grid arrays
-    cudaMallocManaged(&(grid->xf), (NX+1)*sizeof(float));
-    cudaMallocManaged(&(grid->xh), NX*sizeof(float));
+    cudaMallocManaged(&(grid->xf), (NX+2)*sizeof(float));
+    cudaMallocManaged(&(grid->xh), (NX+2)*sizeof(float));
 
-    cudaMallocManaged(&(grid->yf), (NY+1)*sizeof(float));
-    cudaMallocManaged(&(grid->yh), NY*sizeof(float));
+    cudaMallocManaged(&(grid->yf), (NY+2)*sizeof(float));
+    cudaMallocManaged(&(grid->yh), (NY+2)*sizeof(float));
 
     // +2 is +1 for stagger, +1 for potential bottom ghost zone
     cudaMallocManaged(&(grid->zf), (NZ+2)*sizeof(float));
@@ -48,12 +48,12 @@ datagrid* allocate_grid_managed( int X0, int X1, int Y0, int Y1, int Z0, int Z1 
     cudaMallocManaged(&(grid->mh), (NZ+2)*sizeof(float));
 
     // allocate base state arrays
-    cudaMallocManaged(&(grid->u0), NZ*sizeof(float));
-    cudaMallocManaged(&(grid->v0), NZ*sizeof(float));
-    cudaMallocManaged(&(grid->qv0), NZ*sizeof(float));
-    cudaMallocManaged(&(grid->th0), NZ*sizeof(float));
-    cudaMallocManaged(&(grid->rho0), NZ*sizeof(float));
-    cudaMallocManaged(&(grid->p0), NZ*sizeof(float));
+    cudaMallocManaged(&(grid->u0),   (NZ+1)*sizeof(float));
+    cudaMallocManaged(&(grid->v0),   (NZ+1)*sizeof(float));
+    cudaMallocManaged(&(grid->qv0),  (NZ+1)*sizeof(float));
+    cudaMallocManaged(&(grid->th0),  (NZ+1)*sizeof(float));
+    cudaMallocManaged(&(grid->rho0), (NZ+1)*sizeof(float));
+    cudaMallocManaged(&(grid->p0),   (NZ+1)*sizeof(float));
     cudaDeviceSynchronize();
 
     return grid;
@@ -80,11 +80,11 @@ datagrid* allocate_grid_cpu( int X0, int X1, int Y0, int Y1, int Z0, int Z1 ) {
     grid->NZ = NZ;
 
     // allocage grid arrays
-    grid->xf = new float[NX+1];
-    grid->xh = new float[NX];
+    grid->xf = new float[NX+2];
+    grid->xh = new float[NX+2];
 
-    grid->yf = new float[NY+1];
-    grid->yh = new float[NY];
+    grid->yf = new float[NY+2];
+    grid->yh = new float[NY+2];
 
     grid->zf = new float[NZ+2];
     grid->zh = new float[NZ+2];
@@ -99,12 +99,12 @@ datagrid* allocate_grid_cpu( int X0, int X1, int Y0, int Y1, int Z0, int Z1 ) {
     grid->mh = new float[NZ+2];
 
     // allocate base state arrays
-    grid->u0 = new float[NZ];
-    grid->v0 = new float[NZ];
-    grid->qv0 = new float[NZ];
-    grid->th0 = new float[NZ];
-    grid->rho0 = new float[NZ];
-    grid->p0 = new float[NZ];
+    grid->u0 = new float[NZ+1];
+    grid->v0 = new float[NZ+1];
+    grid->qv0 = new float[NZ+1];
+    grid->th0 = new float[NZ+1];
+    grid->rho0 = new float[NZ+1];
+    grid->p0 = new float[NZ+1];
 
     return grid;
 }
@@ -165,7 +165,32 @@ parcel_pos* allocate_parcels_managed(iocfg *io, int NX, int NY, int NZ, int nTot
     // create the struct on both the GPU and the CPU.
     cudaMallocManaged(&parcels, sizeof(parcel_pos));
     cudaMallocManaged(&(parcels->io), sizeof(iocfg));
-    parcels->io = io;
+    // set the values of the struct on the GPU
+    parcels->io->output_pbar = io->output_pbar; 
+    parcels->io->output_qvbar = io->output_qvbar;
+    parcels->io->output_rhobar = io->output_rhobar;
+    parcels->io->output_thetabar = io->output_thetabar;
+    parcels->io->output_thrhobar = io->output_thrhobar;
+
+    parcels->io->output_ppert = io->output_ppert;
+    parcels->io->output_qvpert = io->output_qvpert;
+    parcels->io->output_rhopert = io->output_rhopert;
+    parcels->io->output_thetapert = io->output_thetapert;
+    parcels->io->output_thrhopert = io->output_thrhopert;
+
+    parcels->io->output_qc = io->output_qc;
+    parcels->io->output_qi = io->output_qi;
+    parcels->io->output_qs = io->output_qs;
+    parcels->io->output_qg = io->output_qg;
+
+    parcels->io->output_xvort = io->output_xvort;
+    parcels->io->output_yvort = io->output_yvort;
+    parcels->io->output_zvort = io->output_zvort;
+
+    parcels->io->output_kmh = io->output_kmh;
+
+    parcels->io->output_vorticity_budget = io->output_vorticity_budget;
+    parcels->io->output_momentum_budget = io->output_momentum_budget;
     
     // allocate memory for the parcels
     // we are integrating for the entirety 
@@ -428,7 +453,32 @@ model_data* allocate_model_managed(iocfg *io, long bufsize) {
     // create the struct on both the GPU and the CPU.
     cudaMallocManaged(&data, sizeof(model_data));
     cudaMallocManaged(&(data->io), sizeof(iocfg));
-    data->io = io;
+    // set the values of the struct on the GPU
+    data->io->output_pbar = io->output_pbar; 
+    data->io->output_qvbar = io->output_qvbar;
+    data->io->output_rhobar = io->output_rhobar;
+    data->io->output_thetabar = io->output_thetabar;
+    data->io->output_thrhobar = io->output_thrhobar;
+
+    data->io->output_ppert = io->output_ppert;
+    data->io->output_qvpert = io->output_qvpert;
+    data->io->output_rhopert = io->output_rhopert;
+    data->io->output_thetapert = io->output_thetapert;
+    data->io->output_thrhopert = io->output_thrhopert;
+
+    data->io->output_qc = io->output_qc;
+    data->io->output_qi = io->output_qi;
+    data->io->output_qs = io->output_qs;
+    data->io->output_qg = io->output_qg;
+
+    data->io->output_xvort = io->output_xvort;
+    data->io->output_yvort = io->output_yvort;
+    data->io->output_zvort = io->output_zvort;
+
+    data->io->output_kmh = io->output_kmh;
+
+    data->io->output_vorticity_budget = io->output_vorticity_budget;
+    data->io->output_momentum_budget = io->output_momentum_budget;
 
     // Now, here we only allocate the arrays that we need based on the
     // user supplied namelist configuration. This should help with a)

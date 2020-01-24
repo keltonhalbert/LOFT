@@ -1,5 +1,6 @@
 #include <iostream>
 #include <stdio.h>
+#include <assert.h>
 #include "math.h"
 #include "macros.cpp"
 using namespace std;
@@ -22,26 +23,28 @@ __device__ __host__ void _nearest_grid_idx(float *point, datagrid *grid, int *id
 
 
 	// loop over the X grid
-	for ( int i = 0; i < grid->NX; i++ ) {
+	for ( int i = 0; i < grid->NX+1; i++ ) {
 		// find the nearest grid point index at X
-		if ( ( pt_x >= grid->xf[i] ) && ( pt_x <= grid->xf[i+1] ) ) { near_i = i; } 
+		if ( ( pt_x >= xf(i-1) ) && ( pt_x <= xf(i) ) ) { near_i = i; } 
 	}
 
 	// loop over the Y grid
-	for ( int j = 0; j < grid->NY; j++ ) {
+	for ( int j = 0; j < grid->NY+1; j++ ) {
 		// find the nearest grid point index in the Y
-		if ( ( pt_y >= grid->yf[j] ) && ( pt_y <= grid->yf[j+1] ) ) { near_j = j; } 
+		if ( ( pt_y >= yf(j-1) ) && ( pt_y <= yf(j) ) ) { near_j = j; } 
 	}
 
 	// loop over the Z grid
     int k = 0;
-    while (pt_z >= grid->zf[k+1]) {
+    while (pt_z >= zf(k+1)) {
         k = k + 1;
     }
     near_k = k;
 
 	// if a nearest index was not found, set all indices to -1 to flag
 	// that the point is not in the domain
+    if (near_i == -1 || near_j == -1 || near_k == -1) printf("%d,%f %d,%f %d,%f\n", near_i, pt_x, near_j, pt_y, near_k, pt_z);
+    //assert(near_i == -1 || near_j == -1 || near_k == -1);
 	if ((near_i == -1) || (near_j == -1) || (near_k == -1)) {
 		near_i = -1; near_j = -1; near_k = -1;
 	}
@@ -83,66 +86,66 @@ __host__ __device__ void _calc_weights(datagrid *grid, float *weights, float *po
     // the changes between staggered and unstaggered 
     // meshes
 	if (ugrd) {
-        if (y_pt < grid->yh[idx_4D[1]]) {
+        if (y_pt < yh(idx_4D[1])) {
             idx_4D[1] = idx_4D[1] - 1;
         }
-        if ( (z_pt < grid->zh[idx_4D[2]]) && (idx_4D[2] != 0) ) {
+        if ( (z_pt < zh(idx_4D[2])) && (idx_4D[2] != 0) ) {
             idx_4D[2] = idx_4D[2] - 1;
         }
         i = idx_4D[0]; j = idx_4D[1]; k = idx_4D[2];
 
-        rx = (x_pt - grid->xf[i]) / (grid->xf[i+1] - grid->xf[i]); 
-        ry = (y_pt - grid->yh[j]) / (grid->yh[j+1] - grid->yh[j]); 
-        rz = (z_pt - grid->zh[k]) / (grid->zh[k+1] - grid->zh[k]); 
+        rx = (x_pt - xf(i)) / (xf(i)   - xf(i-1)); 
+        ry = (y_pt - yh(j)) / (yh(j)   - yh(j-1)); 
+        rz = (z_pt - zh(k)) / (zh(k+1) - zh(k)); 
         
 	}
 
     else if (vgrd) {
-        if (x_pt < grid->xh[idx_4D[0]]) {
+        if (x_pt < xh(idx_4D[0])) {
             idx_4D[0] = idx_4D[0] - 1;
         }
-        if ( (z_pt < grid->zh[idx_4D[2]]) && (idx_4D[2] != 0) ) {
+        if ( (z_pt < zh(idx_4D[2])) && (idx_4D[2] != 0) ) {
             idx_4D[2] = idx_4D[2] - 1;
         }
         i = idx_4D[0]; j = idx_4D[1]; k = idx_4D[2];
 
 
-        rx = (x_pt - grid->xh[i]) / (grid->xh[i+1] - grid->xh[i]); 
-        ry = (y_pt - grid->yf[j]) / (grid->yf[j+1] - grid->yf[j]); 
-        rz = (z_pt - grid->zh[k]) / (grid->zh[k+1] - grid->zh[k]); 
+        rx = (x_pt - xh(i)) / (xh(i) - xh(i-1)); 
+        ry = (y_pt - yf(j)) / (yf(j) - yf(j-1)); 
+        rz = (z_pt - zh(k)) / (zh(k) - zh(k)); 
 
 	}
 
     else if (wgrd) {
-        if (x_pt < grid->xh[idx_4D[0]]) {
+        if (x_pt < xh(idx_4D[0])) {
             idx_4D[0] = idx_4D[0] - 1;
         }
-        if (y_pt < grid->yh[idx_4D[1]]) {
+        if (y_pt < yh(idx_4D[1])) {
             idx_4D[1] = idx_4D[1] - 1;
         }
         i = idx_4D[0]; j = idx_4D[1]; k = idx_4D[2];
-        rx = (x_pt - grid->xh[i]) / (grid->xh[i+1] - grid->xh[i]); 
-        ry = (y_pt - grid->yh[j]) / (grid->yh[j+1] - grid->yh[j]); 
-        rz = (z_pt - grid->zf[k]) / (grid->zf[k+1] - grid->zf[k]); 
+        rx = (x_pt - xh(i)) / (xh(i) - xh(i-1)); 
+        ry = (y_pt - yh(j)) / (yh(j) - yh(j-1)); 
+        rz = (z_pt - zf(k)) / (zf(k) - zf(k-1)); 
 
 	}
 
     // data is on scalar grid
     else {
-        if (x_pt < grid->xh[idx_4D[0]]) {
+        if (x_pt < xh(idx_4D[0])) {
             idx_4D[0] = idx_4D[0] - 1;
         }
-        if (y_pt < grid->yh[idx_4D[1]]) {
+        if (y_pt < yh(idx_4D[1])) {
             idx_4D[1] = idx_4D[1] - 1;
         }
-        if ( (z_pt < grid->zh[idx_4D[2]]) && (idx_4D[2] != 0) ) {
+        if ( (z_pt < zh(idx_4D[2])) && (idx_4D[2] != 0) ) {
             idx_4D[2] = idx_4D[2] - 1;
         }
         i = idx_4D[0]; j = idx_4D[1]; k = idx_4D[2];
     
-        rx = (x_pt - grid->xh[i]) / (grid->xh[i+1] - grid->xh[i]); 
-        ry = (y_pt - grid->yh[j]) / (grid->yh[j+1] - grid->yh[j]); 
-        rz = (z_pt - grid->zh[k]) / (grid->zh[k+1] - grid->zh[k]); 
+        rx = (x_pt - xh(i)) / (xh(i) - xh(i-1)); 
+        ry = (y_pt - yh(j)) / (yh(j) - yh(j-1)); 
+        rz = (z_pt - zh(k)) / (zh(k) - zh(k-1)); 
     }
 
 
@@ -289,31 +292,31 @@ __host__ __device__ float interp1D(datagrid *grid, float *data_grd, float *point
     float zpt = point[2];
 
     if (wgrid) {
-        z0 = grid->zf[zidx];
-        z1 = grid->zf[grid->NZ-1];
+        z0 = zf(zidx);
+        z1 = zf(grid->NZ-1);
         while ((z0 <= zpt) && (zidx < grid->NZ-1)) {
-            z0 = grid->zf[zidx+1];
+            z0 = zf(zidx+1);
             zidx += 1;
         }
         y0 = data_grd[zidx];
         zidx = grid->NZ-1;
         while ((z1 >= zpt) && (zidx > 1)) {
-            z1 = grid->zf[zidx-1];
+            z1 = zf(zidx-1);
             zidx -= 1;
         }
         y1 = data_grd[zidx];
     }
     else {
-        z0 = grid->zh[zidx];
-        z1 = grid->zh[grid->NZ-1];
+        z0 = zh(zidx);
+        z1 = zh(grid->NZ-1);
         while ((z0 <= zpt) && (zidx < grid->NZ-1)) {
-            z0 = grid->zh[zidx+1];
+            z0 = zh(zidx+1);
             zidx += 1;
         }
         y0 = data_grd[zidx];
         zidx = grid->NZ-1;
         while ((z1 >= zpt) && (zidx > 1)) {
-            z1 = grid->zh[zidx-1];
+            z1 = zh(zidx-1);
             zidx -= 1;
         }
         y1 = data_grd[zidx];

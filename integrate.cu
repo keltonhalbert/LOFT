@@ -9,7 +9,6 @@
 #ifndef INTEGRATE_CU
 #define INTEGRATE_CU
 
-using namespace std;
 // this is an error checking helper function for processes
 // that run on the GPU. Without calling this, the GPU can
 // fail to execute but the program won't crash or report it.
@@ -18,7 +17,7 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 {
    if (code != cudaSuccess) 
    {
-      cout << cudaGetErrorString(code) << endl;
+       std::cout << cudaGetErrorString(code) << std::endl;
       if (abort) exit(code);
    }
 }
@@ -215,8 +214,8 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, model_data *data,
             pcl_x = point[0];
             pcl_y = point[1];
             pcl_z = point[2];
-            if (( pcl_x > grid->xf[grid->NX-4] ) || ( pcl_y > grid->yf[grid->NY-4] ) || ( pcl_z > grid->zf[grid->NZ-4] ) \
-             || ( pcl_x < grid->xf[0] )        || ( pcl_y < grid->yf[0] )        || ( pcl_z < 0. ) ) {
+            if (( pcl_x > xf(grid->NX-4) ) || ( pcl_y > yf(grid->NY-4) ) || ( pcl_z > zf(grid->NZ-4) ) \
+             || ( pcl_x < xf(0) )        || ( pcl_y < yf(0) )        || ( pcl_z < 0. ) ) {
                 break;
             }
 
@@ -386,7 +385,7 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, model_data *data,
             // Now we use an RK2 scheme to integrate forward
             // in time. Values are interpolated to the parcel 
             // at the beginning of the next data time step. 
-            for (int nkrp = 1; nkrp <= 2; ++nkrp) {        
+            for (int nkrp = 1; nkrp <= 1; ++nkrp) {        
                 if (nkrp == 1) {
                     // integrate X position forward by the U wind
                     point[0] = pcl_x + pcl_u * dt * direct;
@@ -394,9 +393,10 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, model_data *data,
                     point[1] = pcl_y + pcl_v * dt * direct;
                     // integrate Z position forward by the W wind
                     point[2] = pcl_z + pcl_w * dt * direct;
+                    if (isnan(point[0]) || isnan(point[1]) || isnan(point[2])) printf("%f %f %f\n", pcl_u, pcl_v, pcl_w);
                     if ((pcl_u == -999.0) || (pcl_v == -999.0) || (pcl_w == -999.0)) {
                         printf("Warning: missing values detected at x: %f y:%f z:%f with ground bounds X0: %f Y0: %f Z0: %f X1: %f Y1: %f Z1: %f\n", \
-                            point[0], point[1], point[2], grid->xh[0], grid->yh[0], grid->zh[0], grid->xh[grid->NX-1], grid->yh[grid->NY-1], grid->zh[grid->NZ-1]);
+                            point[0], point[1], point[2], xh(0), yh(0), zh(0), xh(grid->NX-1), yh(grid->NY-1), zh(grid->NZ-1));
                         return;
                     }
                     uu1 = pcl_u;
@@ -427,7 +427,7 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, model_data *data,
                     point[2] = pcl_z + (pcl_w + ww1) * dt2 * direct;
                     if ((pcl_u == -999.0) || (pcl_v == -999.0) || (pcl_w == -999.0)) {
                         printf("Warning: missing values detected at x: %f y:%f z:%f with ground bounds X0: %f Y0: %f Z0: %f X1: %f Y1: %f Z1: %f\n", \
-                            point[0], point[1], point[2], grid->xh[0], grid->yh[0], grid->zh[0], grid->xh[grid->NX-1], grid->yh[grid->NY-1], grid->zh[grid->NZ-1]);
+                            point[0], point[1], point[2], xh(0), yh(0), zh(0), xh(grid->NX-1), yh(grid->NY-1), zh(grid->NZ-1));
                         return;
                     }
                 }
@@ -479,6 +479,8 @@ void cudaIntegrateParcels(datagrid *grid, model_data *data, parcel_pos *parcels,
     // appropriately such that the "user" only has to call this method.
     if (io->output_xvort || io->output_yvort || io->output_zvort || io->output_vorticity_budget) {
         doCalcVort(grid, data, tStart, tEnd, numBlocks, threadsPerBlock);
+        gpuErrchk( cudaDeviceSynchronize() );
+        gpuErrchk( cudaPeekAtLastError() );
     }
     
 
