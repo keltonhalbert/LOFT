@@ -184,9 +184,8 @@ void doCalcVortTend(datagrid *grid, model_data *data, int tStart, int tEnd, dim3
 __global__ void integrate(datagrid *grid, parcel_pos *parcels, model_data *data, \
                           int tStart, int tEnd, int totTime, int direct) {
 
-	int parcel_id = blockIdx.x;
-    // get the io config from the user namelist
-    iocfg *io = parcels->io;
+	//int parcel_id = blockIdx.x;
+    int parcel_id = blockIdx.x * blockDim.x + threadIdx.x;
 
     // safety check to make sure our thread index doesn't
     // go out of our array bounds
@@ -238,6 +237,83 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, model_data *data,
             parcels->pclv[PCL(tidx,   parcel_id, totTime)] = pcl_v;
             parcels->pclw[PCL(tidx,   parcel_id, totTime)] = pcl_w;
 
+            // Now we use an RK2 scheme to integrate forward
+            // in time. Values are interpolated to the parcel 
+            // at the beginning of the next data time step. 
+            for (int nkrp = 1; nkrp <= 2; ++nkrp) {        
+                if (nkrp == 1) {
+                    // integrate X position forward by the U wind
+                    point[0] = pcl_x + pcl_u * dt * direct;
+                    // integrate Y position forward by the V wind
+                    point[1] = pcl_y + pcl_v * dt * direct;
+                    // integrate Z position forward by the W wind
+                    point[2] = pcl_z + pcl_w * dt * direct;
+                    if ((pcl_u == -999.0) || (pcl_v == -999.0) || (pcl_w == -999.0)) {
+                        printf("Warning: missing values detected at x: %f y:%f z:%f with ground bounds X0: %f Y0: %f Z0: %f X1: %f Y1: %f Z1: %f\n", \
+                            point[0], point[1], point[2], xh(0), yh(0), zh(0), xh(grid->NX-1), yh(grid->NY-1), zh(grid->NZ-1));
+                        return;
+                    }
+                    uu1 = pcl_u;
+                    vv1 = pcl_v;
+                    ww1 = pcl_w;
+                }
+                else {
+                    is_ugrd = true;
+                    is_vgrd = false;
+                    is_wgrd = false;
+                    pcl_u = interp3D(grid, data->ustag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+
+                    is_ugrd = false;
+                    is_vgrd = true;
+                    is_wgrd = false;
+                    pcl_v = interp3D(grid, data->vstag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+
+                    is_ugrd = false;
+                    is_vgrd = false;
+                    is_wgrd = true;
+                    pcl_w = interp3D(grid, data->wstag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+
+                    // integrate X position forward by the U wind
+                    point[0] = pcl_x + (pcl_u + uu1) * dt2 * direct;
+                    // integrate Y position forward by the V wind
+                    point[1] = pcl_y + (pcl_v + vv1) * dt2 * direct;
+                    // integrate Z position forward by the W wind
+                    point[2] = pcl_z + (pcl_w + ww1) * dt2 * direct;
+                    if ((pcl_u == -999.0) || (pcl_v == -999.0) || (pcl_w == -999.0)) {
+                        printf("Warning: missing values detected at x: %f y:%f z:%f with ground bounds X0: %f Y0: %f Z0: %f X1: %f Y1: %f Z1: %f\n", \
+                            point[0], point[1], point[2], xh(0), yh(0), zh(0), xh(grid->NX-1), yh(grid->NY-1), zh(grid->NZ-1));
+                        return;
+                    }
+                }
+            } // end RK loop
+
+            parcels->xpos[PCL(tidx+1, parcel_id, totTime)] = point[0]; 
+            parcels->ypos[PCL(tidx+1, parcel_id, totTime)] = point[1];
+            parcels->zpos[PCL(tidx+1, parcel_id, totTime)] = point[2];
+        } // end time loop
+    } // end index check
+}
+
+__global__ void parcel_interp(datagrid *grid, parcel_pos *parcels, model_data *data, \
+                          int tStart, int tEnd, int totTime, int direct) {
+
+	//int parcel_id = blockIdx.x;
+    int parcel_id = blockIdx.x * blockDim.x + threadIdx.x;
+    // get the io config from the user namelist
+    iocfg *io = parcels->io;
+
+    // safety check to make sure our thread index doesn't
+    // go out of our array bounds
+    if (parcel_id < parcels->nParcels) {
+        bool is_ugrd = false;
+        bool is_vgrd = false;
+        bool is_wgrd = false;
+
+        float point[3];
+
+        // loop over the number of time steps we are
+        // integrating over
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
             if (io->output_kmh) {
                 is_ugrd = false;
                 is_vgrd = false;
@@ -380,63 +456,8 @@ __global__ void integrate(datagrid *grid, parcel_pos *parcels, model_data *data,
                 float pclqg = interp3D(grid, data->qg, point, is_ugrd, is_vgrd, is_wgrd, tidx);
                 parcels->pclqg[PCL(tidx, parcel_id, totTime)] = pclqg;
             }
-
-
-            // Now we use an RK2 scheme to integrate forward
-            // in time. Values are interpolated to the parcel 
-            // at the beginning of the next data time step. 
-            for (int nkrp = 1; nkrp <= 2; ++nkrp) {        
-                if (nkrp == 1) {
-                    // integrate X position forward by the U wind
-                    point[0] = pcl_x + pcl_u * dt * direct;
-                    // integrate Y position forward by the V wind
-                    point[1] = pcl_y + pcl_v * dt * direct;
-                    // integrate Z position forward by the W wind
-                    point[2] = pcl_z + pcl_w * dt * direct;
-                    if ((pcl_u == -999.0) || (pcl_v == -999.0) || (pcl_w == -999.0)) {
-                        printf("Warning: missing values detected at x: %f y:%f z:%f with ground bounds X0: %f Y0: %f Z0: %f X1: %f Y1: %f Z1: %f\n", \
-                            point[0], point[1], point[2], xh(0), yh(0), zh(0), xh(grid->NX-1), yh(grid->NY-1), zh(grid->NZ-1));
-                        return;
-                    }
-                    uu1 = pcl_u;
-                    vv1 = pcl_v;
-                    ww1 = pcl_w;
-                }
-                else {
-                    is_ugrd = true;
-                    is_vgrd = false;
-                    is_wgrd = false;
-                    pcl_u = interp3D(grid, data->ustag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-
-                    is_ugrd = false;
-                    is_vgrd = true;
-                    is_wgrd = false;
-                    pcl_v = interp3D(grid, data->vstag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-
-                    is_ugrd = false;
-                    is_vgrd = false;
-                    is_wgrd = true;
-                    pcl_w = interp3D(grid, data->wstag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-
-                    // integrate X position forward by the U wind
-                    point[0] = pcl_x + (pcl_u + uu1) * dt2 * direct;
-                    // integrate Y position forward by the V wind
-                    point[1] = pcl_y + (pcl_v + vv1) * dt2 * direct;
-                    // integrate Z position forward by the W wind
-                    point[2] = pcl_z + (pcl_w + ww1) * dt2 * direct;
-                    if ((pcl_u == -999.0) || (pcl_v == -999.0) || (pcl_w == -999.0)) {
-                        printf("Warning: missing values detected at x: %f y:%f z:%f with ground bounds X0: %f Y0: %f Z0: %f X1: %f Y1: %f Z1: %f\n", \
-                            point[0], point[1], point[2], xh(0), yh(0), zh(0), xh(grid->NX-1), yh(grid->NY-1), zh(grid->NZ-1));
-                        return;
-                    }
-                }
-            } // end RK loop
-
-            parcels->xpos[PCL(tidx+1, parcel_id, totTime)] = point[0]; 
-            parcels->ypos[PCL(tidx+1, parcel_id, totTime)] = point[1];
-            parcels->zpos[PCL(tidx+1, parcel_id, totTime)] = point[2];
-        } // end time loop
-    } // end index check
+        }
+    }
 }
 
 /*This function handles allocating memory on the GPU, transferring the CPU
@@ -462,7 +483,7 @@ void cudaIntegrateParcels(datagrid *grid, model_data *data, parcel_pos *parcels,
     // must not be executing or something, seemingly related to the threadsPerBlock size. 
     // Changing to 4x4x4 fixed for xvort, but not yvort. I think we need to dynamically set
     // threadsPerBloc(x, y, z) based on the size of our grid at a given time step. 
-    dim3 threadsPerBlock(8, 8, 8);
+    dim3 threadsPerBlock(8, 8, 6);
     dim3 numBlocks((int)ceil(NX/threadsPerBlock.x)+1, (int)ceil(NY/threadsPerBlock.y)+1, (int)ceil(NZ/threadsPerBlock.z)+1); 
 
     // we synchronize the device before doing anything to make sure all
@@ -497,9 +518,14 @@ void cudaIntegrateParcels(datagrid *grid, model_data *data, parcel_pos *parcels,
 
     // integrate the parcels forward in time and interpolate
     // calculations to trajectories. 
-    integrate<<<parcels->nParcels, 1>>>(grid, parcels, data, tStart, tEnd, totTime, direct);
+    int nThreads = 256;
+    int nPclBlocks = int(parcels->nParcels / nThreads) + 1;
+    integrate<<<nPclBlocks, nThreads>>>(grid, parcels, data, tStart, tEnd, totTime, direct);
     gpuErrchk(cudaDeviceSynchronize() );
     gpuErrchk( cudaPeekAtLastError() );
-
+    parcel_interp<<<nPclBlocks, nThreads>>>(grid, parcels, data, tStart, tEnd, totTime, direct);
+    gpuErrchk(cudaDeviceSynchronize() );
+    gpuErrchk( cudaPeekAtLastError() );
 }
 #endif
+
