@@ -97,6 +97,9 @@ struct parcel_pos {
     float *pclu;
     float *pclv;
     float *pclw;
+    float *pclupgrad;
+    float *pclvpgrad;
+    float *pclwpgrad;
     float *pclkmh;
     float *pcluturb;
     float *pclvturb;
@@ -173,6 +176,9 @@ struct model_data {
     float *qs;
     float *qg;
 
+    float *pgradu;
+    float *pgradv;
+    float *pgradw;
     float *turbu;
     float *turbv;
     float *turbw;

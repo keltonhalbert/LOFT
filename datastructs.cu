@@ -203,6 +203,9 @@ parcel_pos* allocate_parcels_managed(iocfg *io, int NX, int NY, int NZ, int nTot
     cudaMallocManaged(&(parcels->pclw), nParcels*nTotTimes*sizeof(float)); 
     if (io->output_kmh ) cudaMallocManaged(&(parcels->pclkmh), nParcels*nTotTimes*sizeof(float)); 
     if (io->output_momentum_budget) {
+        cudaMallocManaged(&(parcels->pclupgrad), nParcels*nTotTimes*sizeof(float));
+        cudaMallocManaged(&(parcels->pclvpgrad), nParcels*nTotTimes*sizeof(float));
+        cudaMallocManaged(&(parcels->pclwpgrad), nParcels*nTotTimes*sizeof(float));
         cudaMallocManaged(&(parcels->pcluturb), nParcels*nTotTimes*sizeof(float)); 
         cudaMallocManaged(&(parcels->pclvturb), nParcels*nTotTimes*sizeof(float)); 
         cudaMallocManaged(&(parcels->pclwturb), nParcels*nTotTimes*sizeof(float)); 
@@ -275,6 +278,9 @@ parcel_pos* allocate_parcels_cpu(iocfg* io, int NX, int NY, int NZ, int nTotTime
     parcels->pclw = new float[nParcels*nTotTimes]; 
     if (io->output_kmh) parcels->pclkmh = new float[nParcels*nTotTimes]; 
     if (io->output_momentum_budget) {
+        parcels->pclupgrad = new float[nParcels*nTotTimes];
+        parcels->pclvpgrad = new float[nParcels*nTotTimes];
+        parcels->pclwpgrad = new float[nParcels*nTotTimes];
         parcels->pcluturb = new float[nParcels*nTotTimes]; 
         parcels->pclvturb = new float[nParcels*nTotTimes]; 
         parcels->pclwturb = new float[nParcels*nTotTimes]; 
@@ -337,6 +343,9 @@ void deallocate_parcels_managed(iocfg* io, parcel_pos *parcels) {
     cudaFree(parcels->pclw);
     if (io->output_kmh) cudaFree(parcels->pclkmh);
     if (io->output_momentum_budget) {
+        cudaFree(parcels->pclupgrad);
+        cudaFree(parcels->pclvpgrad);
+        cudaFree(parcels->pclwpgrad);
         cudaFree(parcels->pcluturb);
         cudaFree(parcels->pclvturb);
         cudaFree(parcels->pclwturb);
@@ -396,6 +405,9 @@ void deallocate_parcels_cpu(iocfg *io, parcel_pos *parcels) {
     delete[] parcels->pclw;
     if (io->output_kmh) delete[] parcels->pclkmh;
     if (io->output_momentum_budget) {
+        delete[] parcels->pclupgrad;
+        delete[] parcels->pclvpgrad;
+        delete[] parcels->pclwpgrad;
         delete[] parcels->pcluturb;
         delete[] parcels->pclvturb;
         delete[] parcels->pclwturb;
@@ -519,6 +531,9 @@ model_data* allocate_model_managed(iocfg *io, long bufsize) {
     if (io->output_vorticity_budget || io->output_momentum_budget || io->output_qvpert) cudaMallocManaged(&(data->qvpert), bufsize*sizeof(float));
     if (io->output_vorticity_budget || io->output_momentum_budget) {
         cudaMallocManaged(&(data->rhof), bufsize*sizeof(float));
+        cudaMallocManaged(&(data->pgradu), bufsize*sizeof(float));
+        cudaMallocManaged(&(data->pgradv), bufsize*sizeof(float));
+        cudaMallocManaged(&(data->pgradw), bufsize*sizeof(float));
         cudaMallocManaged(&(data->turbu), bufsize*sizeof(float));
         cudaMallocManaged(&(data->turbv), bufsize*sizeof(float));
         cudaMallocManaged(&(data->turbw), bufsize*sizeof(float));
@@ -581,6 +596,9 @@ void deallocate_model_managed(iocfg *io, model_data *data) {
     if (io->output_vorticity_budget || io->output_momentum_budget || io->output_qvpert) cudaFree(data->qvpert);
     if (io->output_vorticity_budget || io->output_momentum_budget) {
         cudaFree(data->rhof);
+        cudaFree(data->pgradu);
+        cudaFree(data->pgradv);
+        cudaFree(data->pgradw);
         cudaFree(data->turbu);
         cudaFree(data->turbv);
         cudaFree(data->turbw);
