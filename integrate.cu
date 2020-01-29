@@ -523,6 +523,7 @@ void cudaIntegrateParcels(datagrid *grid, model_data *data, parcel_pos *parcels,
     integrate<<<nPclBlocks, nThreads>>>(grid, parcels, data, tStart, tEnd, totTime, direct);
     gpuErrchk(cudaDeviceSynchronize() );
     gpuErrchk( cudaPeekAtLastError() );
+
     parcel_interp<<<nPclBlocks, nThreads>>>(grid, parcels, data, tStart, tEnd, totTime, direct);
     gpuErrchk(cudaDeviceSynchronize() );
     gpuErrchk( cudaPeekAtLastError() );
