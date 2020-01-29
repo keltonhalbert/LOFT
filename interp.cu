@@ -23,15 +23,15 @@ __device__ __host__ void _nearest_grid_idx(float *point, datagrid *grid, int *id
 
 
 	// loop over the X grid
-	for ( int i = 0; i < grid->NX+1; i++ ) {
+	for ( int i = 0; i < grid->NX; i++ ) {
 		// find the nearest grid point index at X
-		if ( ( pt_x >= xf(i-1) ) && ( pt_x <= xf(i) ) ) { near_i = i; } 
+		if ( ( pt_x >= xf(i) ) && ( pt_x <= xf(i+1) ) ) { near_i = i; } 
 	}
 
 	// loop over the Y grid
-	for ( int j = 0; j < grid->NY+1; j++ ) {
+	for ( int j = 0; j < grid->NY; j++ ) {
 		// find the nearest grid point index in the Y
-		if ( ( pt_y >= yf(j-1) ) && ( pt_y <= yf(j) ) ) { near_j = j; } 
+		if ( ( pt_y >= yf(j) ) && ( pt_y <= yf(j+1) ) ) { near_j = j; } 
 	}
 
 	// loop over the Z grid

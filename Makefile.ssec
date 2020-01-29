@@ -10,10 +10,10 @@ CC = mpiCC
 all: run datastructs.o readlofs.o
 
 datastructs.o: datastructs.cu
-	nvcc -c -gencode=arch=compute_61,code=compute_61 --prec-div=true --ftz=true --fmad=true --std=c++11 -o datastructs.o datastructs.cu
+	nvcc --default-stream per-thread -c -gencode=arch=compute_61,code=compute_61 --prec-div=true --ftz=true --fmad=true --std=c++11 -o datastructs.o datastructs.cu
 
 integrate.o: integrate.cu interp.cu vort.cu turb.cu diff6.cu datastructs.cu
-	nvcc -c -gencode=arch=compute_61,code=compute_61 --prec-div=true --ftz=true --fmad=true --std=c++11 -o integrate.o integrate.cu
+	nvcc --default-stream per-thread -c -gencode=arch=compute_61,code=compute_61 --prec-div=true --ftz=true --fmad=true --std=c++11 -o integrate.o integrate.cu
 
 readlofs.o: readlofs.cpp
 	$(CC) -O3 -std=c++11 -c -o readlofs.o readlofs.cpp $(CFLAGS) $(LINKOPTS)
