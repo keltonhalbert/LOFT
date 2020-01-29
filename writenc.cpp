@@ -38,6 +38,9 @@ void init_nc(string filename, parcel_pos *parcels) {
     wVar.putAtt("units", "meters / second");
 
     if (io->output_momentum_budget) {
+        NcVar upgradVar = output.addVar("upgrad", ncFloat, gridDimVector);
+        NcVar vpgradVar = output.addVar("vpgrad", ncFloat, gridDimVector);
+        NcVar wpgradVar = output.addVar("wpgrad", ncFloat, gridDimVector);
         NcVar uturbVar = output.addVar("uturb", ncFloat, gridDimVector);
         NcVar vturbVar = output.addVar("vturb", ncFloat, gridDimVector);
         NcVar wturbVar = output.addVar("wturb", ncFloat, gridDimVector);
@@ -45,6 +48,9 @@ void init_nc(string filename, parcel_pos *parcels) {
         NcVar vdiffVar = output.addVar("vdiff", ncFloat, gridDimVector);
         NcVar wdiffVar = output.addVar("wdiff", ncFloat, gridDimVector);
 
+        upgradVar.putAtt("units", "meters / second^2");
+        vpgradVar.putAtt("units", "meters / second^2");
+        wpgradVar.putAtt("units", "meters / second^2");
         uturbVar.putAtt("units", "meters / second^2");
         vturbVar.putAtt("units", "meters / second^2");
         wturbVar.putAtt("units", "meters / second^2");
@@ -194,6 +200,9 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
     wVar.putVar(startp,countp,parcels->pclw);
 
     if (io->output_momentum_budget) {
+        NcVar upgradVar = output.getVar("upgrad");
+        NcVar vpgradVar = output.getVar("vpgrad");
+        NcVar wpgradVar = output.getVar("wpgrad");
         NcVar uturbVar = output.getVar("uturb");
         NcVar vturbVar = output.getVar("vturb");
         NcVar wturbVar = output.getVar("wturb");
@@ -201,6 +210,9 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
         NcVar vdiffVar = output.getVar("vdiff");
         NcVar wdiffVar = output.getVar("wdiff");
 
+        upgradVar.putVar(startp,countp,parcels->pclupgrad);
+        vpgradVar.putVar(startp,countp,parcels->pclvpgrad);
+        wpgradVar.putVar(startp,countp,parcels->pclwpgrad);
         uturbVar.putVar(startp,countp,parcels->pcluturb);
         vturbVar.putVar(startp,countp,parcels->pclvturb);
         wturbVar.putVar(startp,countp,parcels->pclwturb);
