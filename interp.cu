@@ -92,8 +92,8 @@ __host__ __device__ void _calc_weights(datagrid *grid, float *weights, float *po
         }
         i = idx_4D[0]; j = idx_4D[1]; k = idx_4D[2];
 
-        rx = (x_pt - xf(i)) / (xf(i)   - xf(i-1)); 
-        ry = (y_pt - yh(j)) / (yh(j)   - yh(j-1)); 
+        rx = (x_pt - xf(i)) / (xf(i+1)   - xf(i)); 
+        ry = (y_pt - yh(j)) / (yh(j+1)   - yh(j)); 
         rz = (z_pt - zh(k)) / (zh(k+1) - zh(k));  
     }
 
