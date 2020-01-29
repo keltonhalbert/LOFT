@@ -281,12 +281,11 @@ __host__ __device__ float interp3D(datagrid *grid, float *data_grd, float *point
 }
 
 /* Do a 1D interpolation */
-__host__ __device__ float interp1D(datagrid *grid, float *data_grd, float *point, bool wgrid, int tstep) {
+__host__ __device__ float interp1D(datagrid *grid, float *data_grd, float zpt, bool wgrid, int tstep) {
     float z0, z1;
     float y0, y1;
     int zidx = 1;
     float output_val; 
-    float zpt = point[2];
 
     if (wgrid) {
         z0 = zf(zidx);

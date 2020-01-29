@@ -423,23 +423,23 @@ __global__ void parcel_interp(datagrid *grid, parcel_pos *parcels, model_data *d
             }
 
             if (io->output_pbar) {
-                float pclpbar = interp1D(grid, grid->p0, point, is_wgrd, tidx);
+                float pclpbar = interp1D(grid, grid->p0, point[2], is_wgrd, tidx);
                 parcels->pclpbar[PCL(tidx, parcel_id, totTime)] = pclpbar;
             }
             if (io->output_qvbar) {
-                float pclqvbar = interp1D(grid, grid->qv0, point, is_wgrd, tidx);
+                float pclqvbar = interp1D(grid, grid->qv0, point[2], is_wgrd, tidx);
                 parcels->pclqvbar[PCL(tidx, parcel_id, totTime)] = pclqvbar;
             }
             if (io->output_rhobar) {
-                float pclrhobar = interp1D(grid, grid->rho0, point, is_wgrd, tidx);
+                float pclrhobar = interp1D(grid, grid->rho0, point[2], is_wgrd, tidx);
                 parcels->pclrhobar[PCL(tidx, parcel_id, totTime)] = pclrhobar;
             }
             if (io->output_thetabar) {
-                float pclthetabar = interp1D(grid, grid->th0, point, is_wgrd, tidx);
+                float pclthetabar = interp1D(grid, grid->th0, point[2], is_wgrd, tidx);
                 parcels->pclthetabar[PCL(tidx, parcel_id, totTime)] = pclthetabar;
             }
             if (io->output_rhobar) {
-                float pclthrhobar = interp1D(grid, grid->th0, point, is_wgrd, tidx);
+                float pclthrhobar = interp1D(grid, grid->th0, point[2], is_wgrd, tidx);
                 parcels->pclthrhobar[PCL(tidx, parcel_id, totTime)] = pclthrhobar;
             }
 
