@@ -24,7 +24,7 @@ __host__ __device__ void calc_pgrad_u(datagrid *grid, model_data *data, int *idx
     // get theta_rho on V points by averaging them
     // to the staggered V level. Base state doesnt vary in X or Y.
     buf0 = data->thrhopert;
-    float qvbar1 = grid->qv0[k]
+    float qvbar1 = grid->qv0[k];
     float thbar1 = grid->th0[k]*(1.0+reps*qvbar1)/(1.0+qvbar1); 
 
     float thrhopert1 = BUF4D(i, j, k, t);
@@ -51,7 +51,7 @@ __host__ __device__ void calc_pgrad_v(datagrid *grid, model_data *data, int *idx
     // get theta_rho on V points by averaging them
     // to the staggered V level. Base state doesnt vary in X or Y.
     buf0 = data->thrhopert;
-    float qvbar1 = grid->qv0[k]
+    float qvbar1 = grid->qv0[k];
     float thbar1 = grid->th0[k]*(1.0+reps*qvbar1)/(1.0+qvbar1); 
     float thrhopert1 = BUF4D(i, j, k, t);
     float thrhopert2 = BUF4D(i, j-1, k, t);
@@ -79,8 +79,8 @@ __host__ __device__ void calc_pgrad_w(datagrid *grid, model_data *data, int *idx
     // to the staggered W level. NOTE: Need to do something
     // about k = 0. 
     buf0 = data->thrhopert;
-    float qvbar1 = grid->qv0[k]
-    float qvbar2 = grid->qv0[k-1]
+    float qvbar1 = grid->qv0[k];
+    float qvbar2 = grid->qv0[k-1];
 
     float thbar1 = grid->th0[k]*(1.0+reps*qvbar1)/(1.0+qvbar1); 
     float thbar2 = grid->th0[k-1]*(1.0+reps*qvbar2)/(1.0+qvbar2); 

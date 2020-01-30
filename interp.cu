@@ -184,12 +184,14 @@ __host__ __device__ float _tri_interp(float *data_arr, float* weights, bool ugrd
 
 	// if the given i,j,k are invalid, return -999.0
 	if ((i == -1) | (j == -1) | (k == -1)) {
+        printf("Invalid index: %d %d %d\n", i, j, k);
 		return out;
 	}
 
 	// if the given weights are invalid, return -999.0
 	for (int idx = 0; idx < 8; idx++) {
 		if (weights[idx] == -999) {
+            printf("Invalid weights!\n");
 			return out;
 		}
 	}
@@ -225,6 +227,7 @@ __host__ __device__ float _tri_interp(float *data_arr, float* weights, bool ugrd
     else if (wgrd) {
         //printf("I'm a W staggered interpolation!\n");
         float *wstag = data_arr;
+        // i = 100 j = 66 k = 5
         out = (WA4D(i ,  j, k  , t) * weights[0]) + \
               (WA4D(i+1, j, k  , t) * weights[1]) + \
               (WA4D(i ,j+1, k  , t) * weights[2]) + \
