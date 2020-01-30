@@ -107,9 +107,21 @@ __global__ void calcpgradw(datagrid *grid, model_data *data, int tStart, int tEn
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
-            calc_pgrad_u(grid, data, idx_4D, NX, NY, NZ);
-            calc_pgrad_v(grid, data, idx_4D, NX, NY, NZ);
             calc_pgrad_w(grid, data, idx_4D, NX, NY, NZ);
+        }
+    }
+    if ((i < NX+1) && (j < NY+1) && (i > 0) && (k < NZ)) {
+        // loop over the number of time steps we have in memory
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            idx_4D[3] = tidx;
+            calc_pgrad_u(grid, data, idx_4D, NX, NY, NZ);
+        }
+    }
+    if ((i < NX+1) && (j < NY+1) && (j > 0) && (k < NZ)) {
+        // loop over the number of time steps we have in memory
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            idx_4D[3] = tidx;
+            calc_pgrad_v(grid, data, idx_4D, NX, NY, NZ);
         }
     }
 }
