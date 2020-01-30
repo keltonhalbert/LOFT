@@ -92,6 +92,8 @@ void init_nc(string filename, parcel_pos *parcels) {
         NcVar xvortdiffVar = output.addVar("xvortdiff", ncFloat, gridDimVector);
         NcVar yvortdiffVar = output.addVar("yvortdiff", ncFloat, gridDimVector);
         NcVar zvortdiffVar = output.addVar("zvortdiff", ncFloat, gridDimVector);
+        NcVar xvortbaroVar = output.addVar("xvortbaro", ncFloat, gridDimVector);
+        NcVar yvortbaroVar = output.addVar("yvortbaro", ncFloat, gridDimVector);
 
         xvorttiltVar.putAtt("units", "s^-2");
         yvorttiltVar.putAtt("units", "s^-2");
@@ -108,6 +110,8 @@ void init_nc(string filename, parcel_pos *parcels) {
         xvortdiffVar.putAtt("units", "s^-2");
         yvortdiffVar.putAtt("units", "s^-2");
         zvortdiffVar.putAtt("units", "s^-2");
+        xvortbaroVar.putAtt("units", "s^-2");
+        yvortbaroVar.putAtt("units", "s^-2");
     }
 
     if (io->output_ppert) {
@@ -254,6 +258,8 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
         NcVar xvortdiffVar = output.getVar("xvortdiff");
         NcVar yvortdiffVar = output.getVar("yvortdiff");
         NcVar zvortdiffVar = output.getVar("zvortdiff");
+        NcVar xvortbaroVar = output.getVar("xvortbaro");
+        NcVar yvortbaroVar = output.getVar("yvortbaro");
 
         xvorttiltVar.putVar(startp,countp,parcels->pclxvorttilt);
         yvorttiltVar.putVar(startp,countp,parcels->pclyvorttilt);
@@ -270,6 +276,8 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
         xvortdiffVar.putVar(startp,countp,parcels->pclxvortdiff);
         yvortdiffVar.putVar(startp,countp,parcels->pclyvortdiff);
         zvortdiffVar.putVar(startp,countp,parcels->pclzvortdiff);
+        xvortbaroVar.putVar(startp,countp,parcels->pclxvortbaro);
+        yvortbaroVar.putVar(startp,countp,parcels->pclyvortbaro);
     }
 
     if (io->output_ppert) {
