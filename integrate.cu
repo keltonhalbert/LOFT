@@ -51,6 +51,9 @@ void doCalcVort(datagrid *grid, model_data *data, int tStart, int tEnd, dim3 num
 } 
 
 void doMomentumBud(datagrid *grid, model_data *data, int tStart, int tEnd, dim3 numBlocks, dim3 threadsPerBlock, cudaStream_t stream) {
+    calcpi<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaStreamSynchronize(stream));
+    gpuErrchk(cudaPeekAtLastError());
     calcpgradw<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
 }
 
@@ -60,7 +63,7 @@ void doCalcVortTend(datagrid *grid, model_data *data, int tStart, int tEnd, dim3
     //gpuErrchk(cudaStreamSynchronize(stream));
     gpuErrchk( cudaPeekAtLastError() );
     calcpi<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
+    gpuErrchk(cudaStreamSynchronize(stream));
     gpuErrchk(cudaPeekAtLastError());
 
     // Compute the vorticity tendency due to stretching. These conveniently

@@ -110,14 +110,14 @@ __global__ void calcpgradw(datagrid *grid, model_data *data, int tStart, int tEn
             calc_pgrad_w(grid, data, idx_4D, NX, NY, NZ);
         }
     }
-    if ((i < NX) && (j < NY+1) && (i > 0) && (k < NZ)) {
+    if ((i < NX) && (j < NY+1) && (i > 0) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calc_pgrad_u(grid, data, idx_4D, NX, NY, NZ);
         }
     }
-    if ((i < NX+1) && (j < NY) && (j > 0) && (k < NZ)) {
+    if ((i < NX+1) && (j < NY) && (j > 0) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
