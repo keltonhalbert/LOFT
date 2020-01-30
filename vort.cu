@@ -409,6 +409,8 @@ __device__ void calc_xvort_solenoid(datagrid *grid, model_data *data, int *idx_4
     int t = idx_4D[3];
 
     float cp = 1005.7;
+    const float reps = 461.5 / 287.04;
+
     float dy = yf(j) - yf(j-1);
     float dz = zf(k) - zf(k-1);
 
@@ -421,11 +423,15 @@ __device__ void calc_xvort_solenoid(datagrid *grid, model_data *data, int *idx_4
     float dpidy = ( (BUF4D(i, j+1, k, t) - BUF4D(i, j-1, k, t)) / ( 2*dy ) );
 
     buf0 = data->thrhopert;
+    float qvbar1 = grid->qv0[k+1];
+    float qvbar2 = grid->qv0[k-1];
+    float thbar1 = grid->th0[k+1]*(1.0+reps*qvbar1)/(1.0+qvbar1); 
+    float thbar2 = grid->th0[k-1]*(1.0+reps*qvbar2)/(1.0+qvbar2); 
     // dthrho/dy
     float dthdy = ( (BUF4D(i, j+1, k, t) - BUF4D(i, j-1, k, t)) / ( 2*dy ) );
 
-    // ddthrho/dz
-    float dthdz = ( (BUF4D(i, j, k+1, t) - BUF4D(i, j, k-1, t)) / ( 2*dz ) );
+    // dthrho/dz
+    float dthdz = ( ((BUF4D(i, j, k+1, t) + thbar1) - (BUF4D(i, j, k-1, t) + thbar2)) / ( 2*dz ) );
 
     // compute and save to the array
     buf0 = data->xvort_solenoid; 
@@ -446,6 +452,7 @@ __device__ void calc_yvort_solenoid(datagrid *grid, model_data *data, int *idx_4
     int t = idx_4D[3];
 
     float cp = 1005.7;
+    const float reps = 461.5 / 287.04;
     float dx = xf(i) - xf(i-1);
     float dz = zf(k) - zf(k-1);
 
@@ -458,11 +465,15 @@ __device__ void calc_yvort_solenoid(datagrid *grid, model_data *data, int *idx_4
     float dpidx = ( (BUF4D(i+1, j, k, t) - BUF4D(i-1, j, k, t)) / ( 2*dx ) );
 
     buf0 = data->thrhopert;
+    float qvbar1 = grid->qv0[k+1];
+    float qvbar2 = grid->qv0[k-1];
+    float thbar1 = grid->th0[k+1]*(1.0+reps*qvbar1)/(1.0+qvbar1); 
+    float thbar2 = grid->th0[k-1]*(1.0+reps*qvbar2)/(1.0+qvbar2); 
     // dthrho/dx
     float dthdx = ( (BUF4D(i+1, j, k, t) - BUF4D(i-1, j, k, t)) / ( 2*dx ) );
 
     // dthrho/dz
-    float dthdz = ( (BUF4D(i, j, k+1, t) - BUF4D(i, j, k-1, t)) / ( 2*dz ) );
+    float dthdz = ( ((BUF4D(i, j, k+1, t) + thbar1) - (BUF4D(i, j, k-1, t) + thbar2)) / ( 2*dz ) );
 
     // compute and save to the array
     buf0 = data->yvort_solenoid; 
