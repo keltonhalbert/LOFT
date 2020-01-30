@@ -402,6 +402,61 @@ __device__ void calc_zvortdiff_ten(datagrid *grid, model_data *data, int *idx_4D
     TEM4D(i, j, k, t) = dvdx - dudy;
 }
 
+__device__ void calc_xvort_baro(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
+    int i = idx_4D[0];
+    int j = idx_4D[1];
+    int k = idx_4D[2];
+    int t = idx_4D[3];
+
+    const float reps = 461.5 / 287.04;
+    const float g = 9.81;
+
+    float dy = yf(j) - yf(j-1);
+
+    float *buf0 = data->thrhopert;
+    float qvbar1 = grid->qv0[k];
+    float thbar1 = grid->th0[k]*(1.0+reps*qvbar1)/(1.0+qvbar1); 
+    // dthrho/dy
+    float dthdy = ( (BUF4D(i, j+1, k, t) - BUF4D(i, j-1, k, t)) / ( 2*dy ) );
+
+    // compute and save to the array
+    buf0 = data->xvort_baro; 
+    BUF4D(i, j, k, t) = (g/thbar1)*dthdy; 
+    if (k == 1) {
+        // the d/dy terms are defined at k = 1,
+        // go get those
+        dthdy = ( (BUF4D(i, j+1, 0, t) - BUF4D(i, j-1, 0, t)) / ( 2*dy ) );
+        BUF4D(i, j, 0, t) = (g/thbar1)*dthdy; 
+    }
+}
+
+__device__ void calc_yvort_baro(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
+    int i = idx_4D[0];
+    int j = idx_4D[1];
+    int k = idx_4D[2];
+    int t = idx_4D[3];
+
+    const float reps = 461.5 / 287.04;
+    const float g = 9.81;
+
+    float dx = xf(j) - xf(j-1);
+
+    float *buf0 = data->thrhopert;
+    float qvbar1 = grid->qv0[k];
+    float thbar1 = grid->th0[k]*(1.0+reps*qvbar1)/(1.0+qvbar1); 
+    // dthrho/dy
+    float dthdx = ( (BUF4D(i+1, j, k, t) - BUF4D(i-1, j, k, t)) / ( 2*dx ) );
+
+    // compute and save to the array
+    buf0 = data->yvort_baro; 
+    BUF4D(i, j, k, t) = (g/thbar1)*dthdx; 
+    if (k == 1) {
+        // the d/dy terms are defined at k = 1,
+        // go get those
+        dthdx = ( (BUF4D(i+1, j, 0, t) - BUF4D(i-1, j, 0, t)) / ( 2*dx ) );
+        BUF4D(i, j, 0, t) = (g/thbar1)*dthdx; 
+    }
+}
 __device__ void calc_xvort_solenoid(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
     int i = idx_4D[0];
     int j = idx_4D[1];
@@ -799,6 +854,29 @@ __global__ void calczvorttilt(datagrid *grid, model_data *data, int tStart, int 
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calc_zvort_tilt(grid, data, idx_4D, NX, NY, NZ);
+        }
+    }
+}
+
+/* Compute the forcing tendencies from the buoyancy/baroclinic term */ 
+__global__ void calcvortbaro(datagrid *grid, model_data *data, int tStart, int tEnd) {
+    // get our 3D index based on our blocks/threads
+    int i = (blockIdx.x*blockDim.x) + threadIdx.x;
+    int j = (blockIdx.y*blockDim.y) + threadIdx.y;
+    int k = (blockIdx.z*blockDim.z) + threadIdx.z;
+    int idx_4D[4];
+    int NX = grid->NX;
+    int NY = grid->NY;
+    int NZ = grid->NZ;
+    //printf("%i, %i, %i\n", i, j, k);
+
+    idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
+    if ((i < NX-1) && (j < NY-1) && (k < NZ) && ( i > 0 ) && (j > 0) && (k > 0)) {
+        // loop over the number of time steps we have in memory
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            idx_4D[3] = tidx;
+            calc_xvort_baro(grid, data, idx_4D, NX, NY, NZ);
+            calc_yvort_baro(grid, data, idx_4D, NX, NY, NZ);
         }
     }
 }

@@ -138,6 +138,15 @@ void doCalcVortTend(datagrid *grid, model_data *data, int tStart, int tEnd, dim3
     gpuErrchk(cudaPeekAtLastError());
 
 
+    zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+    //gpuErrchk(cudaStreamSynchronize(stream));
+    gpuErrchk( cudaPeekAtLastError() );
+    calcvortbaro<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+    //gpuErrchk(cudaStreamSynchronize(stream));
+    gpuErrchk(cudaPeekAtLastError());
+
+
+
     /* U momentum tendency due to 6th order numerical diffusion */
     zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
     //gpuErrchk(cudaStreamSynchronize(stream));
@@ -390,6 +399,8 @@ __global__ void parcel_interp(datagrid *grid, parcel_pos *parcels, model_data *d
                 float pclxvortdiff = interp3D(grid, data->diffxvort, point, is_ugrd, is_vgrd, is_wgrd, tidx);
                 float pclyvortdiff = interp3D(grid, data->diffyvort, point, is_ugrd, is_vgrd, is_wgrd, tidx);
                 float pclzvortdiff = interp3D(grid, data->diffzvort, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+                float pclxvortbaro = interp3D(grid, data->xvort_baro, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+                float pclyvortbaro = interp3D(grid, data->yvort_baro, point, is_ugrd, is_vgrd, is_wgrd, tidx);
                 float pclxvortsolenoid = interp3D(grid, data->xvort_solenoid, point, is_ugrd, is_vgrd, is_wgrd, tidx);
                 float pclyvortsolenoid = interp3D(grid, data->yvort_solenoid, point, is_ugrd, is_vgrd, is_wgrd, tidx);
                 float pclzvortsolenoid = interp3D(grid, data->zvort_solenoid, point, is_ugrd, is_vgrd, is_wgrd, tidx);
@@ -406,6 +417,8 @@ __global__ void parcel_interp(datagrid *grid, parcel_pos *parcels, model_data *d
                 parcels->pclxvortdiff[PCL(tidx, parcel_id, totTime)] = pclxvortdiff;
                 parcels->pclyvortdiff[PCL(tidx, parcel_id, totTime)] = pclyvortdiff;
                 parcels->pclzvortdiff[PCL(tidx, parcel_id, totTime)] = pclzvortdiff;
+                parcels->pclxvortbaro[PCL(tidx, parcel_id, totTime)] = pclxvortbaro;
+                parcels->pclyvortbaro[PCL(tidx, parcel_id, totTime)] = pclyvortbaro;
                 parcels->pclxvortsolenoid[PCL(tidx, parcel_id, totTime)] = pclxvortsolenoid;
                 parcels->pclyvortsolenoid[PCL(tidx, parcel_id, totTime)] = pclyvortsolenoid;
                 parcels->pclzvortsolenoid[PCL(tidx, parcel_id, totTime)] = pclzvortsolenoid;
