@@ -349,8 +349,8 @@ __global__ void parcel_interp(datagrid *grid, parcel_pos *parcels, model_data *d
                 float pclwpgrad = interp3D(grid, data->pgradw, point, is_ugrd, is_vgrd, is_wgrd, tidx);
                 float pclwturb = interp3D(grid, data->turbw, point, is_ugrd, is_vgrd, is_wgrd, tidx);
                 float pclwdiff = interp3D(grid, data->diffw, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                parcels->pclupgrad[PCL(tidx,   parcel_id, totTime)] = pclupgrad;
-                parcels->pclvpgrad[PCL(tidx,   parcel_id, totTime)] = pclvpgrad;
+                //parcels->pclupgrad[PCL(tidx,   parcel_id, totTime)] = pclupgrad;
+                //parcels->pclvpgrad[PCL(tidx,   parcel_id, totTime)] = pclvpgrad;
                 parcels->pclwpgrad[PCL(tidx,   parcel_id, totTime)] = pclwpgrad;
                 parcels->pcluturb[PCL(tidx,   parcel_id, totTime)] = pcluturb;
                 parcels->pclvturb[PCL(tidx,   parcel_id, totTime)] = pclvturb;
