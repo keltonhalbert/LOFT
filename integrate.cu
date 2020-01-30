@@ -51,14 +51,64 @@ void doCalcVort(datagrid *grid, model_data *data, int tStart, int tEnd, dim3 num
 } 
 
 void doMomentumBud(datagrid *grid, model_data *data, int tStart, int tEnd, dim3 numBlocks, dim3 threadsPerBlock, cudaStream_t stream) {
+    // Preprocess some calculations that are needed
+    doCalcRf<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+    gpuErrchk( cudaPeekAtLastError() );
     calcpipert<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaStreamSynchronize(stream));
     gpuErrchk(cudaPeekAtLastError());
+
     calcpgrad<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
     calcbuoy<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+
+    // Do the SGS turbulence closure calculations
+    doCalcDef<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+    //gpuErrchk(cudaStreamSynchronize(stream));
+    gpuErrchk( cudaPeekAtLastError() );
+    doGetTau<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+    //gpuErrchk(cudaStreamSynchronize(stream));
+    gpuErrchk( cudaPeekAtLastError() );
+    doCalcTurb<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+    //gpuErrchk(cudaStreamSynchronize(stream));
+    gpuErrchk( cudaPeekAtLastError() );
+
+    /* U momentum tendency due to 6th order numerical diffusion */
+    zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+    //gpuErrchk(cudaStreamSynchronize(stream));
+    gpuErrchk( cudaPeekAtLastError() );
+    doCalcDiffUXYZ<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+    //gpuErrchk(cudaStreamSynchronize(stream));
+    gpuErrchk( cudaPeekAtLastError() );
+    doCalcDiffU<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+    //gpuErrchk(cudaStreamSynchronize(stream));
+    gpuErrchk( cudaPeekAtLastError() );
+
+    /* V momentum tendency due to 6th order numerical diffusion */
+    zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+    //gpuErrchk(cudaStreamSynchronize(stream));
+    gpuErrchk( cudaPeekAtLastError() );
+    doCalcDiffVXYZ<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+    //gpuErrchk(cudaStreamSynchronize(stream));
+    gpuErrchk( cudaPeekAtLastError() );
+    doCalcDiffV<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+    //gpuErrchk(cudaStreamSynchronize(stream));
+    gpuErrchk( cudaPeekAtLastError() );
+
+    /* W momentum tendency due to 6th order numerical diffusion */
+    zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+    //gpuErrchk(cudaStreamSynchronize(stream));
+    gpuErrchk( cudaPeekAtLastError() );
+    doCalcDiffWXYZ<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+    //gpuErrchk(cudaStreamSynchronize(stream));
+    gpuErrchk( cudaPeekAtLastError() );
+    doCalcDiffW<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+    //gpuErrchk(cudaStreamSynchronize(stream));
+    gpuErrchk( cudaPeekAtLastError() );
 }
 
 void doCalcVortTend(datagrid *grid, model_data *data, int tStart, int tEnd, dim3 numBlocks, dim3 threadsPerBlock, cudaStream_t stream) {
+    // get the io config from the user namelist
+    iocfg *io = data->io;
 
     doCalcRf<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
     //gpuErrchk(cudaStreamSynchronize(stream));
@@ -107,16 +157,52 @@ void doCalcVortTend(datagrid *grid, model_data *data, int tStart, int tEnd, dim3
     //gpuErrchk(cudaStreamSynchronize(stream));
     gpuErrchk( cudaPeekAtLastError() );
 
-    // Do the SGS turbulence closure calculations
-    doCalcDef<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
-    doGetTau<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
-    doCalcTurb<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
+    // Have we already computed the momentum budgets?
+    if (!io->output_momentum_budget) {
+        // Do the SGS turbulence closure calculations
+        doCalcDef<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+        //gpuErrchk(cudaStreamSynchronize(stream));
+        gpuErrchk( cudaPeekAtLastError() );
+        doGetTau<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+        //gpuErrchk(cudaStreamSynchronize(stream));
+        gpuErrchk( cudaPeekAtLastError() );
+        doCalcTurb<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+        //gpuErrchk(cudaStreamSynchronize(stream));
+        gpuErrchk( cudaPeekAtLastError() );
+
+        /* U momentum tendency due to 6th order numerical diffusion */
+        zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+        //gpuErrchk(cudaStreamSynchronize(stream));
+        gpuErrchk( cudaPeekAtLastError() );
+        doCalcDiffUXYZ<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+        //gpuErrchk(cudaStreamSynchronize(stream));
+        gpuErrchk( cudaPeekAtLastError() );
+        doCalcDiffU<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+        //gpuErrchk(cudaStreamSynchronize(stream));
+        gpuErrchk( cudaPeekAtLastError() );
+
+        /* V momentum tendency due to 6th order numerical diffusion */
+        zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+        //gpuErrchk(cudaStreamSynchronize(stream));
+        gpuErrchk( cudaPeekAtLastError() );
+        doCalcDiffVXYZ<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+        //gpuErrchk(cudaStreamSynchronize(stream));
+        gpuErrchk( cudaPeekAtLastError() );
+        doCalcDiffV<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+        //gpuErrchk(cudaStreamSynchronize(stream));
+        gpuErrchk( cudaPeekAtLastError() );
+
+        /* W momentum tendency due to 6th order numerical diffusion */
+        zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+        //gpuErrchk(cudaStreamSynchronize(stream));
+        gpuErrchk( cudaPeekAtLastError() );
+        doCalcDiffWXYZ<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+        //gpuErrchk(cudaStreamSynchronize(stream));
+        gpuErrchk( cudaPeekAtLastError() );
+        doCalcDiffW<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+        //gpuErrchk(cudaStreamSynchronize(stream));
+        gpuErrchk( cudaPeekAtLastError() );
+    }
 
     zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
     //gpuErrchk(cudaStreamSynchronize(stream));
@@ -148,41 +234,6 @@ void doCalcVortTend(datagrid *grid, model_data *data, int tStart, int tEnd, dim3
     calcvortbaro<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
     //gpuErrchk(cudaStreamSynchronize(stream));
     gpuErrchk(cudaPeekAtLastError());
-
-
-
-    /* U momentum tendency due to 6th order numerical diffusion */
-    zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
-    doCalcDiffUXYZ<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
-    doCalcDiffU<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
-
-    /* V momentum tendency due to 6th order numerical diffusion */
-    zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
-    doCalcDiffVXYZ<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
-    doCalcDiffV<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
-
-    /* W momentum tendency due to 6th order numerical diffusion */
-    zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
-    doCalcDiffWXYZ<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
-    doCalcDiffW<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
 
     /* Vorticity tendency due to 6th order numerical diffusion */
     zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
@@ -524,6 +575,7 @@ void cudaIntegrateParcels(datagrid *grid, model_data *data, parcel_pos *parcels,
     dim3 threadsPerBlock(8, 8, 6);
     dim3 numBlocks((int)ceil(NX/threadsPerBlock.x)+1, (int)ceil(NY/threadsPerBlock.y)+1, (int)ceil(NZ/threadsPerBlock.z)+1); 
 
+    if (io->output_momentum_budget) doMomentumBud(grid, data, tStart, tEnd, numBlocks, threadsPerBlock, calStream);
     // Calculate the three compionents of vorticity
     // and do the necessary averaging. This is a wrapper that
     // calls the necessary kernels and assigns the pointers
@@ -537,7 +589,6 @@ void cudaIntegrateParcels(datagrid *grid, model_data *data, parcel_pos *parcels,
     // This is a wrapper that calls the necessary kernels to compute the
     // derivatives and average them back to the scalar grid where necessary. 
     if (io->output_vorticity_budget) doCalcVortTend(grid, data, tStart, tEnd, numBlocks, threadsPerBlock, calStream);
-    if (io->output_momentum_budget) doMomentumBud(grid, data, tStart, tEnd, numBlocks, threadsPerBlock, calStream);
 
 
     // Before integrating the trajectories, George Bryan sets some below-grid/surface conditions 
