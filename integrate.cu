@@ -533,7 +533,7 @@ void cudaIntegrateParcels(datagrid *grid, model_data *data, parcel_pos *parcels,
     // Calculate the vorticity forcing terms for each of the 3 components.
     // This is a wrapper that calls the necessary kernels to compute the
     // derivatives and average them back to the scalar grid where necessary. 
-    if (io->output_vorticity_budget || io->output_momentum_budget) doCalcVortTend(grid, data, tStart, tEnd, numBlocks, threadsPerBlock, calStream);
+    if (io->output_vorticity_budget) doCalcVortTend(grid, data, tStart, tEnd, numBlocks, threadsPerBlock, calStream);
     if (io->output_momentum_budget) doMomentumBud(grid, data, tStart, tEnd, numBlocks, threadsPerBlock, calStream);
 
 
