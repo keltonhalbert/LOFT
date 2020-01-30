@@ -10,7 +10,7 @@
 
 /* Compute the pressure gradient forcing for
    the W momentum equation */
-__host__ __device__ pgrad_w(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
+__host__ __device__ void calc_pgrad_w(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
     int i = idx_4D[0];
     int j = idx_4D[1];
     int k = idx_4D[2];
@@ -19,7 +19,7 @@ __host__ __device__ pgrad_w(datagrid *grid, model_data *data, int *idx_4D, int N
 
     // get dpi/dz
     float *buf0 = data->prespert;
-    float dpidz = BUF4D(i, j, k, t) - BUF4D(i, j, k-1);
+    float dpidz = BUF4D(i, j, k, t) - BUF4D(i, j, k-1, t);
 
     // get theta_rho on W points by averaging them
     // to the staggered W level. NOTE: Need to do something
@@ -29,9 +29,9 @@ __host__ __device__ pgrad_w(datagrid *grid, model_data *data, int *idx_4D, int N
     float thbar2 = interp1D(grid, grid->th0, grid->zh[k-1], false, t);
     float thrhopert1 = BUF4D(i, j, k, t);
     float thrhopert2 = BUF4D(i, j, k-1, t);
-    float thrhow = 0.5*(thbar1 + thrhoper1) + 0.5(thbar2 + thrhopert2);
+    float thrhow = 0.5*(thbar1 + thrhopert1) + 0.5*(thbar2 + thrhopert2);
 
-    buf0 = data->wpgrad;
+    buf0 = data->pgradw;
     BUF4D(i, j, k, t) = -cp*thrhow*dpidz;
 }
 
