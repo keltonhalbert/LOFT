@@ -229,6 +229,8 @@ parcel_pos* allocate_parcels_managed(iocfg *io, int NX, int NY, int NZ, int nTot
         cudaMallocManaged(&(parcels->pclxvortdiff), nParcels*nTotTimes*sizeof(float)); 
         cudaMallocManaged(&(parcels->pclyvortdiff), nParcels*nTotTimes*sizeof(float)); 
         cudaMallocManaged(&(parcels->pclzvortdiff), nParcels*nTotTimes*sizeof(float)); 
+        cudaMallocManaged(&(parcels->pclxvortbaro), nParcels*nTotTimes*sizeof(float)); 
+        cudaMallocManaged(&(parcels->pclyvortbaro), nParcels*nTotTimes*sizeof(float)); 
         cudaMallocManaged(&(parcels->pclxvortsolenoid), nParcels*nTotTimes*sizeof(float));
         cudaMallocManaged(&(parcels->pclyvortsolenoid), nParcels*nTotTimes*sizeof(float));
         cudaMallocManaged(&(parcels->pclzvortsolenoid), nParcels*nTotTimes*sizeof(float));
@@ -304,6 +306,8 @@ parcel_pos* allocate_parcels_cpu(iocfg* io, int NX, int NY, int NZ, int nTotTime
         parcels->pclxvortdiff = new float[nParcels*nTotTimes]; 
         parcels->pclyvortdiff = new float[nParcels*nTotTimes]; 
         parcels->pclzvortdiff = new float[nParcels*nTotTimes]; 
+        parcels->pclxvortbaro = new float[nParcels*nTotTimes]; 
+        parcels->pclyvortbaro = new float[nParcels*nTotTimes]; 
         parcels->pclxvortsolenoid = new float[nParcels*nTotTimes];
         parcels->pclyvortsolenoid = new float[nParcels*nTotTimes];
         parcels->pclzvortsolenoid = new float[nParcels*nTotTimes];
@@ -369,6 +373,8 @@ void deallocate_parcels_managed(iocfg* io, parcel_pos *parcels) {
         cudaFree(parcels->pclxvortdiff);
         cudaFree(parcels->pclyvortdiff);
         cudaFree(parcels->pclzvortdiff);
+        cudaFree(parcels->pclxvortbaro);
+        cudaFree(parcels->pclyvortbaro);
         cudaFree(parcels->pclxvortsolenoid);
         cudaFree(parcels->pclyvortsolenoid);
         cudaFree(parcels->pclzvortsolenoid);
@@ -431,6 +437,8 @@ void deallocate_parcels_cpu(iocfg *io, parcel_pos *parcels) {
         delete[] parcels->pclxvortdiff;
         delete[] parcels->pclyvortdiff;
         delete[] parcels->pclzvortdiff;
+        delete[] parcels->pclxvortbaro;
+        delete[] parcels->pclyvortbaro;
         delete[] parcels->pclxvortsolenoid;
         delete[] parcels->pclyvortsolenoid;
         delete[] parcels->pclzvortsolenoid;
@@ -554,6 +562,8 @@ model_data* allocate_model_managed(iocfg *io, long bufsize) {
         cudaMallocManaged(&(data->diffxvort), bufsize*sizeof(float));
         cudaMallocManaged(&(data->diffyvort), bufsize*sizeof(float));
         cudaMallocManaged(&(data->diffzvort), bufsize*sizeof(float));
+        cudaMallocManaged(&(data->xvort_baro), bufsize*sizeof(float)); 
+        cudaMallocManaged(&(data->yvort_baro), bufsize*sizeof(float)); 
         cudaMallocManaged(&(data->xvort_solenoid), bufsize*sizeof(float)); 
         cudaMallocManaged(&(data->yvort_solenoid), bufsize*sizeof(float)); 
         cudaMallocManaged(&(data->zvort_solenoid), bufsize*sizeof(float)); 
@@ -619,6 +629,8 @@ void deallocate_model_managed(iocfg *io, model_data *data) {
         cudaFree(data->diffxvort);
         cudaFree(data->diffyvort);
         cudaFree(data->diffzvort);
+        cudaFree(data->xvort_baro);
+        cudaFree(data->yvort_baro);
         cudaFree(data->xvort_solenoid); 
         cudaFree(data->yvort_solenoid); 
         cudaFree(data->zvort_solenoid); 

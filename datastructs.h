@@ -122,6 +122,8 @@ struct parcel_pos {
     float *pclxvortdiff;
     float *pclyvortdiff;
     float *pclzvortdiff;
+    float *pclxvortbaro;
+    float *pclyvortbaro;
     float *pclxvortsolenoid;
     float *pclyvortsolenoid;
     float *pclzvortsolenoid;
@@ -211,6 +213,8 @@ struct model_data {
     float *diffyvort;
     float *diffzvort;
  
+    float *xvort_baro;
+    float *yvort_baro;
     float *xvort_solenoid; 
     float *yvort_solenoid; 
     float *zvort_solenoid; 
