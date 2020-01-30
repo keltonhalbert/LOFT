@@ -16,7 +16,7 @@ __device__ void calc_pi(datagrid *grid, model_data *data, int *idx_4D, int NX, i
     // this is actually the pressure
     // perturbation, not the full pressure
     float *buf0 = data->prespert;
-    float p = BUF4D(i, j, k, t) + grid->p0[k]; 
+    float p = BUF4D(i, j, k, t)*100 + grid->p0[k]; 
     buf0 = data->pi;
     BUF4D(i, j, k, t) = powf( p / 100000., 0.28571426);
 }

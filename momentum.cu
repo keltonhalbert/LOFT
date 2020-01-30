@@ -18,7 +18,7 @@ __host__ __device__ void calc_pgrad_u(datagrid *grid, model_data *data, int *idx
     const float reps = 461.5 / 287.04;
 
     // get dpi/dz
-    float *buf0 = data->prespert;
+    float *buf0 = data->pi;
     float dpidx = (BUF4D(i, j, k, t) - BUF4D(i-1, j, k, t)) / (grid->xh[i] - grid->xh[i-1]);
 
     // get theta_rho on V points by averaging them
@@ -45,7 +45,7 @@ __host__ __device__ void calc_pgrad_v(datagrid *grid, model_data *data, int *idx
     const float reps = 461.5 / 287.04;
 
     // get dpi/dz
-    float *buf0 = data->prespert;
+    float *buf0 = data->pi;
     float dpidy = (BUF4D(i, j, k, t) - BUF4D(i, j-1, k, t)) / (grid->yh[j] - grid->yh[j-1]);
 
     // get theta_rho on V points by averaging them
@@ -72,8 +72,8 @@ __host__ __device__ void calc_pgrad_w(datagrid *grid, model_data *data, int *idx
     const float reps = 461.5 / 287.04;
 
     // get dpi/dz
-    float *buf0 = data->prespert;
-    float dpidz = (BUF4D(i, j, k, t) - BUF4D(i, j, k-1, t)) / (grid->zh[k] - grid->zh[k-1]);
+    float *buf0 = data->pi;
+    float dpidz = (BUF4D(i, j, k, t) - BUF4D(i, j, k-1, t)) / (zh(k) - zh(k-1));
 
     // get theta_rho on W points by averaging them
     // to the staggered W level. NOTE: Need to do something
