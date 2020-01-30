@@ -74,6 +74,7 @@ __host__ __device__ void calc_pgrad_w(datagrid *grid, model_data *data, int *idx
     // get dpi/dz
     float *buf0 = data->pi;
     float dpidz = (BUF4D(i, j, k, t) - BUF4D(i, j, k-1, t)) / (zh(k) - zh(k-1));
+    float pi = BUF4D(i, j, k, t);
 
     // get theta_rho on W points by averaging them
     // to the staggered W level. NOTE: Need to do something
@@ -88,6 +89,7 @@ __host__ __device__ void calc_pgrad_w(datagrid *grid, model_data *data, int *idx
     float thrhopert2 = BUF4D(i, j, k-1, t);
     float thrhow = 0.5*(thbar1 + thrhopert1) + 0.5*(thbar2 + thrhopert2);
 
+    buf0 = data->pi;
     buf0 = data->pgradw;
     BUF4D(i, j, k, t) = -cp*thrhow*dpidz;
 }
@@ -103,7 +105,7 @@ __global__ void calcpgradw(datagrid *grid, model_data *data, int tStart, int tEn
     int NY = grid->NY;
     int NZ = grid->NZ;
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX+1) && (j < NY+1) && (k > 0) && (k < NZ)) {
+    if ((i < NX+2) && (j < NY+2) && (k > 0) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;

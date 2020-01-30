@@ -18,7 +18,7 @@ __device__ void calc_pi(datagrid *grid, model_data *data, int *idx_4D, int NX, i
     float *buf0 = data->prespert;
     float p = BUF4D(i, j, k, t)*100 + grid->p0[k]; 
     buf0 = data->pi;
-    BUF4D(i, j, k, t) = powf( p / 100000., 0.28571426);
+    BUF4D(i, j, k, t) = pow( p / 100000., 0.28571426);
 }
 
 /* Compute the x component of vorticity. After this is called by the calvort kernel, you must also run 
@@ -705,7 +705,7 @@ __global__ void calcpi(datagrid *grid, model_data *data, int tStart, int tEnd) {
     int NZ = grid->NZ;
 
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX+1) && (j < NY+1) && (k < NZ+1)) {
+    if ((i < NX+2) && (j < NY+2) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;

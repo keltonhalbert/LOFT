@@ -479,7 +479,7 @@ int main(int argc, char **argv ) {
         // but MPI Scatter/Gather behaves weird if I use the generic large buffer,
         // so I use N_scalar for the MPI calls to non staggered/scalar fields. 
         N_stag = (requested_grid->NX+2)*(requested_grid->NY+2)*(requested_grid->NZ+1);
-        N_scal = (requested_grid->NX)*(requested_grid->NY)*(requested_grid->NZ);
+        N_scal = (requested_grid->NX+2)*(requested_grid->NY+2)*(requested_grid->NZ+1);
 
 
         // allocate space for U, V, and W arrays

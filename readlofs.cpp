@@ -250,15 +250,9 @@ void lofs_read_3dvar(datagrid *grid, float *buffer, char *varname, bool istag, d
     // nodex, nodey all from lofs_get_dataset_structure
     //
     // X0, Y0, X1, Y1, Z0, Y1, nx, ny, nz all from lofs_get_grid
-    if (istag) {
         //X0-1,Y0-1,X1+1,Y1+1,Z0,Z1,
-        read_hdf_mult_md(buffer,topdir,timedir,nodedir,ntimedirs,dn,dirtimes,alltimes,ntottimes,t0,varname, \
-                grid->X0-1,grid->Y0-1,grid->X1+1,grid->Y1+1,grid->Z0,grid->Z1+1,nx,ny,nz,nodex,nodey);
-    }
-    else {
-        read_hdf_mult_md(buffer,topdir,timedir,nodedir,ntimedirs,dn,dirtimes,alltimes,ntottimes,t0,varname, \
-                grid->X0,grid->Y0,grid->X1,grid->Y1,grid->Z0,grid->Z1,nx,ny,nz,nodex,nodey);
-    }
+    read_hdf_mult_md(buffer,topdir,timedir,nodedir,ntimedirs,dn,dirtimes,alltimes,ntottimes,t0,varname, \
+            grid->X0-1,grid->Y0-1,grid->X1+1,grid->Y1+1,grid->Z0,grid->Z1+1,nx,ny,nz,nodex,nodey);
 }
 
 #endif
