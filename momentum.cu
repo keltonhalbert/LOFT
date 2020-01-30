@@ -122,6 +122,7 @@ __global__ void calcbuoy(datagrid *grid, model_data *data, int tStart, int tEnd)
     if ((i < NX+2) && (j < NY+2) && (k > 0) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            idx_4D[3] = tidx;
             calc_buoyancy(grid, data, idx_4D, NX, NY, NZ);
         }
     }
