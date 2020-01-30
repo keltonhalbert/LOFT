@@ -3,6 +3,7 @@
 #include "datastructs.cu"
 #include "macros.cpp"
 #include "interp.cu"
+#include "momentum.cu"
 #include "turb.cu"
 #include "vort.cu"
 #include "diff6.cu"
@@ -49,11 +50,18 @@ void doCalcVort(datagrid *grid, model_data *data, int tStart, int tEnd, dim3 num
     gpuErrchk( cudaPeekAtLastError() );
 } 
 
+void doMomentumBud(datagrid *grid, model_data *data, int tStart, int tEnd, dim3 numBlocks, dim3 threadsPerBlock, cudaStream_t stream) {
+    calcpgradw<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+}
+
 void doCalcVortTend(datagrid *grid, model_data *data, int tStart, int tEnd, dim3 numBlocks, dim3 threadsPerBlock, cudaStream_t stream) {
 
     doCalcRf<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
     //gpuErrchk(cudaStreamSynchronize(stream));
     gpuErrchk( cudaPeekAtLastError() );
+    calcpi<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+    //gpuErrchk(cudaStreamSynchronize(stream));
+    gpuErrchk(cudaPeekAtLastError());
 
     // Compute the vorticity tendency due to stretching. These conveniently
     // end up on the scalar grid, and no extra steps are required. This will
@@ -125,9 +133,6 @@ void doCalcVortTend(datagrid *grid, model_data *data, int tStart, int tEnd, dim3
     zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
     //gpuErrchk(cudaStreamSynchronize(stream));
     gpuErrchk( cudaPeekAtLastError() );
-    calcpi<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk(cudaPeekAtLastError());
     calcvortsolenoid<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
     //gpuErrchk(cudaStreamSynchronize(stream));
     gpuErrchk(cudaPeekAtLastError());
@@ -329,16 +334,19 @@ __global__ void parcel_interp(datagrid *grid, parcel_pos *parcels, model_data *d
                 is_ugrd = true;
                 is_vgrd = false;
                 is_wgrd = false;
+                float pclupgrad = interp3D(grid, data->pgradu, point, is_ugrd, is_vgrd, is_wgrd, tidx);
                 float pcluturb = interp3D(grid, data->turbu, point, is_ugrd, is_vgrd, is_wgrd, tidx);
                 float pcludiff = interp3D(grid, data->diffu, point, is_ugrd, is_vgrd, is_wgrd, tidx);
                 is_ugrd = false;
                 is_vgrd = true;
                 is_wgrd = false;
+                float pclvpgrad = interp3D(grid, data->pgradv, point, is_ugrd, is_vgrd, is_wgrd, tidx);
                 float pclvturb = interp3D(grid, data->turbv, point, is_ugrd, is_vgrd, is_wgrd, tidx);
                 float pclvdiff = interp3D(grid, data->diffv, point, is_ugrd, is_vgrd, is_wgrd, tidx);
                 is_ugrd = false;
                 is_vgrd = false;
                 is_wgrd = true;
+                float pclwpgrad = interp3D(grid, data->pgradw, point, is_ugrd, is_vgrd, is_wgrd, tidx);
                 float pclwturb = interp3D(grid, data->turbw, point, is_ugrd, is_vgrd, is_wgrd, tidx);
                 float pclwdiff = interp3D(grid, data->diffw, point, is_ugrd, is_vgrd, is_wgrd, tidx);
                 parcels->pcluturb[PCL(tidx,   parcel_id, totTime)] = pcluturb;
@@ -507,6 +515,7 @@ void cudaIntegrateParcels(datagrid *grid, model_data *data, parcel_pos *parcels,
     // This is a wrapper that calls the necessary kernels to compute the
     // derivatives and average them back to the scalar grid where necessary. 
     if (io->output_vorticity_budget || io->output_momentum_budget) doCalcVortTend(grid, data, tStart, tEnd, numBlocks, threadsPerBlock, calStream);
+    if (io->output_momentum_budget) doMomentumBud(grid, data, tStart, tEnd, numBlocks, threadsPerBlock, calStream);
 
 
     // Before integrating the trajectories, George Bryan sets some below-grid/surface conditions 
