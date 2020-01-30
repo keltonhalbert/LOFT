@@ -454,7 +454,7 @@ __device__ void calc_yvort_baro(datagrid *grid, model_data *data, int *idx_4D, i
         // the d/dy terms are defined at k = 1,
         // go get those
         dthdx = ( (BUF4D(i+1, j, 0, t) - BUF4D(i-1, j, 0, t)) / ( 2*dx ) );
-        BUF4D(i, j, 0, t) = (g/thbar1)*dthdx; 
+        BUF4D(i, j, 0, t) = -1.*(g/thbar1)*dthdx; 
     }
 }
 __device__ void calc_xvort_solenoid(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
