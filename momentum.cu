@@ -19,10 +19,10 @@ __host__ __device__ void calc_pgrad_u(datagrid *grid, model_data *data, int *idx
 
     // get dpi/dz
     float *buf0 = data->pi;
-    float dpidx = (BUF4D(i, j, k, t) - BUF4D(i-1, j, k, t)) / (grid->xh[i] - grid->xh[i-1]);
+    float dpidx = (BUF4D(i, j, k, t) - BUF4D(i-1, j, k, t)) / (xh(i) - xh(i-1));
 
-    // get theta_rho on V points by averaging them
-    // to the staggered V level. Base state doesnt vary in X or Y.
+    // get theta_rho on U points by averaging them
+    // to the staggered U level. Base state doesnt vary in X or Y.
     buf0 = data->thrhopert;
     float qvbar1 = grid->qv0[k];
     float thbar1 = grid->th0[k]*(1.0+reps*qvbar1)/(1.0+qvbar1); 
@@ -46,7 +46,7 @@ __host__ __device__ void calc_pgrad_v(datagrid *grid, model_data *data, int *idx
 
     // get dpi/dz
     float *buf0 = data->pi;
-    float dpidy = (BUF4D(i, j, k, t) - BUF4D(i, j-1, k, t)) / (grid->yh[j] - grid->yh[j-1]);
+    float dpidy = (BUF4D(i, j, k, t) - BUF4D(i, j-1, k, t)) / (yh(j) - yh(j-1));
 
     // get theta_rho on V points by averaging them
     // to the staggered V level. Base state doesnt vary in X or Y.
@@ -110,14 +110,14 @@ __global__ void calcpgradw(datagrid *grid, model_data *data, int tStart, int tEn
             calc_pgrad_w(grid, data, idx_4D, NX, NY, NZ);
         }
     }
-    if ((i < NX+1) && (j < NY+1) && (i > 0) && (k < NZ)) {
+    if ((i < NX) && (j < NY+1) && (i > 0) && (k < NZ)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
             calc_pgrad_u(grid, data, idx_4D, NX, NY, NZ);
         }
     }
-    if ((i < NX+1) && (j < NY+1) && (j > 0) && (k < NZ)) {
+    if ((i < NX+1) && (j < NY) && (j > 0) && (k < NZ)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
