@@ -534,7 +534,7 @@ model_data* allocate_model_managed(iocfg *io, long bufsize) {
     if (io->output_vorticity_budget || io->output_yvort) cudaMallocManaged(&(data->yvort), bufsize*sizeof(float));
     if (io->output_vorticity_budget || io->output_zvort) cudaMallocManaged(&(data->zvort), bufsize*sizeof(float));
 
-    if (io->output_vorticity_budget || io->output_momentum_budget || io->output_ppert) cudaMallocManaged(&(data->pi), bufsize*sizeof(float));
+    if (io->output_vorticity_budget || io->output_momentum_budget || io->output_ppert) cudaMallocManaged(&(data->pipert), bufsize*sizeof(float));
     if (io->output_vorticity_budget || io->output_momentum_budget || io->output_ppert) cudaMallocManaged(&(data->prespert), bufsize*sizeof(float));
     if (io->output_vorticity_budget || io->output_momentum_budget || io->output_thrhopert) cudaMallocManaged(&(data->thrhopert),  bufsize*sizeof(float));
     if (io->output_vorticity_budget || io->output_momentum_budget || io->output_thetapert) cudaMallocManaged(&(data->thetapert),  bufsize*sizeof(float));
@@ -602,7 +602,7 @@ void deallocate_model_managed(iocfg *io, model_data *data) {
     if (io->output_vorticity_budget || io->output_yvort) cudaFree(data->yvort);
     if (io->output_vorticity_budget || io->output_zvort) cudaFree(data->zvort);
 
-    if (io->output_vorticity_budget || io->output_momentum_budget || io->output_ppert) cudaFree(data->pi);
+    if (io->output_vorticity_budget || io->output_momentum_budget || io->output_ppert) cudaFree(data->pipert);
     if (io->output_vorticity_budget || io->output_momentum_budget || io->output_ppert) cudaFree(data->prespert);
     if (io->output_vorticity_budget || io->output_momentum_budget || io->output_thrhopert) cudaFree(data->thrhopert);
     if (io->output_vorticity_budget || io->output_momentum_budget || io->output_thetapert) cudaFree(data->thetapert);

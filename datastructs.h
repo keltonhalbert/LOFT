@@ -166,7 +166,7 @@ struct model_data {
     float *ustag;
     float *vstag;
     float *wstag;
-    float *pi;
+    float *pipert;
     float *prespert;
     float *thetapert;
     float *thrhopert;

@@ -7,7 +7,7 @@
 #define VORT_CU
 
 /* Compute the nondimensional pressure */
-__device__ void calc_pi(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
+__device__ void calc_pipert(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
     int i = idx_4D[0];
     int j = idx_4D[1];
     int k = idx_4D[2];
@@ -17,8 +17,8 @@ __device__ void calc_pi(datagrid *grid, model_data *data, int *idx_4D, int NX, i
     // perturbation, not the full pressure
     float *buf0 = data->prespert;
     float p = BUF4D(i, j, k, t)*100 + grid->p0[k]; 
-    buf0 = data->pi;
-    BUF4D(i, j, k, t) = pow( p / 100000., 0.28571426);
+    buf0 = data->pipert;
+    BUF4D(i, j, k, t) = pow( p / 100000., 0.28571426) - pow( grid->p0[k] / 100000., 0.28571426);
 }
 
 /* Compute the x component of vorticity. After this is called by the calvort kernel, you must also run 
@@ -469,7 +469,7 @@ __device__ void calc_xvort_solenoid(datagrid *grid, model_data *data, int *idx_4
     float dy = yf(j) - yf(j-1);
     float dz = zf(k) - zf(k-1);
 
-    float *buf0 = data->pi;
+    float *buf0 = data->pipert;
     // dPi/dz
     float pi_upper = BUF4D(i, j, k+1, t);
     float pi_lower = BUF4D(i, j, k-1, t);
@@ -511,7 +511,7 @@ __device__ void calc_yvort_solenoid(datagrid *grid, model_data *data, int *idx_4
     float dx = xf(i) - xf(i-1);
     float dz = zf(k) - zf(k-1);
 
-    float *buf0 = data->pi;
+    float *buf0 = data->pipert;
     // dPi/dz
     float pi_upper = BUF4D(i, j, k+1, t);
     float pi_lower = BUF4D(i, j, k-1, t);
@@ -552,7 +552,7 @@ __device__ void calc_zvort_solenoid(datagrid *grid, model_data *data, int *idx_4
     float dx = xf(i) - xf(i-1);
     float dy = yf(j) - yf(j-1);
 
-    float *buf0 = data->pi;
+    float *buf0 = data->pipert;
     // dPi/dx
     float dpidx = ( (BUF4D(i+1, j, k, t) - BUF4D(i-1, j, k, t)) / ( 2*dx ) );
     // dPi/dy
@@ -694,7 +694,7 @@ __global__ void doDiffVort(datagrid *grid, model_data *data, int tStart, int tEn
     }
 }
 
-__global__ void calcpi(datagrid *grid, model_data *data, int tStart, int tEnd) {
+__global__ void calcpipert(datagrid *grid, model_data *data, int tStart, int tEnd) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
@@ -709,7 +709,7 @@ __global__ void calcpi(datagrid *grid, model_data *data, int tStart, int tEnd) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
-            calc_pi(grid, data, idx_4D, NX, NY, NZ);
+            calc_pipert(grid, data, idx_4D, NX, NY, NZ);
         }
     }
 }

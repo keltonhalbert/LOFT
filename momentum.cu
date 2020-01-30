@@ -18,7 +18,7 @@ __host__ __device__ void calc_pgrad_u(datagrid *grid, model_data *data, int *idx
     const float reps = 461.5 / 287.04;
 
     // get dpi/dz
-    float *buf0 = data->pi;
+    float *buf0 = data->pipert;
     float dpidx = (BUF4D(i, j, k, t) - BUF4D(i-1, j, k, t)) / (xh(i) - xh(i-1));
 
     // get theta_rho on U points by averaging them
@@ -45,7 +45,7 @@ __host__ __device__ void calc_pgrad_v(datagrid *grid, model_data *data, int *idx
     const float reps = 461.5 / 287.04;
 
     // get dpi/dz
-    float *buf0 = data->pi;
+    float *buf0 = data->pipert;
     float dpidy = (BUF4D(i, j, k, t) - BUF4D(i, j-1, k, t)) / (yh(j) - yh(j-1));
 
     // get theta_rho on V points by averaging them
@@ -72,9 +72,8 @@ __host__ __device__ void calc_pgrad_w(datagrid *grid, model_data *data, int *idx
     const float reps = 461.5 / 287.04;
 
     // get dpi/dz
-    float *buf0 = data->pi;
+    float *buf0 = data->pipert;
     float dpidz = (BUF4D(i, j, k, t) - BUF4D(i, j, k-1, t)) / (zh(k) - zh(k-1));
-    float pi = BUF4D(i, j, k, t);
 
     // get theta_rho on W points by averaging them
     // to the staggered W level. NOTE: Need to do something
@@ -89,7 +88,6 @@ __host__ __device__ void calc_pgrad_w(datagrid *grid, model_data *data, int *idx
     float thrhopert2 = BUF4D(i, j, k-1, t);
     float thrhow = 0.5*(thbar1 + thrhopert1) + 0.5*(thbar2 + thrhopert2);
 
-    buf0 = data->pi;
     buf0 = data->pgradw;
     BUF4D(i, j, k, t) = -cp*thrhow*dpidz;
 }
@@ -107,7 +105,7 @@ __host__ __device__ void calc_buoyancy(datagrid *grid, model_data *data, int *id
     // in CM1, geroge uses base state theta for buoyancy
     float buoy1 = g*(BUF4D(i, j, k, t)/grid->th0[k]);
     float buoy2 = g*(BUF4D(i, j, k-1, t)/grid->th0[k-1]);
-    buf0 = data->wbuoy;
+    buf0 = data->buoy;
     BUF4D(i, j, k, t) = 0.5*(buoy1 + buoy2);
 }
 
