@@ -19,7 +19,7 @@ __host__ __device__ void calc_pgrad_w(datagrid *grid, model_data *data, int *idx
 
     // get dpi/dz
     float *buf0 = data->prespert;
-    float dpidz = BUF4D(i, j, k, t) - BUF4D(i, j, k-1, t);
+    float dpidz = (BUF4D(i, j, k, t) - BUF4D(i, j, k-1, t)) / (grid->zh[k] - grid->zh[k-1]);
 
     // get theta_rho on W points by averaging them
     // to the staggered W level. NOTE: Need to do something
