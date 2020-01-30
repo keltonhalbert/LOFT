@@ -54,7 +54,8 @@ void doMomentumBud(datagrid *grid, model_data *data, int tStart, int tEnd, dim3 
     calcpi<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
     gpuErrchk(cudaStreamSynchronize(stream));
     gpuErrchk(cudaPeekAtLastError());
-    calcpgradw<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+    calcpgrad<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+    calcbuoy<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
 }
 
 void doCalcVortTend(datagrid *grid, model_data *data, int tStart, int tEnd, dim3 numBlocks, dim3 threadsPerBlock, cudaStream_t stream) {

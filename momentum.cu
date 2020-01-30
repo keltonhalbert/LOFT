@@ -94,8 +94,43 @@ __host__ __device__ void calc_pgrad_w(datagrid *grid, model_data *data, int *idx
     BUF4D(i, j, k, t) = -cp*thrhow*dpidz;
 }
 
+/* Compute the buoyancy forcing
+   the W momentum equation */
+__host__ __device__ void calc_buoyancy(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
+    int i = idx_4D[0];
+    int j = idx_4D[1];
+    int k = idx_4D[2];
+    int t = idx_4D[3];
+    const float g = 9.81;
+    float *buf0 = data->thrhopert;
+    // we need to get this all on staggered W grid
+    // in CM1, geroge uses base state theta for buoyancy
+    float buoy1 = g*(BUF4D(i, j, k, t)/grid->th0[k]);
+    float buoy2 = g*(BUF4D(i, j, k-1, t)/grid->th0[k-1]);
+    buf0 = data->wbuoy;
+    BUF4D(i, j, k, t) = 0.5*(buoy1 + buoy2);
+}
 
-__global__ void calcpgradw(datagrid *grid, model_data *data, int tStart, int tEnd) {
+__global__ void calcbuoy(datagrid *grid, model_data *data, int tStart, int tEnd) {
+    // get our 3D index based on our blocks/threads
+    int i = (blockIdx.x*blockDim.x) + threadIdx.x;
+    int j = (blockIdx.y*blockDim.y) + threadIdx.y;
+    int k = (blockIdx.z*blockDim.z) + threadIdx.z;
+    int idx_4D[4];
+    int NX = grid->NX;
+    int NY = grid->NY;
+    int NZ = grid->NZ;
+    idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
+    if ((i < NX+2) && (j < NY+2) && (k > 0) && (k < NZ+1)) {
+        // loop over the number of time steps we have in memory
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            calc_buoyancy(grid, data, idx_4D, NX, NY, NZ);
+        }
+    }
+}
+
+
+__global__ void calcpgrad(datagrid *grid, model_data *data, int tStart, int tEnd) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
