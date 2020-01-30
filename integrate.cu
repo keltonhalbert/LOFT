@@ -334,13 +334,13 @@ __global__ void parcel_interp(datagrid *grid, parcel_pos *parcels, model_data *d
                 is_ugrd = true;
                 is_vgrd = false;
                 is_wgrd = false;
-                float pclupgrad = interp3D(grid, data->pgradu, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+                //float pclupgrad = interp3D(grid, data->pgradu, point, is_ugrd, is_vgrd, is_wgrd, tidx);
                 float pcluturb = interp3D(grid, data->turbu, point, is_ugrd, is_vgrd, is_wgrd, tidx);
                 float pcludiff = interp3D(grid, data->diffu, point, is_ugrd, is_vgrd, is_wgrd, tidx);
                 is_ugrd = false;
                 is_vgrd = true;
                 is_wgrd = false;
-                float pclvpgrad = interp3D(grid, data->pgradv, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+                //float pclvpgrad = interp3D(grid, data->pgradv, point, is_ugrd, is_vgrd, is_wgrd, tidx);
                 float pclvturb = interp3D(grid, data->turbv, point, is_ugrd, is_vgrd, is_wgrd, tidx);
                 float pclvdiff = interp3D(grid, data->diffv, point, is_ugrd, is_vgrd, is_wgrd, tidx);
                 is_ugrd = false;
@@ -349,6 +349,9 @@ __global__ void parcel_interp(datagrid *grid, parcel_pos *parcels, model_data *d
                 float pclwpgrad = interp3D(grid, data->pgradw, point, is_ugrd, is_vgrd, is_wgrd, tidx);
                 float pclwturb = interp3D(grid, data->turbw, point, is_ugrd, is_vgrd, is_wgrd, tidx);
                 float pclwdiff = interp3D(grid, data->diffw, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+                parcels->pclupgrad[PCL(tidx,   parcel_id, totTime)] = pclupgrad;
+                parcels->pclvpgrad[PCL(tidx,   parcel_id, totTime)] = pclvpgrad;
+                parcels->pclwpgrad[PCL(tidx,   parcel_id, totTime)] = pclwpgrad;
                 parcels->pcluturb[PCL(tidx,   parcel_id, totTime)] = pcluturb;
                 parcels->pclvturb[PCL(tidx,   parcel_id, totTime)] = pclvturb;
                 parcels->pclwturb[PCL(tidx,   parcel_id, totTime)] = pclwturb;
