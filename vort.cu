@@ -7,18 +7,13 @@
 #define VORT_CU
 
 /* Compute the nondimensional pressure */
-__device__ void calc_pipert(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
-    int i = idx_4D[0];
-    int j = idx_4D[1];
-    int k = idx_4D[2];
-    int t = idx_4D[3];
-
+__device__ void calc_pipert(float *pipert, float *prespert, float *p0, int i, int j, int k, int NX, int NY, int NZ) {
     // this is actually the pressure
     // perturbation, not the full pressure
-    float *buf0 = data->prespert;
-    float p = BUF4D(i, j, k, t)*100 + grid->p0[k]; 
-    buf0 = data->pipert;
-    BUF4D(i, j, k, t) = pow( p / 100000., 0.28571426) - pow( grid->p0[k] / 100000., 0.28571426);
+    float *buf0 = prespert;
+    float p = BUF(i, j, k)*100 + p0[k]; 
+    buf0 = pipert;
+    BUF(i, j, k) = pow( p / 100000., 0.28571426) - pow( p0[k] / 100000., 0.28571426);
 }
 
 /* Compute the x component of vorticity. After this is called by the calvort kernel, you must also run 
@@ -699,17 +694,20 @@ __global__ void calcpipert(datagrid *grid, model_data *data, int tStart, int tEn
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int idx_4D[4];
     int NX = grid->NX;
     int NY = grid->NY;
     int NZ = grid->NZ;
+    float *pipert, *prespert;
 
-    idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
     if ((i < NX+2) && (j < NY+2) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            idx_4D[3] = tidx;
-            calc_pipert(grid, data, idx_4D, NX, NY, NZ);
+            // Do some pointer gymnastics. This finds the pointer
+            // for the 3D chunks corresponding to the time index
+            // in order to be operated on in a 3D sense in the stencil
+            pipert = &(data->pipert[P4(0, 0, 0, tidx, NX, NY, NZ)]);
+            prespert = &(data->prespert[P4(0, 0, 0, tidx, NX, NY, NZ)]);
+            calc_pipert(pipert, prespert, grid->p0, i, j, k, NX, NY, NZ);
         }
     }
 }
