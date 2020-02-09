@@ -570,6 +570,32 @@ int main(int argc, char **argv ) {
         if (io->output_qs) senderr_qs = MPI_Gather(qsbuf, N_scal, MPI_FLOAT, data->qs, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
         if (io->output_qg) senderr_qg = MPI_Gather(qgbuf, N_scal, MPI_FLOAT, data->qg, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
+        // clean up temporary buffers
+        delete[] ubuf;
+        delete[] vbuf;
+        delete[] wbuf;
+        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert) {
+            delete[] pbuf;
+        }
+        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thetapert) {
+            delete[] tbuf;
+        }
+        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhopert) {
+            delete[] thbuf;
+        }
+        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert) {
+            delete[] rhobuf;
+        }
+        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh) {
+            delete[] kmhbuf;
+        }
+        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_qvpert) {
+            delete[] qvbuf;
+        }
+        if (io->output_qc) delete[] qcbuf;
+        if (io->output_qi) delete[] qibuf;
+        if (io->output_qs) delete[] qsbuf;
+        if (io->output_qg) delete[] qgbuf;
 
         if (rank == 0) {
             // send to the GPU!!
@@ -621,33 +647,6 @@ int main(int argc, char **argv ) {
 
             // memory management for root rank
             deallocate_grid_managed(requested_grid);
-
-            delete[] ubuf;
-            delete[] vbuf;
-            delete[] wbuf;
-            if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert) {
-                delete[] pbuf;
-            }
-            if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thetapert) {
-                delete[] tbuf;
-            }
-            if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhopert) {
-                delete[] thbuf;
-            }
-            if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert) {
-                delete[] rhobuf;
-            }
-            if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh) {
-                delete[] kmhbuf;
-            }
-            if (io->output_momentum_budget || io->output_vorticity_budget || io->output_qvpert) {
-                delete[] qvbuf;
-            }
-            if (io->output_qc) delete[] qcbuf;
-            if (io->output_qi) delete[] qibuf;
-            if (io->output_qs) delete[] qsbuf;
-            if (io->output_qg) delete[] qgbuf;
-
             deallocate_model_managed(io, data);
         }
 
@@ -656,32 +655,6 @@ int main(int argc, char **argv ) {
         else {
             // memory management
             deallocate_grid_cpu(requested_grid);
-
-            delete[] ubuf;
-            delete[] vbuf;
-            delete[] wbuf;
-            if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert) {
-                delete[] pbuf;
-            }
-            if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thetapert) {
-                delete[] tbuf;
-            }
-            if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhopert) {
-                delete[] thbuf;
-            }
-            if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert) {
-                delete[] rhobuf;
-            }
-            if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh) {
-                delete[] kmhbuf;
-            }
-            if (io->output_momentum_budget || io->output_vorticity_budget || io->output_qvpert) {
-                delete[] qvbuf;
-            }
-            if (io->output_qc) delete[] qcbuf;
-            if (io->output_qi) delete[] qibuf;
-            if (io->output_qs) delete[] qsbuf;
-            if (io->output_qg) delete[] qgbuf;
         }
         // receive the updated parcel arrays
         // so that we can do proper subseting. This happens
