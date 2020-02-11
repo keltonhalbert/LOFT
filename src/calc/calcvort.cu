@@ -30,70 +30,67 @@ __device__ void calc_pipert(float *prespert, float *p0, float *pipert, int i, in
     BUF(i, j, k) = pow( p * rp00, rovcp) - pow( p0[k] * rp00, rovcp);
 }
 
-/* Compute the x component of vorticity. After this is called by the calvort kernel, you must also run 
-   the kernel for applying the lower boundary condition and then the kernel for averaging to the
-   scalar grid. */
-__device__ void calc_xvort(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
-    int i = idx_4D[0];
-    int j = idx_4D[1];
-    int k = idx_4D[2];
-    int t = idx_4D[3];
+/*  Compute the component of vorticity along the x-axis.
+    This stencil does not handle averaging the values
+    to the scalar grid, and dx and dy are passed as
+    arguments to the stencil. 
+   
+    INPUT
+    vstag: meters/second
+    wstag: meters/second
+    dx: meters
+    dy: meters
 
-    float *vstag = data->vstag;
-    float *wstag = data->wstag;
-    float *dum0 = data->tem1;
-    float dy = yf(j) - yf(j-1);
-    float dz = zf(k) - zf(k-1);
-
-    float dwdy = ( ( WA4D(i, j, k, t) - WA4D(i, j-1, k, t) )/dy );
-    float dvdz = ( ( VA4D(i, j, k, t) - VA4D(i, j, k-1, t) )/dz );
-    TEM4D(i, j, k, t) = dwdy - dvdz; 
-    if (k == 1) {
-        TEM4D(i, j, 0, t) = dwdy - dvdz; 
-    }
+    OUTPUT:
+    xvort: 1/second
+ */
+__device__ void calc_xvort(float *vstag, float *wstag, float *xvort, float dy, float dz, int i, int j, int k, int NX, int NY) {
+    float *dum0 = xvort;
+    float dwdy = ( ( WA(i, j, k) - WA(i, j-1, k) )/dy );
+    float dvdz = ( ( VA(i, j, k) - VA(i, j, k-1) )/dz );
+    TEM(i, j, k) = dwdy - dvdz; 
 }
 
-/* Compute the y component of vorticity. After this is called by the calvort kernel, you must also run 
-   the kernel for applying the lower boundary condition and then the kernel for averaging to the
-   scalar grid. */
-__device__ void calc_yvort(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
-    int i = idx_4D[0];
-    int j = idx_4D[1];
-    int k = idx_4D[2];
-    int t = idx_4D[3];
+/*  Compute the component of vorticity along the y-axis.
+    This stencil does not handle averaging the values
+    to the scalar grid, and dx and dy are passed as
+    arguments to the stencil. 
+   
+    INPUT
+    ustag: meters/second
+    wstag: meters/second
+    dx: meters
+    dz: meters
 
-    float *ustag = data->ustag;
-    float *wstag = data->wstag;
-    float *dum0 = data->tem2;
-    float dx = xf(i) - xf(i-1);
-    float dz = zf(k) - zf(k-1);
-
-    float dwdx = ( ( WA4D(i, j, k, t) - WA4D(i-1, j, k, t) )/dx );
-    float dudz = ( ( UA4D(i, j, k, t) - UA4D(i, j, k-1, t) )/dz );
-    TEM4D(i, j, k, t) = dudz - dwdx;
-    if (k == 1) {
-        TEM4D(i, j, 0, t) = dudz - dwdx;
-    }
+    OUTPUT:
+    yvort: 1/second
+ */
+__device__ void calc_yvort(float *ustag, float *wstag, float *yvort, float dx, float dz, int i, int j, int k, int NX, int NY) {
+    float *dum0 = yvort;
+    float dwdx = ( ( WA(i, j, k) - WA(i-1, j, k) )/dx );
+    float dudz = ( ( UA(i, j, k) - UA(i, j, k-1) )/dz );
+    TEM(i, j, k) = dudz - dwdx;
 }
 
-/* Compute the z component of vorticity. After this is called by the calvort kernel, you must also run 
-   the kernel for applying the lower boundary condition and then the kernel for averaging to the
-   scalar grid. */
-__device__ void calc_zvort(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
-    int i = idx_4D[0];
-    int j = idx_4D[1];
-    int k = idx_4D[2];
-    int t = idx_4D[3];
+/*  Compute the component of vorticity along the z-axis.
+    This stencil does not handle averaging the values
+    to the scalar grid, and dx and dy are passed as
+    arguments to the stencil. 
+   
+    INPUT
+    ustag: meters/second
+    vstag: meters/second
+    dx: meters
+    dy: meters
 
-    float *ustag = data->ustag;
-    float *vstag = data->vstag;
-    float *dum0 = data->tem3;
-    float dx = xf(i) - xf(i-1);
-    float dy = yf(j) - yf(j-1);
-
-    float dvdx = ( ( VA4D(i, j, k, t) - VA4D(i-1, j, k, t) )/dx);
-    float dudy = ( ( UA4D(i, j, k, t) - UA4D(i, j-1, k, t) )/dy);
-    TEM4D(i, j, k, t) = dvdx - dudy;
+    OUTPUT:
+    zvort: 1/second
+ */
+__device__ void calc_zvort(float *ustag, float *vstag, float *zvort, float dx, float dy, int i, int j, int k, int NX, int NY) {
+    float *dum0 = zvort;
+    float dvdx = ( ( VA(i, j, k) - VA(i-1, j, k) )/dx);
+    float dudy = ( ( UA(i, j, k) - UA(i, j-1, k) )/dy);
+    TEM(i, j, k) = dvdx - dudy;
 }
 
 /* Compute the X component of vorticity tendency due
