@@ -5,19 +5,28 @@
 #ifndef VORT_CALC
 #define VORT_CALC
 
-/* Compute the nondimensional pressure */
-__device__ void calc_pipert(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
-    int i = idx_4D[0];
-    int j = idx_4D[1];
-    int k = idx_4D[2];
-    int t = idx_4D[3];
+/* Compute the nondimensional pressure perturbation given
+   the pressure perturbation field and base state pressure. 
+   Due to the nature of exponentials, both are required to first
+   compute the total nondimensional pressure and then convert it
+   to a perturbation. 
+ 
+   NOTE: Units of p0 have been changed in 
+   more recent datasets and this will need 
+   to be modified appropriately. 
 
-    // this is actually the pressure
-    // perturbation, not the full pressure
-    float *buf0 = data->prespert;
-    float p = BUF4D(i, j, k, t)*100 + grid->p0[k]; 
+   INPUT
+   prespert: hPa
+   p0: Pa
+
+   RETURNS
+   pipert: unitless
+ */
+__device__ void calc_pipert(float *prespert, float *p0, float *pipert, int i, int j, int k, int NX, int NY) {
+    float *buf0 = prespert; 
+    float p = BUF(i, j, k)*100; // convert from hPa to Pa 
     buf0 = data->pipert;
-    BUF4D(i, j, k, t) = pow( p / 100000., 0.28571426) - pow( grid->p0[k] / 100000., 0.28571426);
+    BUF(i, j, k) = pow( p / 100000., 0.28571426) - pow( grid->p0[k] / 100000., 0.28571426);
 }
 
 /* Compute the x component of vorticity. After this is called by the calvort kernel, you must also run 
