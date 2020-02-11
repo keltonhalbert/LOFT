@@ -20,7 +20,7 @@ SOURCEDIR := src
 BUILDDIR := $(SOURCEDIR)/main
 
 
-DIRS := $(SOURCEDIR)/io $(SOURCEDIR)/kernels $(SOURCEDIR)/parcel
+DIRS := $(SOURCEDIR)/io $(SOURCEDIR)/calc $(SOURCEDIR)/kernels $(SOURCEDIR)/parcel
 CU_SRCS := $(foreach dir,$(DIRS),$(wildcard $(dir)/*.cu))
 CU_OBJS := $(foreach obj, $(notdir $(CU_SRCS:.cu=.o)), $(BUILDDIR)/$(obj))
 
@@ -30,7 +30,7 @@ CPP_OBJS := $(foreach obj, $(notdir $(CPP_SRCS:.cpp=.o)), $(BUILDDIR)/$(obj))
 .PHONY: all
 
 vpath %.cu $(DIRS)
-all: run.exe $(CU_OBJS) $(CPP_OBJS)
+all: $(CU_OBJS) $(CPP_OBJS) run.exe
 
 $(BUILDDIR)/%.o: %.cu
 	$(NV) $(NVFLAGS) -c $< -o $@
@@ -39,8 +39,15 @@ vpath %.cpp $(DIRS)
 $(BUILDDIR)/%.o: %.cpp
 	$(CC) $(CFLAGS) -c $< -o $@ $(LINKOPTS)
 
+vort.cu: calcvort.cu
+turb.cu: calcturb.cu
+diff6.cu: calcdiff6.cu
+momentum.cu: calcmomentum.cu
+intergrate.cu: vort.o turb.o diff6.o momentum.o interp.o
+
 run.exe: $(BUILDDIR)/run_cm1.cpp $(LOFSINC)/libcm.a $(BUILDDIR)/integrate.o $(BUILDDIR)/datastructs.o
 	$(CC) $(CFLAGS) -o run/$@ $^ $(LINKOPTS)
+
 
 clean:
 	rm -f $(BUILDDIR)/*.o
