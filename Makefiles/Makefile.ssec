@@ -1,0 +1,47 @@
+## The C++ and CUDA compilers
+CC := mpiCC
+NV := nvcc
+
+## The paths to various libraries required for linking
+CUDA=/usr/local/cuda
+LOFSINC=${HOME}/CODEBASE/LOFS-read/cm1tools-3.0
+HDF5ZFP=${HOME}/installs/H5Z-ZFP-1.0.1
+ZFP=${HOME}/installs/zfp
+
+## These flags are passed to the C++ compiler of the main program
+CFLAGS = -O3 -std=c++11 -I$(LOFSINC) -I$(ZFP)/include -I$(HDF5ZFP)/src
+LINKOPTS = -L$(LOFSINC) -L$(ZFP)/lib -L$(HDF5ZFP)/src -L$(CUDA)/lib64 -lh5zzfp -lzfp -lhdf5_hl -lhdf5 -lnetcdf -lnetcdf_c++4 -lcm -lcudart -lm -fopenmp
+
+## These flags are passed to the CUDA compiler
+NVFLAGS = --default-stream per-thread -gencode=arch=compute_61,code=compute_61 --prec-div=true --ftz=true --fmad=true --std=c++11
+
+
+SOURCEDIR := src
+BUILDDIR := $(SOURCEDIR)/main
+
+
+DIRS := $(SOURCEDIR)/io $(SOURCEDIR)/kernels $(SOURCEDIR)/parcel
+CU_SRCS := $(foreach dir,$(DIRS),$(wildcard $(dir)/*.cu))
+CU_OBJS := $(foreach obj, $(notdir $(CU_SRCS:.cu=.o)), $(BUILDDIR)/$(obj))
+
+CPP_SRCS := $(foreach dir,$(DIRS),$(wildcard $(dir)/*.cpp))
+CPP_OBJS := $(foreach obj, $(notdir $(CPP_SRCS:.cpp=.o)), $(BUILDDIR)/$(obj))
+
+.PHONY: all
+
+vpath %.cu $(DIRS)
+all: run.exe $(CU_OBJS) $(CPP_OBJS)
+
+$(BUILDDIR)/%.o: %.cu
+	$(NV) $(NVFLAGS) -c $< -o $@
+
+vpath %.cpp $(DIRS)
+$(BUILDDIR)/%.o: %.cpp
+	$(CC) $(CFLAGS) -c $< -o $@ $(LINKOPTS)
+
+run.exe: $(BUILDDIR)/run_cm1.cpp $(LOFSINC)/libcm.a $(BUILDDIR)/integrate.o $(BUILDDIR)/datastructs.o
+	$(CC) $(CFLAGS) -o run/$@ $^ $(LINKOPTS)
+
+clean:
+	rm -f $(BUILDDIR)/*.o
+	rm -f run/run.exe

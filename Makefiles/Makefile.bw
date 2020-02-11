@@ -1,0 +1,19 @@
+# v5d.c, binio.c are from the vis5d+ distribution
+#
+# You will need to set these appropriately for your system
+# /sw/xe/visit/2.6.0/2.6.0/linux-x86_64/lib/
+
+LOFSINC=/u/sciteam/halbert/LOFS/cm1tools-3.0
+HDF5LIBS = -lnetcdf -lhdf5_hl -lhdf5 -lm -lcm
+CC = CC
+
+all: integrate.o run
+
+integrate.o: integrate.cu
+	nvcc -c -gencode=arch=compute_35,code=compute_35 -o integrate.o integrate.cu
+
+run: run_traj.cpp integrate.o
+	$(CC) -h std=c++11 -o run run_traj.cpp integrate.o -I$(LOFSINC) -L$(NETCDF_DIR)/libi -L$(LOFSINC) $(HDF5LIBS)
+
+clean:
+	rm -rf *.o 

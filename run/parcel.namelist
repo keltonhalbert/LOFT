@@ -1,0 +1,88 @@
+## This is a configuration file for running
+## the parcel code. Much easier than using
+## a bunch of command line arguments
+
+###########################################
+###          PARCEL I/O CONFIG          ###
+###########################################
+## Path to the HDF5 data
+histpath = ./3D
+## The name of the output NetCDF file
+basename = 24May2011-ElRe-SVC
+
+
+
+
+
+###########################################
+###         PARCEL SEED CONFIG          ###
+###########################################
+## The parcel seed starting position
+x0 = 0
+y0 = 7500
+z0 = 30
+
+## The number of parcels desired along each axis
+nx = 20
+ny = 20
+nz = 10
+
+## The spacing of the parcels desired along each axis
+dx = 375
+dy = 125
+dz = 15
+
+
+
+
+
+###########################################
+###      PARCEL INTEGRATION CONFIG      ###
+###########################################
+## Parcel start time, number of time steps 
+## to integrate, and integration direction.
+start_time = 4200.166738
+ntimesteps = 3200
+## 1 means forward, -1 means backward
+time_direction = 1
+
+
+
+
+
+
+###########################################
+###       PARCEL VARIABLE CONFIG        ###
+###########################################
+
+## BASE STATE SCALARS
+output_pbar = 1
+output_qvbar = 1
+output_rhobar = 1
+output_thetabar = 1
+output_thrhobar = 1
+
+## PERTURBATION SCALARS
+output_ppert = 1
+output_qvpert = 1
+output_rhopert = 1
+output_thetapert = 1
+output_thrhopert = 1
+
+## MICROPHYSICS VARIABLES
+output_qc = 0
+output_qi = 0
+output_qs = 0 
+output_qg = 0
+
+## VORTICITY VARIABLES
+output_xvort = 1
+output_yvort = 1
+output_zvort = 1
+
+## MISC
+output_kmh = 1
+
+##BUDGET VARIABLES
+output_vorticity_budget = 1
+output_momentum_budget = 1

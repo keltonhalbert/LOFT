@@ -1,0 +1,25 @@
+CUDA=/opt/apps/cuda/10.1
+LOFSINC=/home1/06818/khalbert/installs/LOFS-read/cm1tools-3.0
+ZFP=/home1/06818/khalbert/installs/zfp
+HDF5ZFP=/home1/06818/khalbert/installs/H5Z-ZFP/install
+
+CFLAGS = -I$(TACC_HDF5_INC) -I$(LOFSINC) -I$(ZFP)/include -I$(HDF5ZFP)/include -I$(TACC_NETCDF_INC)
+LINKOPTS = -L$(TACC_HDF5_LIB) -L$(LOFSINC) -L$(ZFP)/lib -L$(HDF5ZFP)/lib -L$(TACC_NETCDF_LIB) -L$(TACC_CUDA_LIB) -lh5zzfp -lzfp -lhdf5_hl -lhdf5 -lnetcdf -lnetcdf_c++4 -lcm -lcudart -lm -fopenmp
+CC = mpiicc
+
+all: run datastructs.o readlofs.o
+
+datastructs.o: datastructs.cu
+	nvcc -c -gencode=arch=compute_75,code=compute_75 --prec-div=true --ftz=true --fmad=true --std=c++11 -o datastructs.o datastructs.cu
+
+integrate.o: integrate.cu interp.cu vort.cu turb.cu diff6.cu datastructs.cu
+	nvcc -c -gencode=arch=compute_75,code=compute_75 --prec-div=true --ftz=true --fmad=true --std=c++11 -o integrate.o integrate.cu
+
+readlofs.o: readlofs.cpp
+	$(CC) -std=c++11 -c -o readlofs.o readlofs.cpp $(CFLAGS) $(LINKOPTS)
+
+run: run_cm1.cpp integrate.o datastructs.o
+	$(CC) -std=c++11 -o run run_cm1.cpp integrate.o $(LOFSINC)/libcm.a $(CFLAGS) $(LINKOPTS) 
+
+clean:
+	rm -rf *.o 
