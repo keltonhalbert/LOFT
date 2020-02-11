@@ -1,6 +1,7 @@
 #include <iostream>
 #include <stdio.h>
 #include "../include/datastructs.h"
+#include "../include/constants.h"
 #include "../include/macros.h"
 #ifndef VORT_CALC
 #define VORT_CALC
@@ -26,7 +27,7 @@ __device__ void calc_pipert(float *prespert, float *p0, float *pipert, int i, in
     float *buf0 = prespert; 
     float p = BUF(i, j, k)*100; // convert from hPa to Pa 
     buf0 = data->pipert;
-    BUF(i, j, k) = pow( p / 100000., 0.28571426) - pow( grid->p0[k] / 100000., 0.28571426);
+    BUF(i, j, k) = pow( p * rp00, rovcp) - pow( p0[k] * rp00, rovcp);
 }
 
 /* Compute the x component of vorticity. After this is called by the calvort kernel, you must also run 
