@@ -26,7 +26,7 @@
 __device__ void calc_pipert(float *prespert, float *p0, float *pipert, int i, int j, int k, int NX, int NY) {
     float *buf0 = prespert; 
     float p = BUF(i, j, k)*100; // convert from hPa to Pa 
-    buf0 = data->pipert;
+    buf0 = pipert;
     BUF(i, j, k) = pow( p * rp00, rovcp) - pow( p0[k] * rp00, rovcp);
 }
 
@@ -184,7 +184,7 @@ __device__ void calc_zvort_tilt(datagrid *grid, model_data *data, int *idx_4D, i
 
 /* Compute the X component of vorticity tendency due
    to stretching of the vorticity along the X axis. */
-__device__ void calc_xvort_stretch(float *ustag, float *vstag, float *xvort, float *xvort_stretch, \
+__device__ void calc_xvort_stretch(float *vstag, float *wstag, float *xvort, float *xvort_stretch, \
                                    float dy, float dz, int i, int j, int k, int NX, int NY, int NZ) {
 
     // this stencil conveniently lands itself on the scalar grid,
@@ -193,7 +193,7 @@ __device__ void calc_xvort_stretch(float *ustag, float *vstag, float *xvort, flo
     float xv = BUF(i, j, k);
     float dvdy, dwdz;
     dvdy = ( VA(i, j+1, k) - VA(i, j, k) )/dy;
-    dwdz = (WA4D(i, j, k+1) - WA(i, j, k) )/dz;
+    dwdz = ( WA(i, j, k+1) - WA(i, j, k) )/dz;
 
     buf0 = xvort_stretch;
     BUF(i, j, k) = -xv*( (dvdy + dwdz) );
@@ -230,26 +230,26 @@ __device__ void calc_zvort_stretch(float *ustag, float *vstag, float *zvort, flo
     BUF(i, j, k) = -zv*( dudx + dvdy);
 }
 
-__device__ void calc_xvort_baro(float *thrhopert, float *xvort_baro, float *th0, float *qv0, \
+__device__ void calc_xvort_baro(float *thrhopert, float *th0, float *qv0, float *xvort_baro, \
                                 float dy, int i, int j, int k, int NX, int NY, int NZ) {
     float *buf0 = thrhopert;
     float qvbar1 = qv0[k];
     float thbar1 = th0[k]*(1.0+reps*qvbar1)/(1.0+qvbar1); 
     // dthrho/dy
-    float dthdy = ( (BUF(i, j+1, k) - BUF(i, j-1, k)) / ( 2*dy ) );
+    float dthdy = ( (BUF(i, j+1, k) - BUF(i, j-1, k)) / ( dy ) );
 
     // compute and save to the array
     buf0 = xvort_baro; 
     BUF(i, j, k) = (g/thbar1)*dthdy; 
 }
 
-__device__ void calc_yvort_baro(float *thrhopert, float *yvort_baro, float *th0, float *qv0, \
+__device__ void calc_yvort_baro(float *thrhopert, float *th0, float *qv0, float *yvort_baro, \
                                 float dx, int i, int j, int k, int NX, int NY, int NZ) {
     float *buf0 = thrhopert;
     float qvbar1 = qv0[k];
     float thbar1 = th0[k]*(1.0+reps*qvbar1)/(1.0+qvbar1); 
     // dthrho/dy
-    float dthdx = ( (BUF4D(i+1, j, k) - BUF4D(i-1, j, k)) / ( 2*dx ) );
+    float dthdx = ( (BUF(i+1, j, k) - BUF(i-1, j, k)) / ( dx ) );
 
     // compute and save to the array
     buf0 = yvort_baro; 
@@ -258,16 +258,16 @@ __device__ void calc_yvort_baro(float *thrhopert, float *yvort_baro, float *th0,
 __device__ void calc_xvort_solenoid(float *pipert, float *thrhopert, float *th0, float *qv0, float *xvort_solenoid, \
                                     float dy, float dz, int i, int j, int k, int NX, int NY, int NZ) {
     float *buf0 = pipert;
-    float dpidz = ( (BUF(i, k, k+1) - BUF(i, k, k-1)) / ( 2*dz ) );
-    float dpidy = ( (BUF4D(i, j+1, k, t) - BUF4D(i, j-1, k, t)) / ( 2*dy ) );
+    float dpidz = ( (BUF(i, k, k+1) - BUF(i, k, k-1)) / ( dz ) );
+    float dpidy = ( (BUF(i, j+1, k) - BUF(i, j-1, k)) / ( dy ) );
 
     buf0 = thrhopert;
     float qvbar1 = qv0[k+1];
     float qvbar2 = qv0[k-1];
     float thbar1 = th0[k+1]*(1.0+reps*qvbar1)/(1.0+qvbar1); 
     float thbar2 = th0[k-1]*(1.0+reps*qvbar2)/(1.0+qvbar2); 
-    float dthdy = ( (BUF(i, j+1, k) - BUF(i, j-1, k)) / ( 2*dy ) );
-    float dthdz = ( ((BUF(i, j, k+1) + thbar1) - (BUF(i, j, k-1) + thbar2)) / ( 2*dz ) );
+    float dthdy = ( (BUF(i, j+1, k) - BUF(i, j-1, k)) / ( dy ) );
+    float dthdz = ( ((BUF(i, j, k+1) + thbar1) - (BUF(i, j, k-1) + thbar2)) / ( dz ) );
 
     // compute and save to the array
     buf0 = xvort_solenoid; 
@@ -277,16 +277,16 @@ __device__ void calc_xvort_solenoid(float *pipert, float *thrhopert, float *th0,
 __device__ void calc_yvort_solenoid(float *pipert, float *thrhopert, float *th0, float *qv0, float *yvort_solenoid, \
                                     float dx, float dz, int i, int j, int k, int NX, int NY, int NZ) {
     float *buf0 = pipert;
-    float dpidz = ( (BUF(i, j, k+1) - BUF(i, j, k-1)) / ( 2*dz ) );
-    float dpidx = ( (BUF(i+1, j, k) - BUF(i-1, j, k)) / ( 2*dx ) );
+    float dpidz = ( (BUF(i, j, k+1) - BUF(i, j, k-1)) / ( dz ) );
+    float dpidx = ( (BUF(i+1, j, k) - BUF(i-1, j, k)) / ( dx ) );
 
     buf0 = thrhopert;
     float qvbar1 = qv0[k+1];
     float qvbar2 = qv0[k-1];
     float thbar1 = th0[k+1]*(1.0+reps*qvbar1)/(1.0+qvbar1); 
     float thbar2 = th0[k-1]*(1.0+reps*qvbar2)/(1.0+qvbar2); 
-    float dthdx = ( (BUF(i+1, j, k) - BUF(i-1, j, k)) / ( 2*dx ) );
-    float dthdz = ( ((BUF(i, j, k+1) + thbar1) - (BUF(i, j, k-1) + thbar2)) / ( 2*dz ) );
+    float dthdx = ( (BUF(i+1, j, k) - BUF(i-1, j, k)) / ( dx ) );
+    float dthdz = ( ((BUF(i, j, k+1) + thbar1) - (BUF(i, j, k-1) + thbar2)) / ( dz ) );
 
     // compute and save to the array
     buf0 = yvort_solenoid; 
