@@ -47,105 +47,23 @@ __global__ void applyMomentumBC(float *ustag, float *vstag, float *wstag, int NX
     }
 }
 
-
-__global__ void doTurbVort(datagrid *grid, model_data *data, int tStart, int tEnd) {
-    // get our 3D index based on our blocks/threads
-    int i = (blockIdx.x*blockDim.x) + threadIdx.x;
-    int j = (blockIdx.y*blockDim.y) + threadIdx.y;
-    int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int idx_4D[4];
-    int NX = grid->NX;
-    int NY = grid->NY;
-    int NZ = grid->NZ;
-    // KELTON. FOR THE LOVE OF ALL THAT IS GOOD.
-    // STOP CHANGING THE INDEX CHECK CONDITIONS. 
-    // YOU'VE DONE THIS LIKE 5 TIMES NOW AND
-    // CAUSE SEG FAULTS EVERY TIME. LEARN YOUR 
-    // LESSON ALREADY. THIS WORKS. DON'T BREAK.
-    // BAD.
-
-    idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX) && (j < NY+1) && (k > 0) && (k < NZ+1)) {
-        // loop over the number of time steps we have in memory
-        for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            idx_4D[3] = tidx;
-            calc_xvortturb_ten(grid, data, idx_4D, NX, NY, NZ);
-        }
-    }
-
-    if ((i < NX+1) && (j < NY) && (k > 0) && (k < NZ+1)) {
-        // loop over the number of time steps we have in memory
-        for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            idx_4D[3] = tidx;
-            calc_yvortturb_ten(grid, data, idx_4D, NX, NY, NZ);
-        }
-    }
-    if ((i < NX+1) && (j < NY+1) && (k < NZ+1)) {
-        // loop over the number of time steps we have in memory
-        for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            idx_4D[3] = tidx;
-            calc_zvortturb_ten(grid, data, idx_4D, NX, NY, NZ);
-        }
-    }
-}
-
-__global__ void doDiffVort(datagrid *grid, model_data *data, int tStart, int tEnd) {
-    // get our 3D index based on our blocks/threads
-    int i = (blockIdx.x*blockDim.x) + threadIdx.x;
-    int j = (blockIdx.y*blockDim.y) + threadIdx.y;
-    int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int idx_4D[4];
-    int NX = grid->NX;
-    int NY = grid->NY;
-    int NZ = grid->NZ;
-    // KELTON. FOR THE LOVE OF ALL THAT IS GOOD.
-    // STOP CHANGING THE INDEX CHECK CONDITIONS. 
-    // YOU'VE DONE THIS LIKE 5 TIMES NOW AND
-    // CAUSE SEG FAULTS EVERY TIME. LEARN YOUR 
-    // LESSON ALREADY. THIS WORKS. DON'T BREAK.
-    // BAD.
-
-    idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX) && (j < NY+1) && (k > 0) && (k < NZ+1)) {
-        // loop over the number of time steps we have in memory
-        for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            idx_4D[3] = tidx;
-            calc_xvortdiff_ten(grid, data, idx_4D, NX, NY, NZ);
-        }
-    }
-
-    if ((i < NX+1) && (j < NY) && (k > 0) && (k < NZ+1)) {
-        // loop over the number of time steps we have in memory
-        for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            idx_4D[3] = tidx;
-            calc_yvortdiff_ten(grid, data, idx_4D, NX, NY, NZ);
-        }
-    }
-    if ((i < NX+1) && (j < NY+1) && (k < NZ+1)) {
-        // loop over the number of time steps we have in memory
-        for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            idx_4D[3] = tidx;
-            calc_zvortdiff_ten(grid, data, idx_4D, NX, NY, NZ);
-        }
-    }
-}
-
 __global__ void calcpipert(datagrid *grid, model_data *data, int tStart, int tEnd) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int idx_4D[4];
     int NX = grid->NX;
     int NY = grid->NY;
     int NZ = grid->NZ;
+    long bufidx;
 
-    idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
     if ((i < NX+2) && (j < NY+2) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            idx_4D[3] = tidx;
-            calc_pipert(grid, data, idx_4D, NX, NY, NZ);
+            bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
+            // we pass through the reference to the starting point
+            // of the next 3D buffer since stencils operate in 3D space
+            calc_pipert(&(data->prespert[bufidx]), grid->p0, &(data->pipert[bufidx]), i, j, k, NX, NY);
         }
     }
 }
@@ -155,38 +73,150 @@ __global__ void calcvort(datagrid *grid, model_data *data, int tStart, int tEnd)
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int idx_4D[4];
     int NX = grid->NX;
     int NY = grid->NY;
     int NZ = grid->NZ;
-    // KELTON. FOR THE LOVE OF ALL THAT IS GOOD.
-    // STOP CHANGING THE INDEX CHECK CONDITIONS. 
-    // YOU'VE DONE THIS LIKE 5 TIMES NOW AND
-    // CAUSE SEG FAULTS EVERY TIME. LEARN YOUR 
-    // LESSON ALREADY. THIS WORKS. DON'T BREAK.
-    // BAD.
+    long bufidx;
+    float dx, dy, dz;
 
-    idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
     if ((i < NX) && (j < NY+1) && (k > 0) && (k < NZ)) {
+        dy = yf(j) - yf(j-1);
+        dz = zf(k) - zf(k-1);
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            idx_4D[3] = tidx;
-            calc_xvort(grid, data, idx_4D, NX, NY, NZ);
+            bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
+            calc_xvort(&(data->vstag[bufidx]), &(data->wstag[bufidx]), &(data->tem1[bufidx]), dy, dz, i, j, k, NX, NY);
+            // lower boundary condition of stencil
+            if ((k == 1) && (zf(k-1) == 0)) {
+                data->tem1[P4(i, j, 0, tidx, NX, NY, NZ)] = data->tem1[P4(i, j, 1, tidx, NX, NY, NZ)];
+            }
         }
     }
 
     if ((i < NX+1) && (j < NY) && (k > 0) && (k < NZ+1)) {
+        dx = xf(i) - xf(i-1);
+        dz = zf(k) - zf(k-1);
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            idx_4D[3] = tidx;
-            calc_yvort(grid, data, idx_4D, NX, NY, NZ);
+            bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
+            calc_yvort(&(data->ustag[bufidx]), &(data->wstag[bufidx]), &(data->tem2[bufidx]), dx, dz, i, j, k, NX, NY);
+            // lower boundary condition of stencil
+            if ((k == 1) && (zf(k-1) == 0)) {
+                data->tem2[P4(i, j, 0, tidx, NX, NY, NZ)] = data->tem2[P4(i, j, 1, tidx, NX, NY, NZ)];
+            }
         }
     }
+
     if ((i < NX+1) && (j < NY+1) && (k < NZ+1)) {
+        dx = xf(i) - xf(i-1);
+        dy = yf(j) - yf(j-1);
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            idx_4D[3] = tidx;
-            calc_zvort(grid, data, idx_4D, NX, NY, NZ);
+            bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
+            calc_zvort(&(data->ustag[bufidx]), &(data->vstag[bufidx]), &(data->tem3[bufidx]), dx, dy, i, j, k, NX, NY);
+        }
+    }
+}
+
+__global__ void doDiffVort(datagrid *grid, model_data *data, int tStart, int tEnd) {
+    // get our 3D index based on our blocks/threads
+    int i = (blockIdx.x*blockDim.x) + threadIdx.x;
+    int j = (blockIdx.y*blockDim.y) + threadIdx.y;
+    int k = (blockIdx.z*blockDim.z) + threadIdx.z;
+    int NX = grid->NX;
+    int NY = grid->NY;
+    int NZ = grid->NZ;
+    long bufidx;
+    float dx, dy, dz;
+
+    if ((i < NX) && (j < NY+1) && (k > 0) && (k < NZ)) {
+        dy = yf(j) - yf(j-1);
+        dz = zf(k) - zf(k-1);
+        // loop over the number of time steps we have in memory
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
+            calc_xvort(&(data->diffv[bufidx]), &(data->diffw[bufidx]), &(data->tem1[bufidx]), dy, dz, i, j, k, NX, NY);
+
+            // lower boundary condition of stencil
+            if ((k == 1) && (zf(k-1) == 0)) {
+                data->tem1[P4(i, j, 0, tidx, NX, NY, NZ)] = data->tem1[P4(i, j, 1, tidx, NX, NY, NZ)];
+            }
+        }
+    }
+
+    if ((i < NX+1) && (j < NY) && (k > 0) && (k < NZ+1)) {
+        dx = xf(i) - xf(i-1);
+        dz = zf(k) - zf(k-1);
+        // loop over the number of time steps we have in memory
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
+            calc_yvort(&(data->diffu[bufidx]), &(data->diffw[bufidx]), &(data->tem2[bufidx]), dx, dz, i, j, k, NX, NY);
+            // lower boundary condition of stencil
+            if ((k == 1) && (zf(k-1) == 0)) {
+                data->tem2[P4(i, j, 0, tidx, NX, NY, NZ)] = data->tem2[P4(i, j, 1, tidx, NX, NY, NZ)];
+            }
+        }
+    }
+
+    if ((i < NX+1) && (j < NY+1) && (k < NZ+1)) {
+        dx = xf(i) - xf(i-1);
+        dy = yf(j) - yf(j-1);
+        // loop over the number of time steps we have in memory
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
+            calc_zvort(&(data->diffu[bufidx]), &(data->diffv[bufidx]), &(data->tem3[bufidx]), dx, dy, i, j, k, NX, NY);
+        }
+    }
+}
+
+
+__global__ void doTurbVort(datagrid *grid, model_data *data, int tStart, int tEnd) {
+    // get our 3D index based on our blocks/threads
+    int i = (blockIdx.x*blockDim.x) + threadIdx.x;
+    int j = (blockIdx.y*blockDim.y) + threadIdx.y;
+    int k = (blockIdx.z*blockDim.z) + threadIdx.z;
+    int NX = grid->NX;
+    int NY = grid->NY;
+    int NZ = grid->NZ;
+    long bufidx;
+    float dx, dy, dz;
+
+    if ((i < NX) && (j < NY+1) && (k > 0) && (k < NZ)) {
+        dy = yf(j) - yf(j-1);
+        dz = zf(k) - zf(k-1);
+        // loop over the number of time steps we have in memory
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
+            calc_xvort(&(data->turbv[bufidx]), &(data->turbw[bufidx]), &(data->tem1[bufidx]), dy, dz, i, j, k, NX, NY);
+
+            // lower boundary condition of stencil
+            if ((k == 1) && (zf(k-1) == 0)) {
+                data->tem1[P4(i, j, 0, tidx, NX, NY, NZ)] = data->tem1[P4(i, j, 1, tidx, NX, NY, NZ)];
+            }
+        }
+    }
+
+    if ((i < NX+1) && (j < NY) && (k > 0) && (k < NZ+1)) {
+        dx = xf(i) - xf(i-1);
+        dz = zf(k) - zf(k-1);
+        // loop over the number of time steps we have in memory
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
+            calc_yvort(&(data->turbu[bufidx]), &(data->turbw[bufidx]), &(data->tem2[bufidx]), dx, dz, i, j, k, NX, NY);
+            // lower boundary condition of stencil
+            if ((k == 1) && (zf(k-1) == 0)) {
+                data->tem2[P4(i, j, 0, tidx, NX, NY, NZ)] = data->tem2[P4(i, j, 1, tidx, NX, NY, NZ)];
+            }
+        }
+    }
+
+    if ((i < NX+1) && (j < NY+1) && (k < NZ+1)) {
+        dx = xf(i) - xf(i-1);
+        dy = yf(j) - yf(j-1);
+        // loop over the number of time steps we have in memory
+        for (int tidx = tStart; tidx < tEnd; ++tidx) {
+            bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
+            calc_zvort(&(data->turbu[bufidx]), &(data->turbv[bufidx]), &(data->tem3[bufidx]), dx, dy, i, j, k, NX, NY);
         }
     }
 }
@@ -197,33 +227,51 @@ __global__ void calcvortstretch(datagrid *grid, model_data *data, int tStart, in
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int idx_4D[4];
     int NX = grid->NX;
     int NY = grid->NY;
     int NZ = grid->NZ;
-    //printf("%i, %i, %i\n", i, j, k);
+    long bufidx;
+    float dx, dy, dz;
 
-    idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
     if ((i < NX) && (j < NY) && (k < NZ)) {
+        dy = yf(j+1) - yf(j);
+        dz = zf(k+1) - zf(k);
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            idx_4D[3] = tidx;
-            calc_xvort_stretch(grid, data, idx_4D, NX, NY, NZ);
+            bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
+            calc_xvort_stretch(&(data->ustag[bufidx]), &(data->wstag[bufidx]), \
+                               &(data->xvort[bufidx]), &(data->xvort_stretch[bufidx]), \
+                               dy, dz, i, j, k, NX, NY, NZ);
+            if ((k == 1) && (zf(k-1) == 0)) {
+                data->xvort_stretch[P4(i, j, 0, tidx, NX, NY, NZ)] = data->xvort_stretch[P4(i, j, 1, tidx, NX, NY, NZ)];
+            }
         }
     }
 
     if ((i < NX) && (j < NY) && (k < NZ)) {
+        dx = xf(i+1) - xf(i);
+        dz = zf(k+1) - zf(k);
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            idx_4D[3] = tidx;
-            calc_yvort_stretch(grid, data, idx_4D, NX, NY, NZ);
+            bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
+            calc_yvort_stretch(&(data->vstag[bufidx]), &(data->wstag[bufidx]), \
+                               &(data->yvort[bufidx]), &(data->yvort_stretch[bufidx]), \
+                               dx, dz, i, j, k, NX, NY, NZ);
+            if ((k == 1) && (zf(k-1) == 0)) {
+                data->yvort_stretch[P4(i, j, 0, tidx, NX, NY, NZ)] = data->yvort_stretch[P4(i, j, 1, tidx, NX, NY, NZ)];
+            }
         }
     }
+
     if ((i < NX) && (j < NY) && (k < NZ)) {
+        dx = xf(i+1) - xf(i);
+        dz = yf(j+1) - yf(j);
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            idx_4D[3] = tidx;
-            calc_zvort_stretch(grid, data, idx_4D, NX, NY, NZ);
+            bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
+            calc_zvort_stretch(&(data->ustag[bufidx]), &(data->vstag[bufidx]), \
+                               &(data->zvort[bufidx]), &(data->zvort_stretch[bufidx]), \
+                               dx, dy, i, j, k, NX, NY, NZ);
         }
     }
 }
@@ -300,19 +348,20 @@ __global__ void calcvortbaro(datagrid *grid, model_data *data, int tStart, int t
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int idx_4D[4];
     int NX = grid->NX;
     int NY = grid->NY;
     int NZ = grid->NZ;
-    //printf("%i, %i, %i\n", i, j, k);
+    long bufidx;
+    float dx, dy;
 
-    idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
     if ((i < NX-1) && (j < NY-1) && (k < NZ) && ( i > 0 ) && (j > 0) && (k > 0)) {
         // loop over the number of time steps we have in memory
+        dx = xh(i+1) - xh(i-1);
+        dy = yh(j+1) - yh(j-1);
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            idx_4D[3] = tidx;
-            calc_xvort_baro(grid, data, idx_4D, NX, NY, NZ);
-            calc_yvort_baro(grid, data, idx_4D, NX, NY, NZ);
+            bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
+            calc_xvort_baro(&(data->thrhopert[bufidx]), data->th0, data->qv0, &(data->xvort_baro[bufidx]), dx, i, j, k, NX, NY, NZ);
+            calc_yvort_baro(&(data->thrhopert[bufidx]), data->th0, data->qv0, &(data->yvort_baro[bufidx]), dy, i, j, k, NX, NY, NZ);
         }
     }
 }
@@ -323,28 +372,39 @@ __global__ void calcvortsolenoid(datagrid *grid, model_data *data, int tStart, i
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int idx_4D[4];
     int NX = grid->NX;
     int NY = grid->NY;
     int NZ = grid->NZ;
-    //printf("%i, %i, %i\n", i, j, k);
+    float dx, dy, dz;
+    long bufidx;
 
-    idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
     // Even though there are NZ points, it's a center difference
     // and we reach out NZ+1 points to get the derivatives
     if ((i < NX-1) && (j < NY-1) && (k < NZ) && ( i > 0 ) && (j > 0)) {
+        dx = xh(i+1)-xh(i-1);
+        dy = yh(i+1)-yh(i-1);
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            idx_4D[3] = tidx;
-            calc_zvort_solenoid(grid, data, idx_4D, NX, NY, NZ);
+            bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
+            calc_zvort_solenoid(&(data->pipert[bufidx]), &(data->thrhopert[bufidx]), \
+                                &(data->zvort_solenoid[bufidx]), dx, dy, i, j, k, NX, NY, NZ);
         }
     }
     if ((i < NX-1) && (j < NY-1) && (k < NZ) && ( i > 0 ) && (j > 0) && (k > 0)) {
         // loop over the number of time steps we have in memory
+        dx = xh(i+1)-xh(i-1);
+        dy = yh(i+1)-yh(i-1);
+        dz = zh(i+1)-zh(i-1);
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            idx_4D[3] = tidx;
-            calc_xvort_solenoid(grid, data, idx_4D, NX, NY, NZ);
-            calc_yvort_solenoid(grid, data, idx_4D, NX, NY, NZ);
+            bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
+            calc_xvort_solenoid(&(data->pipert[bufidx]), &(data->thrhopert[bufidx]), grid->th0, grid->qv0, \
+                                &(data->xvort_solenoid[bufidx]), dy, dz, i, j, k, NX, NY, NZ);
+            calc_yvort_solenoid(&(data->pipert[bufidx]), &(data->thrhopert[bufidx]), grid->th0, grid->qv0, \
+                                &(data->yvort_solenoid[bufidx]), dx, dz, i, j, k, NX, NY, NZ);
+            if ((k == 1) && (zf(k-1) == 0)) {
+                data->xvort_solenoid[P4(i, j, 0, tidx, NX, NY, NZ)] = data->xvort_solenoid[P4(i, j, 1, tidx, NX, NY, NZ)];
+                data->yvort_solenoid[P4(i, j, 0, tidx, NX, NY, NZ)] = data->yvort_solenoid[P4(i, j, 1, tidx, NX, NY, NZ)];
+            }
         }
     }
 }
