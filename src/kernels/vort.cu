@@ -57,7 +57,7 @@ __global__ void calcpipert(datagrid *grid, model_data *data, int tStart, int tEn
     int NZ = grid->NZ;
     long bufidx;
 
-    if ((i < NX+2) && (j < NY+2) && (k < NZ+1)) {
+    if ((i < NX+1) && (j < NY+1) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
