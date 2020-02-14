@@ -16,7 +16,7 @@ __global__ void calcbuoy(datagrid *grid, model_data *data, int tStart, int tEnd)
     int NY = grid->NY;
     int NZ = grid->NZ;
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX+2) && (j < NY+2) && (k > 0) && (k < NZ+1)) {
+    if ((i < NX+1) && (j < NY+1) && (k > 0) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
@@ -36,7 +36,7 @@ __global__ void calcpgrad(datagrid *grid, model_data *data, int tStart, int tEnd
     int NY = grid->NY;
     int NZ = grid->NZ;
     idx_4D[0] = i; idx_4D[1] = j; idx_4D[2] = k;
-    if ((i < NX+2) && (j < NY+2) && (k > 0) && (k < NZ+1)) {
+    if ((i < NX+1) && (j < NY+1) && (k > 0) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             idx_4D[3] = tidx;
