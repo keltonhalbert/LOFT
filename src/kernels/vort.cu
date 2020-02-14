@@ -57,13 +57,13 @@ __global__ void calcpipert(datagrid *grid, model_data *data, int tStart, int tEn
     int NZ = grid->NZ;
     long bufidx;
 
-    if ((i < NX+1) && (j < NY+1) && (k < NZ+1)) {
+    if ((i < NX+1) && (j < NY+1) && (k < NZ)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
             // we pass through the reference to the starting point
             // of the next 3D buffer since stencils operate in 3D space
-            calc_pipert(&(data->prespert[bufidx]), grid->p0, &(data->pipert[bufidx]), i, j, k, NX, NY);
+            calc_pipert(&(data->prespert[bufidx]), grid->p0, &(data->pipert[bufidx]), i, j, k, NX, NY, NZ);
         }
     }
 }
