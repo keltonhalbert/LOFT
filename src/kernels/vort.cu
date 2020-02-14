@@ -60,7 +60,7 @@ __global__ void calcpipert(datagrid *grid, model_data *data, int tStart, int tEn
     if ((i < NX+1) && (j < NY+1) && (k < NZ+1)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
+            bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
             // we pass through the reference to the starting point
             // of the next 3D buffer since stencils operate in 3D space
             calc_pipert(&(data->prespert[bufidx]), grid->p0, &(data->pipert[bufidx]), i, j, k, NX, NY);
@@ -84,11 +84,11 @@ __global__ void calcvort(datagrid *grid, model_data *data, int tStart, int tEnd)
         dz = zf(k) - zf(k-1);
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
+            bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
             calc_xvort(&(data->vstag[bufidx]), &(data->wstag[bufidx]), &(data->tem1[bufidx]), dy, dz, i, j, k, NX, NY);
             // lower boundary condition of stencil
             if ((k == 1) && (zf(k-1) == 0)) {
-                data->tem1[P4(i, j, 0, tidx, NX, NY, NZ)] = data->tem1[P4(i, j, 1, tidx, NX, NY, NZ)];
+                data->tem1[P4(i, j, 0, tidx, NX+2, NY+2, NZ+1)] = data->tem1[P4(i, j, 1, tidx, NX+2, NY+2, NZ+1)];
             }
         }
     }
@@ -98,11 +98,11 @@ __global__ void calcvort(datagrid *grid, model_data *data, int tStart, int tEnd)
         dz = zf(k) - zf(k-1);
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
+            bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
             calc_yvort(&(data->ustag[bufidx]), &(data->wstag[bufidx]), &(data->tem2[bufidx]), dx, dz, i, j, k, NX, NY);
             // lower boundary condition of stencil
             if ((k == 1) && (zf(k-1) == 0)) {
-                data->tem2[P4(i, j, 0, tidx, NX, NY, NZ)] = data->tem2[P4(i, j, 1, tidx, NX, NY, NZ)];
+                data->tem2[P4(i, j, 0, tidx, NX+2, NY+2, NZ+1)] = data->tem2[P4(i, j, 1, tidx, NX+2, NY+2, NZ+1)];
             }
         }
     }
@@ -112,7 +112,7 @@ __global__ void calcvort(datagrid *grid, model_data *data, int tStart, int tEnd)
         dy = yf(j) - yf(j-1);
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
+            bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
             calc_zvort(&(data->ustag[bufidx]), &(data->vstag[bufidx]), &(data->tem3[bufidx]), dx, dy, i, j, k, NX, NY);
         }
     }
@@ -134,12 +134,12 @@ __global__ void doDiffVort(datagrid *grid, model_data *data, int tStart, int tEn
         dz = zf(k) - zf(k-1);
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
+            bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
             calc_xvort(&(data->diffv[bufidx]), &(data->diffw[bufidx]), &(data->tem1[bufidx]), dy, dz, i, j, k, NX, NY);
 
             // lower boundary condition of stencil
             if ((k == 1) && (zf(k-1) == 0)) {
-                data->tem1[P4(i, j, 0, tidx, NX, NY, NZ)] = data->tem1[P4(i, j, 1, tidx, NX, NY, NZ)];
+                data->tem1[P4(i, j, 0, tidx, NX+2, NY+2, NZ+1)] = data->tem1[P4(i, j, 1, tidx, NX+2, NY+2, NZ+1)];
             }
         }
     }
@@ -149,11 +149,11 @@ __global__ void doDiffVort(datagrid *grid, model_data *data, int tStart, int tEn
         dz = zf(k) - zf(k-1);
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
+            bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
             calc_yvort(&(data->diffu[bufidx]), &(data->diffw[bufidx]), &(data->tem2[bufidx]), dx, dz, i, j, k, NX, NY);
             // lower boundary condition of stencil
             if ((k == 1) && (zf(k-1) == 0)) {
-                data->tem2[P4(i, j, 0, tidx, NX, NY, NZ)] = data->tem2[P4(i, j, 1, tidx, NX, NY, NZ)];
+                data->tem2[P4(i, j, 0, tidx, NX+2, NY+2, NZ+1)] = data->tem2[P4(i, j, 1, tidx, NX+2, NY+2, NZ+1)];
             }
         }
     }
@@ -163,7 +163,7 @@ __global__ void doDiffVort(datagrid *grid, model_data *data, int tStart, int tEn
         dy = yf(j) - yf(j-1);
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
+            bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
             calc_zvort(&(data->diffu[bufidx]), &(data->diffv[bufidx]), &(data->tem3[bufidx]), dx, dy, i, j, k, NX, NY);
         }
     }
@@ -186,12 +186,12 @@ __global__ void doTurbVort(datagrid *grid, model_data *data, int tStart, int tEn
         dz = zf(k) - zf(k-1);
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
+            bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
             calc_xvort(&(data->turbv[bufidx]), &(data->turbw[bufidx]), &(data->tem1[bufidx]), dy, dz, i, j, k, NX, NY);
 
             // lower boundary condition of stencil
             if ((k == 1) && (zf(k-1) == 0)) {
-                data->tem1[P4(i, j, 0, tidx, NX, NY, NZ)] = data->tem1[P4(i, j, 1, tidx, NX, NY, NZ)];
+                data->tem1[P4(i, j, 0, tidx, NX+2, NY+2, NZ+1)] = data->tem1[P4(i, j, 1, tidx, NX+2, NY+2, NZ+1)];
             }
         }
     }
@@ -201,11 +201,11 @@ __global__ void doTurbVort(datagrid *grid, model_data *data, int tStart, int tEn
         dz = zf(k) - zf(k-1);
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
+            bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
             calc_yvort(&(data->turbu[bufidx]), &(data->turbw[bufidx]), &(data->tem2[bufidx]), dx, dz, i, j, k, NX, NY);
             // lower boundary condition of stencil
             if ((k == 1) && (zf(k-1) == 0)) {
-                data->tem2[P4(i, j, 0, tidx, NX, NY, NZ)] = data->tem2[P4(i, j, 1, tidx, NX, NY, NZ)];
+                data->tem2[P4(i, j, 0, tidx, NX+2, NY+2, NZ+1)] = data->tem2[P4(i, j, 1, tidx, NX+2, NY+2, NZ+1)];
             }
         }
     }
@@ -215,7 +215,7 @@ __global__ void doTurbVort(datagrid *grid, model_data *data, int tStart, int tEn
         dy = yf(j) - yf(j-1);
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
+            bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
             calc_zvort(&(data->turbu[bufidx]), &(data->turbv[bufidx]), &(data->tem3[bufidx]), dx, dy, i, j, k, NX, NY);
         }
     }
@@ -238,12 +238,12 @@ __global__ void calcvortstretch(datagrid *grid, model_data *data, int tStart, in
         dz = zf(k+1) - zf(k);
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
+            bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
             calc_xvort_stretch(&(data->ustag[bufidx]), &(data->wstag[bufidx]), \
                                &(data->xvort[bufidx]), &(data->xvstretch[bufidx]), \
                                dy, dz, i, j, k, NX, NY, NZ);
             if ((k == 1) && (zf(k-1) == 0)) {
-                data->xvstretch[P4(i, j, 0, tidx, NX, NY, NZ)] = data->xvstretch[P4(i, j, 1, tidx, NX, NY, NZ)];
+                data->xvstretch[P4(i, j, 0, tidx, NX+2, NY+2, NZ+1)] = data->xvstretch[P4(i, j, 1, tidx, NX+2, NY+2, NZ+1)];
             }
         }
     }
@@ -253,12 +253,12 @@ __global__ void calcvortstretch(datagrid *grid, model_data *data, int tStart, in
         dz = zf(k+1) - zf(k);
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
+            bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
             calc_yvort_stretch(&(data->vstag[bufidx]), &(data->wstag[bufidx]), \
                                &(data->yvort[bufidx]), &(data->yvstretch[bufidx]), \
                                dx, dz, i, j, k, NX, NY, NZ);
             if ((k == 1) && (zf(k-1) == 0)) {
-                data->yvstretch[P4(i, j, 0, tidx, NX, NY, NZ)] = data->yvstretch[P4(i, j, 1, tidx, NX, NY, NZ)];
+                data->yvstretch[P4(i, j, 0, tidx, NX+2, NY+2, NZ+1)] = data->yvstretch[P4(i, j, 1, tidx, NX+2, NY+2, NZ+1)];
             }
         }
     }
@@ -268,7 +268,7 @@ __global__ void calcvortstretch(datagrid *grid, model_data *data, int tStart, in
         dz = yf(j+1) - yf(j);
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
+            bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
             calc_zvort_stretch(&(data->ustag[bufidx]), &(data->vstag[bufidx]), \
                                &(data->zvort[bufidx]), &(data->zvstretch[bufidx]), \
                                dx, dy, i, j, k, NX, NY, NZ);
@@ -359,7 +359,7 @@ __global__ void calcvortbaro(datagrid *grid, model_data *data, int tStart, int t
         dx = xh(i+1) - xh(i-1);
         dy = yh(j+1) - yh(j-1);
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
+            bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
             calc_xvort_baro(&(data->thrhopert[bufidx]), grid->th0, grid->qv0, &(data->xvort_baro[bufidx]), dx, i, j, k, NX, NY, NZ);
             calc_yvort_baro(&(data->thrhopert[bufidx]), grid->th0, grid->qv0, &(data->yvort_baro[bufidx]), dy, i, j, k, NX, NY, NZ);
         }
@@ -385,7 +385,7 @@ __global__ void calcvortsolenoid(datagrid *grid, model_data *data, int tStart, i
         dy = yh(j+1)-yh(j-1);
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
+            bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
             calc_zvort_solenoid(&(data->pipert[bufidx]), &(data->thrhopert[bufidx]), \
                                 &(data->zvort_solenoid[bufidx]), dx, dy, i, j, k, NX, NY, NZ);
         }
@@ -396,14 +396,14 @@ __global__ void calcvortsolenoid(datagrid *grid, model_data *data, int tStart, i
         dy = yh(j+1)-yh(j-1);
         dz = zh(k+1)-zh(k-1);
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
+            bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
             calc_xvort_solenoid(&(data->pipert[bufidx]), &(data->thrhopert[bufidx]), grid->th0, grid->qv0, \
                                 &(data->xvort_solenoid[bufidx]), dy, dz, i, j, k, NX, NY, NZ);
             calc_yvort_solenoid(&(data->pipert[bufidx]), &(data->thrhopert[bufidx]), grid->th0, grid->qv0, \
                                 &(data->yvort_solenoid[bufidx]), dx, dz, i, j, k, NX, NY, NZ);
             if ((k == 1) && (zf(k-1) == 0)) {
-                data->xvort_solenoid[P4(i, j, 0, tidx, NX, NY, NZ)] = data->xvort_solenoid[P4(i, j, 1, tidx, NX, NY, NZ)];
-                data->yvort_solenoid[P4(i, j, 0, tidx, NX, NY, NZ)] = data->yvort_solenoid[P4(i, j, 1, tidx, NX, NY, NZ)];
+                data->xvort_solenoid[P4(i, j, 0, tidx, NX+2, NY+2, NZ+1)] = data->xvort_solenoid[P4(i, j, 1, tidx, NX+2, NY+2, NZ+1)];
+                data->yvort_solenoid[P4(i, j, 0, tidx, NX+2, NY+2, NZ+1)] = data->yvort_solenoid[P4(i, j, 1, tidx, NX+2, NY+2, NZ+1)];
             }
         }
     }
