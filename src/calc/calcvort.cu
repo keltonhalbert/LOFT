@@ -25,9 +25,12 @@
  */
 __device__ void calc_pipert(float *prespert, float *p0, float *pipert, int i, int j, int k, int NX, int NY) {
     float *buf0 = prespert; 
-    float p = BUF(i, j, k)*100; // convert from hPa to Pa 
+    float p = BUF(i, j, k)*100 + p0[k]; ; // convert from hPa to Pa 
     buf0 = pipert;
-    BUF(i, j, k) = pow( p * rp00, rovcp) - pow( p0[k] * rp00, rovcp);
+    BUF(i, j, k) = pow( p / 100000., 0.28571426) - pow( p0[k] / 100000., 0.28571426); 
+    if (isnan(pow( p / 100000., 0.28571426) - pow( p0[k] / 100000., 0.28571426))) {
+        printf("%f %f %f %f %f\n", p, p0[k], rp00, rovcp, pow( p / 100000., 0.28571426) - pow( p0[k] / 100000., 0.28571426)); 
+    }
 }
 
 /*  Compute the component of vorticity along the x-axis.
@@ -258,7 +261,7 @@ __device__ void calc_yvort_baro(float *thrhopert, float *th0, float *qv0, float 
 __device__ void calc_xvort_solenoid(float *pipert, float *thrhopert, float *th0, float *qv0, float *xvort_solenoid, \
                                     float dy, float dz, int i, int j, int k, int NX, int NY, int NZ) {
     float *buf0 = pipert;
-    float dpidz = ( (BUF(i, k, k+1) - BUF(i, k, k-1)) / ( dz ) );
+    float dpidz = ( (BUF(i, j, k+1) - BUF(i, j, k-1)) / ( dz ) );
     float dpidy = ( (BUF(i, j+1, k) - BUF(i, j-1, k)) / ( dy ) );
 
     buf0 = thrhopert;
