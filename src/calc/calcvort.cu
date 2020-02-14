@@ -184,228 +184,50 @@ __device__ void calc_zvort_tilt(datagrid *grid, model_data *data, int *idx_4D, i
 
 /* Compute the X component of vorticity tendency due
    to stretching of the vorticity along the X axis. */
-__device__ void calc_xvort_stretch(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
-    int i = idx_4D[0];
-    int j = idx_4D[1];
-    int k = idx_4D[2];
-    int t = idx_4D[3];
-    
-
-    float *wstag = data->wstag;
-    float *vstag = data->vstag;
-    float *xvort = data->xvort;
-    float *xvort_stretch = data->xvstretch;
-    float dy = yf(j+1) - yf(j);
-    float dz = zf(k+1) - zf(k);
-
-    float rrv = grid->rho0[k];
-    float rrw1, rrw2;
-    if ( k == 0 ) {
-        rrw1 = 1.75*grid->rho0[1] - grid->rho0[2] + 0.25*grid->rho0[3];
-        rrw2 = 0.5*grid->rho0[2] + 0.5*grid->rho0[3];
-    }
-    else {
-        rrw1 = 0.5*grid->rho0[k-1] + 0.5*grid->rho0[k  ];
-        rrw2 = 0.5*grid->rho0[k  ] + 0.5*grid->rho0[k+1];
-    }
+__device__ void calc_xvort_stretch(float *ustag, float *vstag, float *xvort, float *xvort_stretch, \
+                                   float dy, float dz, int i, int j, int k, int NX, int NY, int NZ) {
 
     // this stencil conveniently lands itself on the scalar grid,
     // so we won't have to worry about doing any averaging. I think.
     float *buf0 = xvort;
-    float xv = BUF4D(i, j, k, t);
+    float xv = BUF(i, j, k);
     float dvdy, dwdz;
-    dvdy = rrv * ( ( VA4D(i, j+1, k, t) - VA4D(i, j, k, t) )/dy);
-    dwdz = ( (  rrw2*WA4D(i, j, k+1, t) - rrw1*WA4D(i, j, k, t) )/dz);
+    dvdy = ( VA(i, j+1, k) - VA(i, j, k) )/dy;
+    dwdz = (WA4D(i, j, k+1) - WA(i, j, k) )/dz;
 
     buf0 = xvort_stretch;
-    BUF4D(i, j, k, t) = -xv*( (dvdy + dwdz) / rrv);
-
+    BUF(i, j, k) = -xv*( (dvdy + dwdz) );
 }
 
 /* Compute the Y component of vorticity tendency due
    to stretching of the vorticity along the Y axis. */
-__device__ void calc_yvort_stretch(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
-    int i = idx_4D[0];
-    int j = idx_4D[1];
-    int k = idx_4D[2];
-    int t = idx_4D[3];
-
-    float *ustag = data->ustag;
-    float *wstag = data->wstag;
-    float *yvort = data->yvort;
-    float *yvort_stretch = data->yvstretch;
-    float dx = xf(i+1) - xf(i);
-    float dz = zf(k+1) - zf(k);
-
-    float rru = grid->rho0[k];
-    float rrw1, rrw2;
-    if ( k == 0 ) {
-        rrw1 = 1.75*grid->rho0[1] - grid->rho0[2] + 0.25*grid->rho0[3];
-        rrw2 = 0.5*grid->rho0[2] + 0.5*grid->rho0[3];
-    }
-    else {
-        rrw1 = 0.5*grid->rho0[k-1] + 0.5*grid->rho0[k  ];
-        rrw2 = 0.5*grid->rho0[k  ] + 0.5*grid->rho0[k+1];
-    }
-
+__device__ void calc_yvort_stretch(float *ustag, float *wstag, float *yvort, float *yvort_stretch, \
+                                   float dx, float dz, int i, int j, int k, int NX, int NY, int NZ) {
     // this stencil conveniently lands itself on the scalar grid,
     // so we won't have to worry about doing any averaging. I think.
     float *buf0 = yvort;
-    float yv = BUF4D(i, j, k, t);
+    float yv = BUF(i, j, k);
     float dudx, dwdz;
-    dudx = ( rru*( UA4D(i+1, j, k, t) - UA4D(i, j, k, t) )/dx);
-    dwdz = ( ( rrw2*WA4D(i, j, k+1, t) - rrw1*WA4D(i, j, k, t) )/dz);
+    dudx = ( UA(i+1, j, k) - UA(i, j, k) )/dx;
+    dwdz = ( WA(i, j, k+1) - WA(i, j, k) )/dz;
 
     buf0 = yvort_stretch;
-    BUF4D(i, j, k, t) = -yv*( (dudx + dwdz) / rru);
+    BUF(i, j, k) = -yv*( (dudx + dwdz) );
 }
 
 /* Compute the Z component of vorticity tendency due
    to stretching of the vorticity along the Z axis. */
-__device__ void calc_zvort_stretch(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
-    int i = idx_4D[0];
-    int j = idx_4D[1];
-    int k = idx_4D[2];
-    int t = idx_4D[3];
-
-    float *ustag = data->ustag;
-    float *vstag = data->vstag;
-    float *wstag = data->wstag;
-    float *zvort = data->zvort;
-    float *zvort_stretch = data->zvstretch;
-    float dx = xf(i+1) - xf(i);
-    float dy = yf(j+1) - yf(j);
-
+__device__ void calc_zvort_stretch(float *ustag, float *vstag, float *zvort, float *zvort_stretch, \
+                                   float dx, float dy, int i, int j, int k, int NX, int NY, int NZ) {
     // this stencil conveniently lands itself on the scalar grid,
     // so we won't have to worry about doing any averaging. I think.
     float *buf0 = zvort;
-    float zv = BUF4D(i, j, k, t);
-    float dudx = ( ( UA4D(i+1, j, k, t) - UA4D(i, j, k, t) )/dx);
-    float dvdy = ( ( VA4D(i, j+1, k, t) - VA4D(i, j, k, t) )/dy);
+    float zv = BUF(i, j, k);
+    float dudx = ( UA(i+1, j, k) - UA(i, j, k) )/dx;
+    float dvdy = ( VA(i, j+1, k) - VA(i, j, k) )/dy;
 
     buf0 = zvort_stretch;
-    BUF4D(i, j, k, t) = -zv*( dudx + dvdy);
-}
-
-/* Compute the X vorticity tendency due to the turbulence closure scheme */
-__device__ void calc_xvortturb_ten(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
-    int i = idx_4D[0];
-    int j = idx_4D[1];
-    int k = idx_4D[2];
-    int t = idx_4D[3];
-
-    float *vstag = data->turbv;
-    float *wstag = data->turbw;
-    float *dum0 = data->tem1;
-    float dy = yf(j) - yf(j-1);
-    float dz = zf(k) - zf(k-1);
-
-    float dwdy = ( ( WA4D(i, j, k, t) - WA4D(i, j-1, k, t) )/dy );
-    float dvdz = ( ( VA4D(i, j, k, t) - VA4D(i, j, k-1, t) )/dz );
-    TEM4D(i, j, k, t) = dwdy - dvdz; 
-    if (k == 1) {
-        TEM4D(i, j, 0, t) = dwdy - dvdz; 
-    }
-}
-
-/* Compute the Y vorticity tendency due to the turbulence closure scheme */
-__device__ void calc_yvortturb_ten(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
-    int i = idx_4D[0];
-    int j = idx_4D[1];
-    int k = idx_4D[2];
-    int t = idx_4D[3];
-
-    float *ustag = data->turbu;
-    float *wstag = data->turbw;
-    float *dum0 = data->tem2;
-    float dx = xf(i) - xf(i-1);
-    float dz = zf(k) - zf(k-1);
-
-    float dwdx = ( ( WA4D(i, j, k, t) - WA4D(i-1, j, k, t) )/dx );
-    float dudz = ( ( UA4D(i, j, k, t) - UA4D(i, j, k-1, t) )/dz );
-    TEM4D(i, j, k, t) = dudz - dwdx;
-    if (k == 1) {
-        TEM4D(i, j, 0, t) = dudz - dwdx;
-    }
-}
-
-/* Compute the Z vorticity tendency due to the turbulence closure scheme */
-__device__ void calc_zvortturb_ten(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
-    int i = idx_4D[0];
-    int j = idx_4D[1];
-    int k = idx_4D[2];
-    int t = idx_4D[3];
-
-    float *ustag = data->turbu;
-    float *vstag = data->turbv;
-    float *dum0 = data->tem3;
-    float dx = xf(i) - xf(i-1);
-    float dy = yf(j) - yf(j-1);
-
-    float dvdx = ( ( VA4D(i, j, k, t) - VA4D(i-1, j, k, t) )/dx);
-    float dudy = ( ( UA4D(i, j, k, t) - UA4D(i, j-1, k, t) )/dy);
-    TEM4D(i, j, k, t) = dvdx - dudy;
-}
-
-
-/* Compute the X vorticity tendency due to the 6th order numerical diffusion */
-__device__ void calc_xvortdiff_ten(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
-    int i = idx_4D[0];
-    int j = idx_4D[1];
-    int k = idx_4D[2];
-    int t = idx_4D[3];
-
-    float *vstag = data->diffv;
-    float *wstag = data->diffw;
-    float *dum0 = data->tem1;
-    float dy = yf(j) - yf(j-1);
-    float dz = zf(k) - zf(k-1);
-
-    float dwdy = ( ( WA4D(i, j, k, t) - WA4D(i, j-1, k, t) )/dy );
-    float dvdz = ( ( VA4D(i, j, k, t) - VA4D(i, j, k-1, t) )/dz );
-    TEM4D(i, j, k, t) = dwdy - dvdz; 
-    if (k == 1) {
-        TEM4D(i, j, 0, t) = dwdy - dvdz; 
-    }
-}
-
-/* Compute the Y vorticity tendency due to the 6th order numerical diffusion */
-__device__ void calc_yvortdiff_ten(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
-    int i = idx_4D[0];
-    int j = idx_4D[1];
-    int k = idx_4D[2];
-    int t = idx_4D[3];
-
-    float *ustag = data->diffu;
-    float *wstag = data->diffw;
-    float *dum0 = data->tem2;
-    float dx = xf(i) - xf(i-1);
-    float dz = zf(k) - zf(k-1);
-
-    float dwdx = ( ( WA4D(i, j, k, t) - WA4D(i-1, j, k, t) )/dx );
-    float dudz = ( ( UA4D(i, j, k, t) - UA4D(i, j, k-1, t) )/dz );
-    TEM4D(i, j, k, t) = dudz - dwdx;
-    if (k == 1) {
-        TEM4D(i, j, 0, t) = dudz - dwdx;
-    }
-}
-
-/* Compute the Z vorticity tendency due to the 6th order numerical diffusion */
-__device__ void calc_zvortdiff_ten(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
-    int i = idx_4D[0];
-    int j = idx_4D[1];
-    int k = idx_4D[2];
-    int t = idx_4D[3];
-
-    float *ustag = data->diffu;
-    float *vstag = data->diffv;
-    float *dum0 = data->tem3;
-    float dx = xf(i) - xf(i-1);
-    float dy = yf(j) - yf(j-1);
-
-    float dvdx = ( ( VA4D(i, j, k, t) - VA4D(i-1, j, k, t) )/dx);
-    float dudy = ( ( UA4D(i, j, k, t) - UA4D(i, j-1, k, t) )/dy);
-    TEM4D(i, j, k, t) = dvdx - dudy;
+    BUF(i, j, k) = -zv*( dudx + dvdy);
 }
 
 __device__ void calc_xvort_baro(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
