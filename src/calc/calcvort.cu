@@ -230,172 +230,82 @@ __device__ void calc_zvort_stretch(float *ustag, float *vstag, float *zvort, flo
     BUF(i, j, k) = -zv*( dudx + dvdy);
 }
 
-__device__ void calc_xvort_baro(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
-    int i = idx_4D[0];
-    int j = idx_4D[1];
-    int k = idx_4D[2];
-    int t = idx_4D[3];
-
-    const float reps = 461.5 / 287.04;
-    const float g = 9.81;
-
-    float dy = yf(j) - yf(j-1);
-
-    float *buf0 = data->thrhopert;
-    float qvbar1 = grid->qv0[k];
-    float thbar1 = grid->th0[k]*(1.0+reps*qvbar1)/(1.0+qvbar1); 
+__device__ void calc_xvort_baro(float *thrhopert, float *xvort_baro, float *th0, float *qv0, \
+                                float dy, int i, int j, int k, int NX, int NY, int NZ) {
+    float *buf0 = thrhopert;
+    float qvbar1 = qv0[k];
+    float thbar1 = th0[k]*(1.0+reps*qvbar1)/(1.0+qvbar1); 
     // dthrho/dy
-    float dthdy = ( (BUF4D(i, j+1, k, t) - BUF4D(i, j-1, k, t)) / ( 2*dy ) );
+    float dthdy = ( (BUF(i, j+1, k) - BUF(i, j-1, k)) / ( 2*dy ) );
 
     // compute and save to the array
-    buf0 = data->xvort_baro; 
-    BUF4D(i, j, k, t) = (g/thbar1)*dthdy; 
-    if (k == 1) {
-        // the d/dy terms are defined at k = 1,
-        // go get those
-        dthdy = ( (BUF4D(i, j+1, 0, t) - BUF4D(i, j-1, 0, t)) / ( 2*dy ) );
-        BUF4D(i, j, 0, t) = (g/thbar1)*dthdy; 
-    }
+    buf0 = xvort_baro; 
+    BUF(i, j, k) = (g/thbar1)*dthdy; 
 }
 
-__device__ void calc_yvort_baro(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
-    int i = idx_4D[0];
-    int j = idx_4D[1];
-    int k = idx_4D[2];
-    int t = idx_4D[3];
-
-    const float reps = 461.5 / 287.04;
-    const float g = 9.81;
-
-    float dx = xf(j) - xf(j-1);
-
-    float *buf0 = data->thrhopert;
-    float qvbar1 = grid->qv0[k];
-    float thbar1 = grid->th0[k]*(1.0+reps*qvbar1)/(1.0+qvbar1); 
+__device__ void calc_yvort_baro(float *thrhopert, float *yvort_baro, float *th0, float *qv0, \
+                                float dx, int i, int j, int k, int NX, int NY, int NZ) {
+    float *buf0 = thrhopert;
+    float qvbar1 = qv0[k];
+    float thbar1 = th0[k]*(1.0+reps*qvbar1)/(1.0+qvbar1); 
     // dthrho/dy
-    float dthdx = ( (BUF4D(i+1, j, k, t) - BUF4D(i-1, j, k, t)) / ( 2*dx ) );
+    float dthdx = ( (BUF4D(i+1, j, k) - BUF4D(i-1, j, k)) / ( 2*dx ) );
 
     // compute and save to the array
-    buf0 = data->yvort_baro; 
-    BUF4D(i, j, k, t) = (g/thbar1)*dthdx; 
-    if (k == 1) {
-        // the d/dy terms are defined at k = 1,
-        // go get those
-        dthdx = ( (BUF4D(i+1, j, 0, t) - BUF4D(i-1, j, 0, t)) / ( 2*dx ) );
-        BUF4D(i, j, 0, t) = -1.*(g/thbar1)*dthdx; 
-    }
+    buf0 = yvort_baro; 
+    BUF(i, j, k) = (g/thbar1)*dthdx; 
 }
-__device__ void calc_xvort_solenoid(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
-    int i = idx_4D[0];
-    int j = idx_4D[1];
-    int k = idx_4D[2];
-    int t = idx_4D[3];
-
-    float cp = 1005.7;
-    const float reps = 461.5 / 287.04;
-
-    float dy = yf(j) - yf(j-1);
-    float dz = zf(k) - zf(k-1);
-
-    float *buf0 = data->pipert;
-    // dPi/dz
-    float pi_upper = BUF4D(i, j, k+1, t);
-    float pi_lower = BUF4D(i, j, k-1, t);
-    float dpidz = ( (pi_upper - pi_lower) / ( 2*dz ) );
-    // dPi/dy
+__device__ void calc_xvort_solenoid(float *pipert, float *thrhopert, float *th0, float *qv0, float *xvort_solenoid, \
+                                    float dy, float dz, int i, int j, int k, int NX, int NY, int NZ) {
+    float *buf0 = pipert;
+    float dpidz = ( (BUF(i, k, k+1) - BUF(i, k, k-1)) / ( 2*dz ) );
     float dpidy = ( (BUF4D(i, j+1, k, t) - BUF4D(i, j-1, k, t)) / ( 2*dy ) );
 
-    buf0 = data->thrhopert;
-    float qvbar1 = grid->qv0[k+1];
-    float qvbar2 = grid->qv0[k-1];
-    float thbar1 = grid->th0[k+1]*(1.0+reps*qvbar1)/(1.0+qvbar1); 
-    float thbar2 = grid->th0[k-1]*(1.0+reps*qvbar2)/(1.0+qvbar2); 
-    // dthrho/dy
-    float dthdy = ( (BUF4D(i, j+1, k, t) - BUF4D(i, j-1, k, t)) / ( 2*dy ) );
-
-    // dthrho/dz
-    float dthdz = ( ((BUF4D(i, j, k+1, t) + thbar1) - (BUF4D(i, j, k-1, t) + thbar2)) / ( 2*dz ) );
+    buf0 = thrhopert;
+    float qvbar1 = qv0[k+1];
+    float qvbar2 = qv0[k-1];
+    float thbar1 = th0[k+1]*(1.0+reps*qvbar1)/(1.0+qvbar1); 
+    float thbar2 = th0[k-1]*(1.0+reps*qvbar2)/(1.0+qvbar2); 
+    float dthdy = ( (BUF(i, j+1, k) - BUF(i, j-1, k)) / ( 2*dy ) );
+    float dthdz = ( ((BUF(i, j, k+1) + thbar1) - (BUF(i, j, k-1) + thbar2)) / ( 2*dz ) );
 
     // compute and save to the array
-    buf0 = data->xvort_solenoid; 
-    BUF4D(i, j, k, t) = -cp*(dthdy*dpidz - dthdz*dpidy); 
-    if (k == 1) {
-        // the d/dy terms are defined at k = 1,
-        // go get those
-        dpidy = ( ( BUF4D(i, j+1, 0, t) - BUF4D(i, j-1, 0, t) ) / (2*dy) );
-        dthdy = ( (BUF4D(i, j+1, 0, t) - BUF4D(i, j-1, 0, t)) / ( 2*dy ) );
-        BUF4D(i, j, 0, t) = -cp*(dthdy*dpidz - dthdz*dpidy); 
-    }
+    buf0 = xvort_solenoid; 
+    BUF(i, j, k) = -cp*(dthdy*dpidz - dthdz*dpidy); 
 }
 
-__device__ void calc_yvort_solenoid(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
-    int i = idx_4D[0];
-    int j = idx_4D[1];
-    int k = idx_4D[2];
-    int t = idx_4D[3];
+__device__ void calc_yvort_solenoid(float *pipert, float *thrhopert, float *th0, float *qv0, float *yvort_solenoid, \
+                                    float dx, float dz, int i, int j, int k, int NX, int NY, int NZ) {
+    float *buf0 = pipert;
+    float dpidz = ( (BUF(i, j, k+1) - BUF(i, j, k-1)) / ( 2*dz ) );
+    float dpidx = ( (BUF(i+1, j, k) - BUF(i-1, j, k)) / ( 2*dx ) );
 
-    float cp = 1005.7;
-    const float reps = 461.5 / 287.04;
-    float dx = xf(i) - xf(i-1);
-    float dz = zf(k) - zf(k-1);
-
-    float *buf0 = data->pipert;
-    // dPi/dz
-    float pi_upper = BUF4D(i, j, k+1, t);
-    float pi_lower = BUF4D(i, j, k-1, t);
-    float dpidz = ( (pi_upper - pi_lower) / ( 2*dz ) );
-    // dPi/dx
-    float dpidx = ( (BUF4D(i+1, j, k, t) - BUF4D(i-1, j, k, t)) / ( 2*dx ) );
-
-    buf0 = data->thrhopert;
-    float qvbar1 = grid->qv0[k+1];
-    float qvbar2 = grid->qv0[k-1];
-    float thbar1 = grid->th0[k+1]*(1.0+reps*qvbar1)/(1.0+qvbar1); 
-    float thbar2 = grid->th0[k-1]*(1.0+reps*qvbar2)/(1.0+qvbar2); 
-    // dthrho/dx
-    float dthdx = ( (BUF4D(i+1, j, k, t) - BUF4D(i-1, j, k, t)) / ( 2*dx ) );
-
-    // dthrho/dz
-    float dthdz = ( ((BUF4D(i, j, k+1, t) + thbar1) - (BUF4D(i, j, k-1, t) + thbar2)) / ( 2*dz ) );
+    buf0 = thrhopert;
+    float qvbar1 = qv0[k+1];
+    float qvbar2 = qv0[k-1];
+    float thbar1 = th0[k+1]*(1.0+reps*qvbar1)/(1.0+qvbar1); 
+    float thbar2 = th0[k-1]*(1.0+reps*qvbar2)/(1.0+qvbar2); 
+    float dthdx = ( (BUF(i+1, j, k) - BUF(i-1, j, k)) / ( 2*dx ) );
+    float dthdz = ( ((BUF(i, j, k+1) + thbar1) - (BUF(i, j, k-1) + thbar2)) / ( 2*dz ) );
 
     // compute and save to the array
-    buf0 = data->yvort_solenoid; 
-    BUF4D(i, j, k, t) = -cp*(dthdz*dpidx - dthdx*dpidz); 
-    if (k == 1) {
-        // the d/dx terms are defined at k = 1,
-        // go get those
-        dpidx = ( (BUF4D(i+1, j, 0, t) - BUF4D(i-1, j, 0, t)) / ( 2*dx ) );
-        dthdx = ( (BUF4D(i+1, j, 0, t) - BUF4D(i-1, j, 0, t)) / ( 2*dx ) );
-        BUF4D(i, j, 0, t) = -cp*(dthdz*dpidx - dthdx*dpidz); 
-    }
+    buf0 = yvort_solenoid; 
+    BUF(i, j, k) = -cp*(dthdz*dpidx - dthdx*dpidz); 
 }
 
-__device__ void calc_zvort_solenoid(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
-    int i = idx_4D[0];
-    int j = idx_4D[1];
-    int k = idx_4D[2];
-    int t = idx_4D[3];
+__device__ void calc_zvort_solenoid(float *pipert, float *thrhopert, float *zvort_solenoid, \
+                                    float dx, float dy, int i, int j, int k, int NX, int NY, int NZ) {
+    float *buf0 = pipert;
+    float dpidx = ( (BUF(i+1, j, k) - BUF(i-1, j, k)) / ( 2*dx ) );
+    float dpidy = ( (BUF(i, j+1, k) - BUF(i, j-1, k)) / ( 2*dy ) );
 
-    float cp = 1005.7;
-    float dx = xf(i) - xf(i-1);
-    float dy = yf(j) - yf(j-1);
-
-    float *buf0 = data->pipert;
-    // dPi/dx
-    float dpidx = ( (BUF4D(i+1, j, k, t) - BUF4D(i-1, j, k, t)) / ( 2*dx ) );
-    // dPi/dy
-    float dpidy = ( (BUF4D(i, j+1, k, t) - BUF4D(i, j-1, k, t)) / ( 2*dy ) );
-
-    buf0 = data->thrhopert;
-    // dthrho/dx
-    float dthdx = ( (BUF4D(i+1, j, k, t) - BUF4D(i-1, j, k, t)) / ( 2*dx ) );
-
-    // dthrho/dy
-    float dthdy = ( (BUF4D(i, j+1, k, t) - BUF4D(i, j-1, k, t)) / ( 2*dy ) );
+    buf0 = thrhopert;
+    float dthdx = ( (BUF(i+1, j, k) - BUF(i-1, j, k)) / ( 2*dx ) );
+    float dthdy = ( (BUF(i, j+1, k) - BUF(i, j-1, k)) / ( 2*dy ) );
 
     // compute and save to the array
-    buf0 = data->yvort_solenoid; 
-    BUF4D(i, j, k, t) = -cp*(dthdx*dpidy - dthdy*dpidx); 
+    buf0 = zvort_solenoid; 
+    BUF(i, j, k) = -cp*(dthdx*dpidy - dthdy*dpidx); 
 }
 
 #endif
