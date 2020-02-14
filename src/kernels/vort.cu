@@ -240,10 +240,10 @@ __global__ void calcvortstretch(datagrid *grid, model_data *data, int tStart, in
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
             calc_xvort_stretch(&(data->ustag[bufidx]), &(data->wstag[bufidx]), \
-                               &(data->xvort[bufidx]), &(data->xvort_stretch[bufidx]), \
+                               &(data->xvort[bufidx]), &(data->xvstretch[bufidx]), \
                                dy, dz, i, j, k, NX, NY, NZ);
             if ((k == 1) && (zf(k-1) == 0)) {
-                data->xvort_stretch[P4(i, j, 0, tidx, NX, NY, NZ)] = data->xvort_stretch[P4(i, j, 1, tidx, NX, NY, NZ)];
+                data->xvstretch[P4(i, j, 0, tidx, NX, NY, NZ)] = data->xvstretch[P4(i, j, 1, tidx, NX, NY, NZ)];
             }
         }
     }
@@ -255,10 +255,10 @@ __global__ void calcvortstretch(datagrid *grid, model_data *data, int tStart, in
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
             calc_yvort_stretch(&(data->vstag[bufidx]), &(data->wstag[bufidx]), \
-                               &(data->yvort[bufidx]), &(data->yvort_stretch[bufidx]), \
+                               &(data->yvort[bufidx]), &(data->yvstretch[bufidx]), \
                                dx, dz, i, j, k, NX, NY, NZ);
             if ((k == 1) && (zf(k-1) == 0)) {
-                data->yvort_stretch[P4(i, j, 0, tidx, NX, NY, NZ)] = data->yvort_stretch[P4(i, j, 1, tidx, NX, NY, NZ)];
+                data->yvstretch[P4(i, j, 0, tidx, NX, NY, NZ)] = data->yvstretch[P4(i, j, 1, tidx, NX, NY, NZ)];
             }
         }
     }
@@ -270,7 +270,7 @@ __global__ void calcvortstretch(datagrid *grid, model_data *data, int tStart, in
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
             calc_zvort_stretch(&(data->ustag[bufidx]), &(data->vstag[bufidx]), \
-                               &(data->zvort[bufidx]), &(data->zvort_stretch[bufidx]), \
+                               &(data->zvort[bufidx]), &(data->zvstretch[bufidx]), \
                                dx, dy, i, j, k, NX, NY, NZ);
         }
     }
@@ -360,8 +360,8 @@ __global__ void calcvortbaro(datagrid *grid, model_data *data, int tStart, int t
         dy = yh(j+1) - yh(j-1);
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
-            calc_xvort_baro(&(data->thrhopert[bufidx]), data->th0, data->qv0, &(data->xvort_baro[bufidx]), dx, i, j, k, NX, NY, NZ);
-            calc_yvort_baro(&(data->thrhopert[bufidx]), data->th0, data->qv0, &(data->yvort_baro[bufidx]), dy, i, j, k, NX, NY, NZ);
+            calc_xvort_baro(&(data->thrhopert[bufidx]), grid->th0, grid->qv0, &(data->xvort_baro[bufidx]), dx, i, j, k, NX, NY, NZ);
+            calc_yvort_baro(&(data->thrhopert[bufidx]), grid->th0, grid->qv0, &(data->yvort_baro[bufidx]), dy, i, j, k, NX, NY, NZ);
         }
     }
 }
