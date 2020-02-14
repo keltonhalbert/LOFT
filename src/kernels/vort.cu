@@ -382,7 +382,7 @@ __global__ void calcvortsolenoid(datagrid *grid, model_data *data, int tStart, i
     // and we reach out NZ+1 points to get the derivatives
     if ((i < NX-1) && (j < NY-1) && (k < NZ) && ( i > 0 ) && (j > 0)) {
         dx = xh(i+1)-xh(i-1);
-        dy = yh(i+1)-yh(i-1);
+        dy = yh(j+1)-yh(j-1);
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
@@ -393,8 +393,8 @@ __global__ void calcvortsolenoid(datagrid *grid, model_data *data, int tStart, i
     if ((i < NX-1) && (j < NY-1) && (k < NZ) && ( i > 0 ) && (j > 0) && (k > 0)) {
         // loop over the number of time steps we have in memory
         dx = xh(i+1)-xh(i-1);
-        dy = yh(i+1)-yh(i-1);
-        dz = zh(i+1)-zh(i-1);
+        dy = yh(j+1)-yh(j-1);
+        dz = zh(k+1)-zh(k-1);
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             bufidx = P4(0, 0, 0, tidx, NX, NY, NZ);
             calc_xvort_solenoid(&(data->pipert[bufidx]), &(data->thrhopert[bufidx]), grid->th0, grid->qv0, \
