@@ -565,8 +565,7 @@ __device__ void calc_zvort_solenoid(datagrid *grid, model_data *data, int *idx_4
     float dthdy = ( (BUF4D(i, j+1, k, t) - BUF4D(i, j-1, k, t)) / ( 2*dy ) );
 
     // compute and save to the array
-    buf0 = data->yvort_solenoid; 
+    buf0 = data->zvort_solenoid; 
     BUF4D(i, j, k, t) = -cp*(dthdx*dpidy - dthdy*dpidx); 
 }
 
-#endif
