@@ -239,7 +239,7 @@ __global__ void calcvortstretch(datagrid *grid, model_data *data, int tStart, in
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
-            calc_xvort_stretch(&(data->ustag[bufidx]), &(data->wstag[bufidx]), \
+            calc_xvort_stretch(&(data->vstag[bufidx]), &(data->wstag[bufidx]), \
                                &(data->xvort[bufidx]), &(data->xvstretch[bufidx]), \
                                dy, dz, i, j, k, NX, NY, NZ);
             if ((k == 1) && (zf(k-1) == 0)) {
@@ -254,7 +254,7 @@ __global__ void calcvortstretch(datagrid *grid, model_data *data, int tStart, in
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
-            calc_yvort_stretch(&(data->vstag[bufidx]), &(data->wstag[bufidx]), \
+            calc_yvort_stretch(&(data->ustag[bufidx]), &(data->wstag[bufidx]), \
                                &(data->yvort[bufidx]), &(data->yvstretch[bufidx]), \
                                dx, dz, i, j, k, NX, NY, NZ);
             if ((k == 1) && (zf(k-1) == 0)) {
