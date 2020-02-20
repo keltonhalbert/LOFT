@@ -136,7 +136,7 @@ __global__ void cuCalcZvortStretch(datagrid *grid, float *ustag, float *vstag, f
 }
 
 /* Compute the forcing tendencies from the Vorticity Equation */
-__global__ void calcxvorttilt(datagrid *grid, model_data *data, int tStart, int tEnd) {
+__global__ void cuCalcXvortTilt(datagrid *grid, model_data *data, int tStart, int tEnd) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
@@ -157,8 +157,7 @@ __global__ void calcxvorttilt(datagrid *grid, model_data *data, int tStart, int 
     }
 }
 
-/* Compute the forcing tendencies from the Vorticity Equation */
-__global__ void calcyvorttilt(datagrid *grid, model_data *data, int tStart, int tEnd) {
+__global__ void cuCalcYvortTilt(datagrid *grid, model_data *data, int tStart, int tEnd) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
@@ -180,7 +179,7 @@ __global__ void calcyvorttilt(datagrid *grid, model_data *data, int tStart, int 
 }
 
 /* Compute the forcing tendencies from the Vorticity Equation */
-__global__ void calczvorttilt(datagrid *grid, model_data *data, int tStart, int tEnd) {
+__global__ void cuCalcZvortTilt(datagrid *grid, model_data *data, int tStart, int tEnd) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
@@ -201,8 +200,7 @@ __global__ void calczvorttilt(datagrid *grid, model_data *data, int tStart, int 
     }
 }
 
-/* Compute the forcing tendencies from the buoyancy/baroclinic term */ 
-__global__ void calcvortbaro(datagrid *grid, model_data *data, int tStart, int tEnd) {
+__global__ void cuCalcXvortBaro(datagrid *grid, float *thrhopert, float *xvort_baro) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
@@ -210,21 +208,31 @@ __global__ void calcvortbaro(datagrid *grid, model_data *data, int tStart, int t
     int NX = grid->NX;
     int NY = grid->NY;
     int NZ = grid->NZ;
-    long bufidx;
-    float dx, dy;
+    float dx;
 
     if ((i < NX-1) && (j < NY-1) && (k < NZ) && ( i > 0 ) && (j > 0) && (k > 0)) {
         // loop over the number of time steps we have in memory
         dx = xh(i+1) - xh(i-1);
-        dy = yh(j+1) - yh(j-1);
-        for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
-            calc_xvort_baro(&(data->thrhopert[bufidx]), grid->th0, grid->qv0, &(data->xvort_baro[bufidx]), dx, i, j, k, NX, NY);
-            calc_yvort_baro(&(data->thrhopert[bufidx]), grid->th0, grid->qv0, &(data->yvort_baro[bufidx]), dy, i, j, k, NX, NY);
-        }
+		calc_xvort_baro(thrhopert, grid->th0, grid->qv0, xvort_baro, dx, i, j, k, NX, NY);
     }
 }
 
+__global__ void cuCalcYvortBaro(datagrid *grid, float *thrhopert, float *yvort_baro) {
+    // get our 3D index based on our blocks/threads
+    int i = (blockIdx.x*blockDim.x) + threadIdx.x;
+    int j = (blockIdx.y*blockDim.y) + threadIdx.y;
+    int k = (blockIdx.z*blockDim.z) + threadIdx.z;
+    int NX = grid->NX;
+    int NY = grid->NY;
+    int NZ = grid->NZ;
+    float dy;
+
+    if ((i < NX-1) && (j < NY-1) && (k < NZ) && ( i > 0 ) && (j > 0) && (k > 0)) {
+        // loop over the number of time steps we have in memory
+        dy = yh(j+1) - yh(j-1);
+		calc_yvort_baro(thrhopert, grid->th0, grid->qv0, yvort_baro, dy, i, j, k, NX, NY);
+    }
+}
 /* Compute the forcing tendencies from the pressure-volume solenoid term */
 __global__ void calcvortsolenoid(datagrid *grid, model_data *data, int tStart, int tEnd) {
     // get our 3D index based on our blocks/threads
