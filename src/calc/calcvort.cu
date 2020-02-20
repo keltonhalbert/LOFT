@@ -27,10 +27,7 @@ __device__ void calc_pipert(float *prespert, float *p0, float *pipert, int i, in
     float *buf0 = prespert; 
     float p = BUF(i, j, k)*100 + p0[k]; ; // convert from hPa to Pa 
     buf0 = pipert;
-    BUF(i, j, k) = pow( p / 100000., 0.28571426) - pow( p0[k] / 100000., 0.28571426); 
-    if (isnan(pow( p / 100000., 0.28571426) - pow( p0[k] / 100000., 0.28571426))) {
-        printf("%f %f %f %f %f\n", p, p0[k], rp00, rovcp, pow( p / 100000., 0.28571426) - pow( p0[k] / 100000., 0.28571426)); 
-    }
+    BUF(i, j, k) = pow( p * rp00, rovcp) - pow( p0[k] * rp00, rovcp); 
 }
 
 /*  Compute the component of vorticity along the x-axis.
@@ -188,7 +185,7 @@ __device__ void calc_zvort_tilt(datagrid *grid, model_data *data, int *idx_4D, i
 /* Compute the X component of vorticity tendency due
    to stretching of the vorticity along the X axis. */
 __device__ void calc_xvort_stretch(float *vstag, float *wstag, float *xvort, float *xvort_stretch, \
-                                   float dy, float dz, int i, int j, int k, int NX, int NY, int NZ) {
+                                   float dy, float dz, int i, int j, int k, int NX, int NY) {
 
     // this stencil conveniently lands itself on the scalar grid,
     // so we won't have to worry about doing any averaging. I think.
@@ -205,7 +202,7 @@ __device__ void calc_xvort_stretch(float *vstag, float *wstag, float *xvort, flo
 /* Compute the Y component of vorticity tendency due
    to stretching of the vorticity along the Y axis. */
 __device__ void calc_yvort_stretch(float *ustag, float *wstag, float *yvort, float *yvort_stretch, \
-                                   float dx, float dz, int i, int j, int k, int NX, int NY, int NZ) {
+                                   float dx, float dz, int i, int j, int k, int NX, int NY) {
     // this stencil conveniently lands itself on the scalar grid,
     // so we won't have to worry about doing any averaging. I think.
     float *buf0 = yvort;
@@ -221,7 +218,7 @@ __device__ void calc_yvort_stretch(float *ustag, float *wstag, float *yvort, flo
 /* Compute the Z component of vorticity tendency due
    to stretching of the vorticity along the Z axis. */
 __device__ void calc_zvort_stretch(float *ustag, float *vstag, float *zvort, float *zvort_stretch, \
-                                   float dx, float dy, int i, int j, int k, int NX, int NY, int NZ) {
+                                   float dx, float dy, int i, int j, int k, int NX, int NY) {
     // this stencil conveniently lands itself on the scalar grid,
     // so we won't have to worry about doing any averaging. I think.
     float *buf0 = zvort;
@@ -234,7 +231,7 @@ __device__ void calc_zvort_stretch(float *ustag, float *vstag, float *zvort, flo
 }
 
 __device__ void calc_xvort_baro(float *thrhopert, float *th0, float *qv0, float *xvort_baro, \
-                                float dy, int i, int j, int k, int NX, int NY, int NZ) {
+                                float dy, int i, int j, int k, int NX, int NY) {
     float *buf0 = thrhopert;
     float qvbar1 = qv0[k];
     float thbar1 = th0[k]*(1.0+reps*qvbar1)/(1.0+qvbar1); 
@@ -247,7 +244,7 @@ __device__ void calc_xvort_baro(float *thrhopert, float *th0, float *qv0, float 
 }
 
 __device__ void calc_yvort_baro(float *thrhopert, float *th0, float *qv0, float *yvort_baro, \
-                                float dx, int i, int j, int k, int NX, int NY, int NZ) {
+                                float dx, int i, int j, int k, int NX, int NY) {
     float *buf0 = thrhopert;
     float qvbar1 = qv0[k];
     float thbar1 = th0[k]*(1.0+reps*qvbar1)/(1.0+qvbar1); 
@@ -259,7 +256,7 @@ __device__ void calc_yvort_baro(float *thrhopert, float *th0, float *qv0, float 
     BUF(i, j, k) = (g/thbar1)*dthdx; 
 }
 __device__ void calc_xvort_solenoid(float *pipert, float *thrhopert, float *th0, float *qv0, float *xvort_solenoid, \
-                                    float dy, float dz, int i, int j, int k, int NX, int NY, int NZ) {
+                                    float dy, float dz, int i, int j, int k, int NX, int NY) {
     float *buf0 = pipert;
     float dpidz = ( (BUF(i, j, k+1) - BUF(i, j, k-1)) / ( dz ) );
     float dpidy = ( (BUF(i, j+1, k) - BUF(i, j-1, k)) / ( dy ) );
@@ -278,7 +275,7 @@ __device__ void calc_xvort_solenoid(float *pipert, float *thrhopert, float *th0,
 }
 
 __device__ void calc_yvort_solenoid(float *pipert, float *thrhopert, float *th0, float *qv0, float *yvort_solenoid, \
-                                    float dx, float dz, int i, int j, int k, int NX, int NY, int NZ) {
+                                    float dx, float dz, int i, int j, int k, int NX, int NY) {
     float *buf0 = pipert;
     float dpidz = ( (BUF(i, j, k+1) - BUF(i, j, k-1)) / ( dz ) );
     float dpidx = ( (BUF(i+1, j, k) - BUF(i-1, j, k)) / ( dx ) );
@@ -297,7 +294,7 @@ __device__ void calc_yvort_solenoid(float *pipert, float *thrhopert, float *th0,
 }
 
 __device__ void calc_zvort_solenoid(float *pipert, float *thrhopert, float *zvort_solenoid, \
-                                    float dx, float dy, int i, int j, int k, int NX, int NY, int NZ) {
+                                    float dx, float dy, int i, int j, int k, int NX, int NY) {
     float *buf0 = pipert;
     float dpidx = ( (BUF(i+1, j, k) - BUF(i-1, j, k)) / ( 2*dx ) );
     float dpidy = ( (BUF(i, j+1, k) - BUF(i, j-1, k)) / ( 2*dy ) );

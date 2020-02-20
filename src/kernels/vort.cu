@@ -63,7 +63,7 @@ __global__ void calcpipert(datagrid *grid, model_data *data, int tStart, int tEn
             bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
             // we pass through the reference to the starting point
             // of the next 3D buffer since stencils operate in 3D space
-            calc_pipert(&(data->prespert[bufidx]), grid->p0, &(data->pipert[bufidx]), i, j, k, NX, NY, NZ);
+            calc_pipert(&(data->prespert[bufidx]), grid->p0, &(data->pipert[bufidx]), i, j, k, NX, NY);
         }
     }
 }
@@ -241,7 +241,7 @@ __global__ void calcvortstretch(datagrid *grid, model_data *data, int tStart, in
             bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
             calc_xvort_stretch(&(data->vstag[bufidx]), &(data->wstag[bufidx]), \
                                &(data->xvort[bufidx]), &(data->xvstretch[bufidx]), \
-                               dy, dz, i, j, k, NX, NY, NZ);
+                               dy, dz, i, j, k, NX, NY);
             if ((k == 1) && (zf(k-1) == 0)) {
                 data->xvstretch[P4(i, j, 0, tidx, NX+2, NY+2, NZ+1)] = data->xvstretch[P4(i, j, 1, tidx, NX+2, NY+2, NZ+1)];
             }
@@ -256,7 +256,7 @@ __global__ void calcvortstretch(datagrid *grid, model_data *data, int tStart, in
             bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
             calc_yvort_stretch(&(data->ustag[bufidx]), &(data->wstag[bufidx]), \
                                &(data->yvort[bufidx]), &(data->yvstretch[bufidx]), \
-                               dx, dz, i, j, k, NX, NY, NZ);
+                               dx, dz, i, j, k, NX, NY);
             if ((k == 1) && (zf(k-1) == 0)) {
                 data->yvstretch[P4(i, j, 0, tidx, NX+2, NY+2, NZ+1)] = data->yvstretch[P4(i, j, 1, tidx, NX+2, NY+2, NZ+1)];
             }
@@ -271,7 +271,7 @@ __global__ void calcvortstretch(datagrid *grid, model_data *data, int tStart, in
             bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
             calc_zvort_stretch(&(data->ustag[bufidx]), &(data->vstag[bufidx]), \
                                &(data->zvort[bufidx]), &(data->zvstretch[bufidx]), \
-                               dx, dy, i, j, k, NX, NY, NZ);
+                               dx, dy, i, j, k, NX, NY);
         }
     }
 }
@@ -360,8 +360,8 @@ __global__ void calcvortbaro(datagrid *grid, model_data *data, int tStart, int t
         dy = yh(j+1) - yh(j-1);
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
-            calc_xvort_baro(&(data->thrhopert[bufidx]), grid->th0, grid->qv0, &(data->xvort_baro[bufidx]), dx, i, j, k, NX, NY, NZ);
-            calc_yvort_baro(&(data->thrhopert[bufidx]), grid->th0, grid->qv0, &(data->yvort_baro[bufidx]), dy, i, j, k, NX, NY, NZ);
+            calc_xvort_baro(&(data->thrhopert[bufidx]), grid->th0, grid->qv0, &(data->xvort_baro[bufidx]), dx, i, j, k, NX, NY);
+            calc_yvort_baro(&(data->thrhopert[bufidx]), grid->th0, grid->qv0, &(data->yvort_baro[bufidx]), dy, i, j, k, NX, NY);
         }
     }
 }
@@ -387,7 +387,7 @@ __global__ void calcvortsolenoid(datagrid *grid, model_data *data, int tStart, i
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
             calc_zvort_solenoid(&(data->pipert[bufidx]), &(data->thrhopert[bufidx]), \
-                                &(data->zvort_solenoid[bufidx]), dx, dy, i, j, k, NX, NY, NZ);
+                                &(data->zvort_solenoid[bufidx]), dx, dy, i, j, k, NX, NY);
         }
     }
     if ((i < NX-1) && (j < NY-1) && (k < NZ) && ( i > 0 ) && (j > 0) && (k > 0)) {
@@ -398,9 +398,9 @@ __global__ void calcvortsolenoid(datagrid *grid, model_data *data, int tStart, i
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
             calc_xvort_solenoid(&(data->pipert[bufidx]), &(data->thrhopert[bufidx]), grid->th0, grid->qv0, \
-                                &(data->xvort_solenoid[bufidx]), dy, dz, i, j, k, NX, NY, NZ);
+                                &(data->xvort_solenoid[bufidx]), dy, dz, i, j, k, NX, NY);
             calc_yvort_solenoid(&(data->pipert[bufidx]), &(data->thrhopert[bufidx]), grid->th0, grid->qv0, \
-                                &(data->yvort_solenoid[bufidx]), dx, dz, i, j, k, NX, NY, NZ);
+                                &(data->yvort_solenoid[bufidx]), dx, dz, i, j, k, NX, NY);
             if ((k == 1) && (zf(k-1) == 0)) {
                 data->xvort_solenoid[P4(i, j, 0, tidx, NX+2, NY+2, NZ+1)] = data->xvort_solenoid[P4(i, j, 1, tidx, NX+2, NY+2, NZ+1)];
                 data->yvort_solenoid[P4(i, j, 0, tidx, NX+2, NY+2, NZ+1)] = data->yvort_solenoid[P4(i, j, 1, tidx, NX+2, NY+2, NZ+1)];
