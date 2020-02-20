@@ -20,7 +20,7 @@ __global__ void calcpipert(datagrid *grid, float *prespert, float *pipert) {
     }
 }
 
-__global__ void calcxvort(datagrid *grid, float *vstag, float *wstag, float *xvort) {
+__global__ void cuCalcXvort(datagrid *grid, float *vstag, float *wstag, float *xvort) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
@@ -43,7 +43,7 @@ __global__ void calcxvort(datagrid *grid, float *vstag, float *wstag, float *xvo
     }
 }
 
-__global__ void calcyvort(datagrid *grid, float *ustag, float *wstag, float *yvort) {
+__global__ void cuCalcYvort(datagrid *grid, float *ustag, float *wstag, float *yvort) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
@@ -65,7 +65,7 @@ __global__ void calcyvort(datagrid *grid, float *ustag, float *wstag, float *yvo
 		}
     }
 }
-__global__ void calczvort(datagrid *grid, float *ustag, float *vstag, float *zvort) {
+__global__ void cuCalcZvort(datagrid *grid, float *ustag, float *vstag, float *zvort) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;

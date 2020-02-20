@@ -38,25 +38,18 @@ void doCalcVort(datagrid *grid, model_data *data, int tStart, int tEnd, dim3 num
 	int NZ = grid->NZ;
 	for ( int tidx = tStart; tidx < tEnd; ++tidx) {
     	bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
-		calcxvort<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->vstag[bufidx]), &(data->wstag[bufidx]), &(data->tem1[bufidx]));
-		calcyvort<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->ustag[bufidx]), &(data->wstag[bufidx]), &(data->tem2[bufidx]));
-		calczvort<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->ustag[bufidx]), &(data->vstag[bufidx]), &(data->tem3[bufidx]));
-		gpuErrchk(cudaStreamSynchronize(stream) );
-		gpuErrchk( cudaPeekAtLastError() );
-
-		// Average the vorticity to the scalar grid using the temporary
-		// arrays we allocated. After doing the averaging, we have to 
-		// set the pointers to the temporary arrays as the new xvort,
-		// yvort, and zvort, and set the old x/y/zvort arrays as the new
-		// temporary arrays. Note: may have to zero those out in the future...
-		doVortAvg<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-		gpuErrchk(cudaStreamSynchronize(stream));
-		gpuErrchk( cudaPeekAtLastError() );
-
-		zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-		gpuErrchk(cudaStreamSynchronize(stream));
-		gpuErrchk( cudaPeekAtLastError() );
+		cuCalcXvort<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->vstag[bufidx]), &(data->wstag[bufidx]), &(data->tem1[bufidx]));
+		cuCalcYvort<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->ustag[bufidx]), &(data->wstag[bufidx]), &(data->tem2[bufidx]));
+		cuCalcZvort<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->ustag[bufidx]), &(data->vstag[bufidx]), &(data->tem3[bufidx]));
 	}
+	gpuErrchk(cudaStreamSynchronize(stream) );
+	gpuErrchk( cudaPeekAtLastError() );
+	doVortAvg<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+	gpuErrchk(cudaStreamSynchronize(stream) );
+	gpuErrchk( cudaPeekAtLastError() );
+	zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+	gpuErrchk(cudaStreamSynchronize(stream) );
+	gpuErrchk( cudaPeekAtLastError() );
 } 
 
 void doMomentumBud(datagrid *grid, model_data *data, int tStart, int tEnd, dim3 numBlocks, dim3 threadsPerBlock, cudaStream_t stream) {
@@ -576,13 +569,8 @@ void cudaIntegrateParcels(datagrid *grid, model_data *data, parcel_pos *parcels,
 
 
     // set the thread/block execution strategy for the kernels
-
-    // Okay, so I think the last remaining issue might lie here. For some reason, some blocks 
-    // must not be executing or something, seemingly related to the threadsPerBlock size. 
-    // Changing to 4x4x4 fixed for xvort, but not yvort. I think we need to dynamically set
-    // threadsPerBloc(x, y, z) based on the size of our grid at a given time step. 
-    dim3 threadsPerBlock(8, 8, 6);
-    dim3 numBlocks((int)ceil(NX/threadsPerBlock.x)+1, (int)ceil(NY/threadsPerBlock.y)+1, (int)ceil(NZ/threadsPerBlock.z)+1); 
+    dim3 threadsPerBlock(256, 1, 1);
+    dim3 numBlocks((int)ceil(NX+2/threadsPerBlock.x)+1, (int)ceil(NY+2/threadsPerBlock.y)+1, (int)ceil(NZ+1/threadsPerBlock.z)+1); 
 
     if (io->output_momentum_budget) doMomentumBud(grid, data, tStart, tEnd, numBlocks, threadsPerBlock, calStream);
     // Calculate the three compionents of vorticity
