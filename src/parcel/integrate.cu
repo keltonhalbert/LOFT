@@ -42,6 +42,7 @@ void doCalcVort(datagrid *grid, model_data *data, int tStart, int tEnd, dim3 num
 		cuCalcYvort<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->ustag[bufidx]), &(data->wstag[bufidx]), &(data->tem2[bufidx]));
 		cuCalcZvort<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->ustag[bufidx]), &(data->vstag[bufidx]), &(data->tem3[bufidx]));
 	}
+
 	gpuErrchk(cudaStreamSynchronize(stream) );
 	gpuErrchk( cudaPeekAtLastError() );
 	doVortAvg<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
@@ -130,7 +131,9 @@ void doCalcVortTend(datagrid *grid, model_data *data, int tStart, int tEnd, dim3
 				                                                      &(data->yvort[bufidx]), &(data->yvstretch[bufidx]));
 		cuCalcZvortStretch<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->ustag[bufidx]), &(data->vstag[bufidx]), \
 				                                                      &(data->zvort[bufidx]), &(data->zvstretch[bufidx]));
-		gpuErrchk( cudaPeekAtLastError() );
+ 
+ 		cuCalcXvortBaro<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->thrhopert[bufidx]), &(data->xvort_baro[bufidx]));
+ 		cuCalcYvortBaro<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->thrhopert[bufidx]), &(data->yvort_baro[bufidx]));
 	}
 	gpuErrchk(cudaPeekAtLastError());
 	gpuErrchk(cudaStreamSynchronize(stream));
@@ -138,7 +141,7 @@ void doCalcVortTend(datagrid *grid, model_data *data, int tStart, int tEnd, dim3
     // Compute the vertical vorticity tendency due to tilting. We have to do 
     // each component individually because we have to average the arrays back
     // to the scalar grid. It's a mess. 
-    calcxvorttilt<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+    cuCalcXvortTilt<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
     //gpuErrchk(cudaStreamSynchronize(stream));
     gpuErrchk( cudaPeekAtLastError() );
     doXVortTiltAvg<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
@@ -148,7 +151,7 @@ void doCalcVortTend(datagrid *grid, model_data *data, int tStart, int tEnd, dim3
     //gpuErrchk(cudaStreamSynchronize(stream));
     gpuErrchk( cudaPeekAtLastError() );
 
-    calcyvorttilt<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+    cuCalcYvortTilt<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
     //gpuErrchk(cudaStreamSynchronize(stream));
     gpuErrchk( cudaPeekAtLastError() );
     doYVortTiltAvg<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
@@ -158,7 +161,7 @@ void doCalcVortTend(datagrid *grid, model_data *data, int tStart, int tEnd, dim3
     //gpuErrchk(cudaStreamSynchronize(stream));
     gpuErrchk( cudaPeekAtLastError() );
 
-    calczvorttilt<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+    cuCalcZvortTilt<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
     //gpuErrchk(cudaStreamSynchronize(stream));
     gpuErrchk( cudaPeekAtLastError() );
     doZVortTiltAvg<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
@@ -238,14 +241,6 @@ void doCalcVortTend(datagrid *grid, model_data *data, int tStart, int tEnd, dim3
  *    //gpuErrchk(cudaStreamSynchronize(stream));
  *    gpuErrchk( cudaPeekAtLastError() );
  *    calcvortsolenoid<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
- *    //gpuErrchk(cudaStreamSynchronize(stream));
- *    gpuErrchk(cudaPeekAtLastError());
- *
- *
- *    zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
- *    //gpuErrchk(cudaStreamSynchronize(stream));
- *    gpuErrchk( cudaPeekAtLastError() );
- *    calcvortbaro<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
  *    //gpuErrchk(cudaStreamSynchronize(stream));
  *    gpuErrchk(cudaPeekAtLastError());
  *
