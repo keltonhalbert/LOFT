@@ -233,8 +233,9 @@ __global__ void cuCalcYvortBaro(datagrid *grid, float *thrhopert, float *yvort_b
 		calc_yvort_baro(thrhopert, grid->th0, grid->qv0, yvort_baro, dy, i, j, k, NX, NY);
     }
 }
+
 /* Compute the forcing tendencies from the pressure-volume solenoid term */
-__global__ void calcvortsolenoid(datagrid *grid, model_data *data, int tStart, int tEnd) {
+__global__ void cuCalcXvortSolenoid(datagrid *grid, float *pipert, float *thrhopert, float *xvort_solenoid) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
@@ -242,37 +243,59 @@ __global__ void calcvortsolenoid(datagrid *grid, model_data *data, int tStart, i
     int NX = grid->NX;
     int NY = grid->NY;
     int NZ = grid->NZ;
-    float dx, dy, dz;
-    long bufidx;
+    float dy, dz;
+
+    if ((i < NX-1) && (j < NY-1) && (k < NZ) && ( i > 0 ) && (j > 0) && (k > 0)) {
+        dy = yh(j+1)-yh(j-1);
+        dz = zh(k+1)-zh(k-1);
+
+		calc_xvort_solenoid(pipert, thrhopert, grid->th0, grid->qv0, xvort_solenoid, dy, dz, i, j, k, NX, NY);
+		if ((k == 1) && (zf(k-1) == 0)) {
+			xvort_solenoid[P3(i, j, 0, NX+2, NY+2)] = xvort_solenoid[P3(i, j, 1, NX+2, NY+2)];
+		}
+    }
+}
+
+/* Compute the forcing tendencies from the pressure-volume solenoid term */
+__global__ void cuCalcYvortSolenoid(datagrid *grid, float *pipert, float *thrhopert, float *yvort_solenoid) {
+    // get our 3D index based on our blocks/threads
+    int i = (blockIdx.x*blockDim.x) + threadIdx.x;
+    int j = (blockIdx.y*blockDim.y) + threadIdx.y;
+    int k = (blockIdx.z*blockDim.z) + threadIdx.z;
+    int NX = grid->NX;
+    int NY = grid->NY;
+    int NZ = grid->NZ;
+    float dx, dz;
+
+    if ((i < NX-1) && (j < NY-1) && (k < NZ) && ( i > 0 ) && (j > 0) && (k > 0)) {
+        dx = xh(i+1)-xh(i-1);
+        dz = zh(k+1)-zh(k-1);
+
+		calc_yvort_solenoid(pipert, thrhopert, grid->th0, grid->qv0, yvort_solenoid, dx, dz, i, j, k, NX, NY);
+		if ((k == 1) && (zf(k-1) == 0)) {
+			yvort_solenoid[P3(i, j, 0, NX+2, NY+2)] = yvort_solenoid[P3(i, j, 1, NX+2, NY+2)];
+		}
+    }
+}
+
+/* Compute the forcing tendencies from the pressure-volume solenoid term */
+__global__ void cuCalcZvortSolenoid(datagrid *grid, float *pipert, float *thrhopert, float *zvort_solenoid) {
+    // get our 3D index based on our blocks/threads
+    int i = (blockIdx.x*blockDim.x) + threadIdx.x;
+    int j = (blockIdx.y*blockDim.y) + threadIdx.y;
+    int k = (blockIdx.z*blockDim.z) + threadIdx.z;
+    int NX = grid->NX;
+    int NY = grid->NY;
+    int NZ = grid->NZ;
+    float dx, dy;
 
     // Even though there are NZ points, it's a center difference
     // and we reach out NZ+1 points to get the derivatives
     if ((i < NX-1) && (j < NY-1) && (k < NZ) && ( i > 0 ) && (j > 0)) {
         dx = xh(i+1)-xh(i-1);
         dy = yh(j+1)-yh(j-1);
-        // loop over the number of time steps we have in memory
-        for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
-            calc_zvort_solenoid(&(data->pipert[bufidx]), &(data->thrhopert[bufidx]), \
-                                &(data->zvort_solenoid[bufidx]), dx, dy, i, j, k, NX, NY);
-        }
-    }
-    if ((i < NX-1) && (j < NY-1) && (k < NZ) && ( i > 0 ) && (j > 0) && (k > 0)) {
-        // loop over the number of time steps we have in memory
-        dx = xh(i+1)-xh(i-1);
-        dy = yh(j+1)-yh(j-1);
-        dz = zh(k+1)-zh(k-1);
-        for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
-            calc_xvort_solenoid(&(data->pipert[bufidx]), &(data->thrhopert[bufidx]), grid->th0, grid->qv0, \
-                                &(data->xvort_solenoid[bufidx]), dy, dz, i, j, k, NX, NY);
-            calc_yvort_solenoid(&(data->pipert[bufidx]), &(data->thrhopert[bufidx]), grid->th0, grid->qv0, \
-                                &(data->yvort_solenoid[bufidx]), dx, dz, i, j, k, NX, NY);
-            if ((k == 1) && (zf(k-1) == 0)) {
-                data->xvort_solenoid[P4(i, j, 0, tidx, NX+2, NY+2, NZ+1)] = data->xvort_solenoid[P4(i, j, 1, tidx, NX+2, NY+2, NZ+1)];
-                data->yvort_solenoid[P4(i, j, 0, tidx, NX+2, NY+2, NZ+1)] = data->yvort_solenoid[P4(i, j, 1, tidx, NX+2, NY+2, NZ+1)];
-            }
-        }
+
+		calc_zvort_solenoid(pipert, thrhopert, zvort_solenoid, dx, dy, i, j, k, NX, NY);
     }
 }
 
