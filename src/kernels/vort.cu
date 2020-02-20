@@ -6,7 +6,7 @@
 #ifndef VORT_CU
 #define VORT_CU
 
-__global__ void calcpipert(datagrid *grid, float *prespert, float *pipert) {
+__global__ void cuCalcPipert(datagrid *grid, float *prespert, float *pipert) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
@@ -83,8 +83,7 @@ __global__ void cuCalcZvort(datagrid *grid, float *ustag, float *vstag, float *z
     }
 }
 
-/* Compute the forcing tendencies from the Vorticity Equation */
-__global__ void calcvortstretch(datagrid *grid, model_data *data, int tStart, int tEnd) {
+__global__ void cuCalcXvortStretch(datagrid *grid, float *vstag, float *wstag, float *xvort, float *xvstretch) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
@@ -92,49 +91,47 @@ __global__ void calcvortstretch(datagrid *grid, model_data *data, int tStart, in
     int NX = grid->NX;
     int NY = grid->NY;
     int NZ = grid->NZ;
-    long bufidx;
-    float dx, dy, dz;
+    float dy, dz;
 
     if ((i < NX) && (j < NY) && (k < NZ)) {
         dy = yf(j+1) - yf(j);
         dz = zf(k+1) - zf(k);
-        // loop over the number of time steps we have in memory
-        for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
-            calc_xvort_stretch(&(data->vstag[bufidx]), &(data->wstag[bufidx]), \
-                               &(data->xvort[bufidx]), &(data->xvstretch[bufidx]), \
-                               dy, dz, i, j, k, NX, NY);
-            if ((k == 1) && (zf(k-1) == 0)) {
-                data->xvstretch[P4(i, j, 0, tidx, NX+2, NY+2, NZ+1)] = data->xvstretch[P4(i, j, 1, tidx, NX+2, NY+2, NZ+1)];
-            }
-        }
+		calc_xvort_stretch(vstag, wstag, xvort, xvstretch, dy, dz, i, j, k, NX, NY);
     }
+}
+
+__global__ void cuCalcYvortStretch(datagrid *grid, float *ustag, float *wstag, float *yvort, float *yvstretch) {
+    // get our 3D index based on our blocks/threads
+    int i = (blockIdx.x*blockDim.x) + threadIdx.x;
+    int j = (blockIdx.y*blockDim.y) + threadIdx.y;
+    int k = (blockIdx.z*blockDim.z) + threadIdx.z;
+    int NX = grid->NX;
+    int NY = grid->NY;
+    int NZ = grid->NZ;
+    float dx, dz;
 
     if ((i < NX) && (j < NY) && (k < NZ)) {
         dx = xf(i+1) - xf(i);
         dz = zf(k+1) - zf(k);
-        // loop over the number of time steps we have in memory
-        for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
-            calc_yvort_stretch(&(data->ustag[bufidx]), &(data->wstag[bufidx]), \
-                               &(data->yvort[bufidx]), &(data->yvstretch[bufidx]), \
-                               dx, dz, i, j, k, NX, NY);
-            if ((k == 1) && (zf(k-1) == 0)) {
-                data->yvstretch[P4(i, j, 0, tidx, NX+2, NY+2, NZ+1)] = data->yvstretch[P4(i, j, 1, tidx, NX+2, NY+2, NZ+1)];
-            }
-        }
+		calc_yvort_stretch(ustag, wstag, yvort, yvstretch, dx, dz, i, j, k, NX, NY);
     }
+
+}
+/* Compute the forcing tendencies from the Vorticity Equation */
+__global__ void cuCalcZvortStretch(datagrid *grid, float *ustag, float *vstag, float *zvort, float *zvstretch) {
+    // get our 3D index based on our blocks/threads
+    int i = (blockIdx.x*blockDim.x) + threadIdx.x;
+    int j = (blockIdx.y*blockDim.y) + threadIdx.y;
+    int k = (blockIdx.z*blockDim.z) + threadIdx.z;
+    int NX = grid->NX;
+    int NY = grid->NY;
+    int NZ = grid->NZ;
+    float dx, dy;
 
     if ((i < NX) && (j < NY) && (k < NZ)) {
         dx = xf(i+1) - xf(i);
-        dz = yf(j+1) - yf(j);
-        // loop over the number of time steps we have in memory
-        for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
-            calc_zvort_stretch(&(data->ustag[bufidx]), &(data->vstag[bufidx]), \
-                               &(data->zvort[bufidx]), &(data->zvstretch[bufidx]), \
-                               dx, dy, i, j, k, NX, NY);
-        }
+        dy = yf(j+1) - yf(j);
+		calc_zvort_stretch(ustag, vstag, zvort, zvstretch, dx, dy, i, j, k, NX, NY);
     }
 }
 
