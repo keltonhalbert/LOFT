@@ -6,48 +6,7 @@
 #ifndef VORT_CU
 #define VORT_CU
 
-/* When doing the parcel trajectory integration, George Bryan does
-   some fun stuff with the lower boundaries/ghost zones of the arrays, presumably
-   to prevent the parcels from exiting out the bottom of the domain
-   or experience artificial values. This sets the ghost zone values. */
-__global__ void applyMomentumBC(float *ustag, float *vstag, float *wstag, int NX, int NY, int NZ, int tStart, int tEnd) {
-    int i = blockIdx.x*blockDim.x + threadIdx.x;
-    int j = blockIdx.y*blockDim.y + threadIdx.y;
-    int k = blockIdx.z*blockDim.z + threadIdx.z;
-
-    // this is done for easy comparison to CM1 code
-    int ni = NX; int nj = NY;
-
-    // this is a lower boundary condition, so only when k is 0
-    // also this is on the u staggered mesh
-    if (( j < nj+1) && ( i < ni+1) && ( k == 0)) {
-        for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            // use the u stagger macro to handle the
-            // proper indexing
-            UA4D(i, j, 0, tidx) = UA4D(i, j, 1, tidx);
-        }
-    }
-    
-    // do the same but now on the v staggered grid
-    if (( j < nj+1) && ( i < ni+1) && ( k == 0)) {
-        for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            // use the v stagger macro to handle the
-            // proper indexing
-            VA4D(i, j, 0, tidx) = VA4D(i, j, 1, tidx);
-        }
-    }
-
-    // do the same but now on the w staggered grid
-    if (( j < nj+1) && ( i < ni+1) && ( k == 0)) {
-        for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            // use the w stagger macro to handle the
-            // proper indexing
-            WA4D(i, j, 0, tidx) = -1*WA4D(i, j, 2, tidx);
-        }
-    }
-}
-
-__global__ void calcpipert(datagrid *grid, model_data *data, int tStart, int tEnd) {
+__global__ void calcpipert(datagrid *grid, float *prespert, float *pipert) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
@@ -55,20 +14,13 @@ __global__ void calcpipert(datagrid *grid, model_data *data, int tStart, int tEn
     int NX = grid->NX;
     int NY = grid->NY;
     int NZ = grid->NZ;
-    long bufidx;
 
     if ((i < NX+1) && (j < NY+1) && (k < NZ)) {
-        // loop over the number of time steps we have in memory
-        for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
-            // we pass through the reference to the starting point
-            // of the next 3D buffer since stencils operate in 3D space
-            calc_pipert(&(data->prespert[bufidx]), grid->p0, &(data->pipert[bufidx]), i, j, k, NX, NY);
-        }
+		calc_pipert(prespert, grid->p0, pipert, i, j, k, NX, NY);
     }
 }
 
-__global__ void calcvort(datagrid *grid, model_data *data, int tStart, int tEnd) {
+__global__ void calcxvort(datagrid *grid, float *vstag, float *wstag, float *xvort) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
@@ -76,49 +28,22 @@ __global__ void calcvort(datagrid *grid, model_data *data, int tStart, int tEnd)
     int NX = grid->NX;
     int NY = grid->NY;
     int NZ = grid->NZ;
-    long bufidx;
-    float dx, dy, dz;
+    float dy, dz;
+	float *buf0 = xvort;
 
     if ((i < NX) && (j < NY+1) && (k > 0) && (k < NZ)) {
         dy = yf(j) - yf(j-1);
         dz = zf(k) - zf(k-1);
-        // loop over the number of time steps we have in memory
-        for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
-            calc_xvort(&(data->vstag[bufidx]), &(data->wstag[bufidx]), &(data->tem1[bufidx]), dy, dz, i, j, k, NX, NY);
-            // lower boundary condition of stencil
-            if ((k == 1) && (zf(k-1) == 0)) {
-                data->tem1[P4(i, j, 0, tidx, NX+2, NY+2, NZ+1)] = data->tem1[P4(i, j, 1, tidx, NX+2, NY+2, NZ+1)];
-            }
-        }
-    }
 
-    if ((i < NX+1) && (j < NY) && (k > 0) && (k < NZ+1)) {
-        dx = xf(i) - xf(i-1);
-        dz = zf(k) - zf(k-1);
-        // loop over the number of time steps we have in memory
-        for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
-            calc_yvort(&(data->ustag[bufidx]), &(data->wstag[bufidx]), &(data->tem2[bufidx]), dx, dz, i, j, k, NX, NY);
-            // lower boundary condition of stencil
-            if ((k == 1) && (zf(k-1) == 0)) {
-                data->tem2[P4(i, j, 0, tidx, NX+2, NY+2, NZ+1)] = data->tem2[P4(i, j, 1, tidx, NX+2, NY+2, NZ+1)];
-            }
-        }
-    }
-
-    if ((i < NX+1) && (j < NY+1) && (k < NZ+1)) {
-        dx = xf(i) - xf(i-1);
-        dy = yf(j) - yf(j-1);
-        // loop over the number of time steps we have in memory
-        for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
-            calc_zvort(&(data->ustag[bufidx]), &(data->vstag[bufidx]), &(data->tem3[bufidx]), dx, dy, i, j, k, NX, NY);
-        }
+		calc_xvort(vstag, wstag, xvort, dy, dz, i, j, k, NX, NY);
+		// lower boundary condition of stencil
+		if ((k == 1) && (zf(k-1) == 0)) {
+			BUF(i, j, 0) = BUF(i, j, 1);
+		}
     }
 }
 
-__global__ void doDiffVort(datagrid *grid, model_data *data, int tStart, int tEnd) {
+__global__ void calcyvort(datagrid *grid, float *ustag, float *wstag, float *yvort) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
@@ -126,51 +51,21 @@ __global__ void doDiffVort(datagrid *grid, model_data *data, int tStart, int tEn
     int NX = grid->NX;
     int NY = grid->NY;
     int NZ = grid->NZ;
-    long bufidx;
-    float dx, dy, dz;
-
-    if ((i < NX) && (j < NY+1) && (k > 0) && (k < NZ)) {
-        dy = yf(j) - yf(j-1);
-        dz = zf(k) - zf(k-1);
-        // loop over the number of time steps we have in memory
-        for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
-            calc_xvort(&(data->diffv[bufidx]), &(data->diffw[bufidx]), &(data->tem1[bufidx]), dy, dz, i, j, k, NX, NY);
-
-            // lower boundary condition of stencil
-            if ((k == 1) && (zf(k-1) == 0)) {
-                data->tem1[P4(i, j, 0, tidx, NX+2, NY+2, NZ+1)] = data->tem1[P4(i, j, 1, tidx, NX+2, NY+2, NZ+1)];
-            }
-        }
-    }
+    float dx, dz;
+	float *buf0 = yvort;
 
     if ((i < NX+1) && (j < NY) && (k > 0) && (k < NZ+1)) {
         dx = xf(i) - xf(i-1);
         dz = zf(k) - zf(k-1);
-        // loop over the number of time steps we have in memory
-        for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
-            calc_yvort(&(data->diffu[bufidx]), &(data->diffw[bufidx]), &(data->tem2[bufidx]), dx, dz, i, j, k, NX, NY);
-            // lower boundary condition of stencil
-            if ((k == 1) && (zf(k-1) == 0)) {
-                data->tem2[P4(i, j, 0, tidx, NX+2, NY+2, NZ+1)] = data->tem2[P4(i, j, 1, tidx, NX+2, NY+2, NZ+1)];
-            }
-        }
-    }
 
-    if ((i < NX+1) && (j < NY+1) && (k < NZ+1)) {
-        dx = xf(i) - xf(i-1);
-        dy = yf(j) - yf(j-1);
-        // loop over the number of time steps we have in memory
-        for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
-            calc_zvort(&(data->diffu[bufidx]), &(data->diffv[bufidx]), &(data->tem3[bufidx]), dx, dy, i, j, k, NX, NY);
-        }
+		calc_yvort(ustag, wstag, yvort, dx, dz, i, j, k, NX, NY);
+		// lower boundary condition of stencil
+		if ((k == 1) && (zf(k-1) == 0)) {
+			BUF(i, j, 0) = BUF(i, j, 1);
+		}
     }
 }
-
-
-__global__ void doTurbVort(datagrid *grid, model_data *data, int tStart, int tEnd) {
+__global__ void calczvort(datagrid *grid, float *ustag, float *vstag, float *zvort) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
@@ -178,46 +73,13 @@ __global__ void doTurbVort(datagrid *grid, model_data *data, int tStart, int tEn
     int NX = grid->NX;
     int NY = grid->NY;
     int NZ = grid->NZ;
-    long bufidx;
-    float dx, dy, dz;
-
-    if ((i < NX) && (j < NY+1) && (k > 0) && (k < NZ)) {
-        dy = yf(j) - yf(j-1);
-        dz = zf(k) - zf(k-1);
-        // loop over the number of time steps we have in memory
-        for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
-            calc_xvort(&(data->turbv[bufidx]), &(data->turbw[bufidx]), &(data->tem1[bufidx]), dy, dz, i, j, k, NX, NY);
-
-            // lower boundary condition of stencil
-            if ((k == 1) && (zf(k-1) == 0)) {
-                data->tem1[P4(i, j, 0, tidx, NX+2, NY+2, NZ+1)] = data->tem1[P4(i, j, 1, tidx, NX+2, NY+2, NZ+1)];
-            }
-        }
-    }
-
-    if ((i < NX+1) && (j < NY) && (k > 0) && (k < NZ+1)) {
-        dx = xf(i) - xf(i-1);
-        dz = zf(k) - zf(k-1);
-        // loop over the number of time steps we have in memory
-        for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
-            calc_yvort(&(data->turbu[bufidx]), &(data->turbw[bufidx]), &(data->tem2[bufidx]), dx, dz, i, j, k, NX, NY);
-            // lower boundary condition of stencil
-            if ((k == 1) && (zf(k-1) == 0)) {
-                data->tem2[P4(i, j, 0, tidx, NX+2, NY+2, NZ+1)] = data->tem2[P4(i, j, 1, tidx, NX+2, NY+2, NZ+1)];
-            }
-        }
-    }
+    float dx, dy;
 
     if ((i < NX+1) && (j < NY+1) && (k < NZ+1)) {
         dx = xf(i) - xf(i-1);
         dy = yf(j) - yf(j-1);
-        // loop over the number of time steps we have in memory
-        for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
-            calc_zvort(&(data->turbu[bufidx]), &(data->turbv[bufidx]), &(data->tem3[bufidx]), dx, dy, i, j, k, NX, NY);
-        }
+
+		calc_zvort(ustag, vstag, zvort, dx, dy, i, j, k, NX, NY);
     }
 }
 

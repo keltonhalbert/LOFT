@@ -32,29 +32,38 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
     model should work. */
 void doCalcVort(datagrid *grid, model_data *data, int tStart, int tEnd, dim3 numBlocks, dim3 threadsPerBlock, cudaStream_t stream) {
     // calculate the three compionents of vorticity
-    calcvort<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream) );
-    gpuErrchk( cudaPeekAtLastError() );
+	long bufidx;
+	int NX = grid->NX;
+	int NY = grid->NY;
+	int NZ = grid->NZ;
+	for ( int tidx = tStart; tidx < tEnd; ++tidx) {
+    	bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
+		calcxvort<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->vstag[bufidx]), &(data->wstag[bufidx]), &(data->tem1[bufidx]));
+		calcyvort<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->ustag[bufidx]), &(data->wstag[bufidx]), &(data->tem2[bufidx]));
+		calczvort<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->ustag[bufidx]), &(data->vstag[bufidx]), &(data->tem3[bufidx]));
+		gpuErrchk(cudaStreamSynchronize(stream) );
+		gpuErrchk( cudaPeekAtLastError() );
 
-    // Average the vorticity to the scalar grid using the temporary
-    // arrays we allocated. After doing the averaging, we have to 
-    // set the pointers to the temporary arrays as the new xvort,
-    // yvort, and zvort, and set the old x/y/zvort arrays as the new
-    // temporary arrays. Note: may have to zero those out in the future...
-    doVortAvg<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
+		// Average the vorticity to the scalar grid using the temporary
+		// arrays we allocated. After doing the averaging, we have to 
+		// set the pointers to the temporary arrays as the new xvort,
+		// yvort, and zvort, and set the old x/y/zvort arrays as the new
+		// temporary arrays. Note: may have to zero those out in the future...
+		doVortAvg<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+		gpuErrchk(cudaStreamSynchronize(stream));
+		gpuErrchk( cudaPeekAtLastError() );
 
-    zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
+		zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+		gpuErrchk(cudaStreamSynchronize(stream));
+		gpuErrchk( cudaPeekAtLastError() );
+	}
 } 
 
 void doMomentumBud(datagrid *grid, model_data *data, int tStart, int tEnd, dim3 numBlocks, dim3 threadsPerBlock, cudaStream_t stream) {
     // Preprocess some calculations that are needed
     doCalcRf<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
     gpuErrchk( cudaPeekAtLastError() );
-    calcpipert<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+    calcpipert<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data->prespert, data->pipert);
     gpuErrchk(cudaStreamSynchronize(stream));
     gpuErrchk(cudaPeekAtLastError());
 
@@ -113,7 +122,7 @@ void doCalcVortTend(datagrid *grid, model_data *data, int tStart, int tEnd, dim3
     doCalcRf<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
     //gpuErrchk(cudaStreamSynchronize(stream));
     gpuErrchk( cudaPeekAtLastError() );
-    calcpipert<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+    calcpipert<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data->prespert, data->pipert);
     gpuErrchk(cudaStreamSynchronize(stream));
     gpuErrchk(cudaPeekAtLastError());
 
@@ -207,7 +216,7 @@ void doCalcVortTend(datagrid *grid, model_data *data, int tStart, int tEnd, dim3
     zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
     //gpuErrchk(cudaStreamSynchronize(stream));
     gpuErrchk( cudaPeekAtLastError() );
-    doTurbVort<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+    //doTurbVort<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
     //gpuErrchk(cudaStreamSynchronize(stream));
     gpuErrchk( cudaPeekAtLastError() );
 
@@ -239,7 +248,7 @@ void doCalcVortTend(datagrid *grid, model_data *data, int tStart, int tEnd, dim3
     zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
     //gpuErrchk(cudaStreamSynchronize(stream));
     gpuErrchk( cudaPeekAtLastError() );
-    doDiffVort<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+    //doDiffVort<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
     //gpuErrchk(cudaStreamSynchronize(stream));
     gpuErrchk( cudaPeekAtLastError() );
     doDiffVortAvg<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
