@@ -253,7 +253,7 @@ __device__ void calc_yvort_baro(float *thrhopert, float *th0, float *qv0, float 
 
     // compute and save to the array
     buf0 = yvort_baro; 
-    BUF(i, j, k) = (g/thbar1)*dthdx; 
+    BUF(i, j, k) = -1.0*(g/thbar1)*dthdx; 
 }
 __device__ void calc_xvort_solenoid(float *pipert, float *thrhopert, float *th0, float *qv0, float *xvort_solenoid, \
                                     float dy, float dz, int i, int j, int k, int NX, int NY) {
