@@ -56,7 +56,7 @@ __global__ void cuCalcDiffVXYZ(datagrid *grid, float *vstag, float *tem1, float 
     }
 }
 
-__global__ void doCalcDiffWXYZ(datagrid *grid, float *wstag, float *tem1, float *tem2, float *tem3) {
+__global__ void cuCalcDiffWXYZ(datagrid *grid, float *wstag, float *tem1, float *tem2, float *tem3) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
