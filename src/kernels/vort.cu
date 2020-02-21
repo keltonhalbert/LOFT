@@ -341,9 +341,8 @@ __global__ void zeroTemArrays(datagrid *grid, model_data *data, int tStart, int 
 /* Average our vorticity values back to the scalar grid for interpolation
    to the parcel paths. We're able to do this in parallel by making use of
    the three temporary arrays allocated on our grid, which means that the
-   xvort/yvort/zvort arrays will be averaged into tem1/tem2/tem3. After
-   calling this kernel, you MUST set the new pointers appropriately. */
-__global__ void doVortAvg(datagrid *grid, model_data *data, int tStart, int tEnd) {
+   xvort/yvort/zvort arrays will be averaged into tem1/tem2/tem3. */ 
+__global__ void doVortAvg(datagrid *grid, float *tem1, float *tem2, float *tem3, float *xvort, float *yvort, float *zvort, int tStart, int tEnd) {
 
     // get our grid indices based on our block and thread info
     int i = blockIdx.x*blockDim.x + threadIdx.x;
@@ -359,18 +358,18 @@ __global__ void doVortAvg(datagrid *grid, model_data *data, int tStart, int tEnd
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             // average the temporary arrays into the result arrays
-            dum0 = data->tem1;
-            buf0 = data->xvort;
+            dum0 = tem1;
+            buf0 = xvort;
             BUF4D(i, j, k, tidx) = 0.25 * ( TEM4D(i, j, k, tidx) + TEM4D(i, j+1, k, tidx) +\
                                             TEM4D(i, j, k+1, tidx) + TEM4D(i, j+1, k+1, tidx) );
 
-            dum0 = data->tem2;
-            buf0 = data->yvort;
+            dum0 = tem2;
+            buf0 = yvort;
             BUF4D(i, j, k, tidx) = 0.25 * ( TEM4D(i, j, k, tidx) + TEM4D(i+1, j, k, tidx) +\
                                             TEM4D(i, j, k+1, tidx) + TEM4D(i+1, j, k+1, tidx) );
 
-            dum0 = data->tem3;
-            buf0 = data->zvort;
+            dum0 = tem3;
+            buf0 = zvort;
             BUF4D(i, j, k, tidx) = 0.25 * ( TEM4D(i, j, k, tidx) + TEM4D(i+1, j, k, tidx) +\
                                             TEM4D(i, j+1, k, tidx) + TEM4D(i+1, j+1, k, tidx) );
         }
