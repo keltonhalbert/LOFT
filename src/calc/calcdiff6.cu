@@ -79,7 +79,7 @@ __device__ void calc_diffy_v(float *vstag, float *diffyv, int i, int j, int k, i
 __device__ void calc_diffy_w(float *wstag, float *diffyw, int i, int j, int k, int NX, int NY) {
     // we're going to store our y diffusion of w
     // in the tem2 array for later use
-    float *dum0 = data->tem2;
+    float *dum0 = diffyw;
 
     float pval = ( 10.0*( WA(i, j  , k) - WA(i, j-1, k) ) \
                    -5.0*( WA(i, j+1, k) - WA(i, j-2, k) ) \
@@ -155,7 +155,7 @@ __device__ void calc_diffz_w(float *wstag, float *diffzw, int i, int j, int k, i
 __device__ void calc_diff(float *diffx, float *diffy, float *diffz, float *difften, float dt, int i, int j, int k, int NX, int NY) {
     const float coeff = (kdiff6/64.0/dt);
 
-    float *dum0 = diffx 
+    float *dum0 = diffx; 
     float xten = coeff*(TEM(i+1, j, k)-TEM(i, j, k));
 
     // get diffy from tem2
