@@ -20,5 +20,6 @@ const float rovcp = rd/cp;
 const float eps = rd/rv;
 const float reps = rv/rd;
 
+const float kdiff6 = 0.080;
 
 #endif
