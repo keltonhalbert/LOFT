@@ -1,4 +1,4 @@
-#ifndef CONSTAMTS_H
+#ifndef CONSTANTS_H
 #define CONSTANTS_H
 
 /* These constants have been lifted from
