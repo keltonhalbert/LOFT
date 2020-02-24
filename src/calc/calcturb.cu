@@ -146,7 +146,11 @@ __device__ void gettau(datagrid *grid, model_data *data, int *idx_4D, int NX, in
     }
 }
 
-__device__ void calc_turbv(float *xturb, float *yturb, float *zturb, float *rhopert, float *rho0, float *turbu, \
+// TO-DO: These next 3 kernels effectively do the same thing... This is a place where consolidation needs to take place
+// for both readability and maintainability. While reducing the duplicate kernels in one part of this, looking into
+// the CM1r19.8 formulation could help since it does operations in a slightly different way than CM1r16, which this
+// was primarily based on. 
+__device__ void calc_turbu(float *xturb, float *yturb, float *zturb, float *rhopert, float *rho0, float *turbu, \
 		                   float dx, float dy, float dz, int i, int j, int k, int NX, int NY) {
     // the momentum tendencies will lie on their staggered mesh counterparts,
     // so we will use the stagger macros to store the data in order to maintain
