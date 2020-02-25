@@ -10,13 +10,13 @@ __device__ void calcrf(float *rhopert, float *rho0, float *rhof, int i, int j, i
     float *wstag = data->rhof;
     float *buf0 = data->rhopert;
 
-    if (k >= 2) {
+    if (k >= 1) {
         WA(i, j, k) =  0.5*( (BUF(i, j, k-1) + rho0[k-1]) + (BUF(i, j, k) + rho0[k]) );
     }
 
 	// extrapolate for the lowest point
     else if (k == 0) {
-        WA(i, j, 0) = (1.75*(BUF(i, j, 1) + rho0[1]) - (BUF(i, j, 2) + rho0[2]) + 0.25*(BUF(i, j, 3) + rho0[3]));
+        WA(i, j, 0) = (1.75*(BUF(i, j, 0) + rho0[0]) - (BUF(i, j, 1) + rho0[1]) + 0.25*(BUF(i, j, 2) + rho0[2]));
     }
 }
 
@@ -75,62 +75,41 @@ __device__ void calcstrain2(float *ustag, float *vstag, float *wstag, float *rho
 }
 
 
-__device__ void gettau(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
-    int i = idx_4D[0];
-    int j = idx_4D[1];
-    int k = idx_4D[2];
-    int t = idx_4D[3];
+// Similar to the strain kernels, we need two of these for computing some of the vertical components due to the 
+// way the vertical stencils work with boundary conditions. This kernel also probably doesn't know whether z(k==0) 
+// is the actual surface or the lowest level of an array defined above the surface.
+__device__ void gettau1(float *km, float *t11, float *t12, float *t22, float *t33, int i, int j, int k, int NX, int NY) {
+	float *buf0 = km;
+	// KM is defined on W points - get on scalar vertical points
+	float kmval = 0.5*(BUF(i, j, k) + BUF(i, j, k+1));
+	
+	// These arrays already have rho * S_ij in them!
+	buf0 = t11;
+	BUF(i, j, k) = 2.0 * kmval * BUF(i, j, k);
+	
+	buf0 = t22;
+	BUF(i, j, k) = 2.0 * kmval * BUF(i, j, k);
 
-    float *dum0, *buf0, *wstag, *kmstag;
+	buf0 = t33;
+	BUF(i, j, k) = 2.0 * kmval * BUF(i, j, k);
 
-    kmstag = data->kmh;
-    buf0 = data->rhopert;
+	buf0 = km;
+	kmval = 0.125 * ( ( (BUF(i-1,j-1,k  )+BUF(i,j,k  ))+(BUF(i-1,j,k  )+BUF(i,j-1,k  )) )   \
+                   +  ( (BUF(i-1,j-1,k+1)+BUF(i,j,k+1))+(BUF(i-1,j,k+1)+BUF(i,j-1,k+1)) ) );
+	buf0 = t12;
+	BUF(i, j, k) 2.0 * kmval * BUF(i, j, k);
+}
 
-    // NOTE: Base state arrays have a different grid index to them because there is no ghost zone.
-    // For example, rho0[0] corresponds to zh[1]. We need to be careful and make sure we offset 
-    // our indices appropriately
+__device__ void gettau2(float *km, float *t13, float *t23, int i, int j, int k, int NX, int NY) {
+	float *buf0 = km;
+	float kmval1 = 0.5 * (BUF(i, j, k) + BUF(i-1, j, k)); // km on u points
+	float kmval2 = 0.5 * (BUF(i, j, k) + BUF(i, j-1, k)); // km on v points
 
-    // tau 11
-    dum0 = data->tem1;
-    TEM4D(i, j, k, t) = TEM4D(i, j, k, t) * (KM4D(i, j, k, t) + KM4D(i, j, k+1, t))*(BUF4D(i, j, k, t) + grid->rho0[k]);
-    // tau 22
-    dum0 = data->tem3;
-    TEM4D(i, j, k, t) = TEM4D(i, j, k, t) * (KM4D(i, j, k, t) + KM4D(i, j, k+1, t))*(BUF4D(i, j, k, t) + grid->rho0[k]);
-    // tau 33
-    dum0 = data->tem4;
-    TEM4D(i, j, k, t) = TEM4D(i, j, k, t) * (KM4D(i, j, k, t) + KM4D(i, j, k+1, t))*(BUF4D(i, j, k, t) + grid->rho0[k]);
+	buf0 = t13;
+	BUF(i, j, k) = 2.0 * kmval1 * BUF(i, j, k);
 
-    // tau 12
-    dum0 = data->tem2;
-    TEM4D(i, j, k, t) = TEM4D(i, j, k, t) * 0.03125 * \
-                        ( ( ( KM4D(i-1, j-1, k, t) + KM4D(i, j, k, t) ) + ( KM4D(i-1, j, k, t) + KM4D(i, j-1, k, t) ) ) \
-                         +( ( KM4D(i-1, j-1, k+1, t) + KM4D(i, j, k+1, t) ) + ( KM4D(i-1, j, k+1, t) + KM4D(i, j-1, k+1, t) ) ) ) \
-                         *( ( (BUF4D(i-1, j-1, k, t) + grid->rho0[k]) + (BUF4D(i, j, k, t) + grid->rho0[k]) ) \
-                           + ((BUF4D(i-1, j, k, t) + grid->rho0[k]) + (BUF4D(i, j-1, k, t) + grid->rho0[k]) ) );
-    if (k == 1) {
-        // we'll go ahead and apply the zero strain condition on the lower boundary/ghost zone
-        // for tau 13 and tau 23
-        // tau 13 boundary
-        dum0 = data->tem5;
-        TEM4D(i, j, 0, t) = 0.0;
-        // tau 23 boundary
-        dum0 = data->tem6;
-        TEM4D(i, j, 0, t) = 0.0;
-    }
-
-    if ((k >= 1)) {
-        // tau 13
-        dum0 = data->tem5;
-        wstag = data->rhof; // rather than make a new maro, we'll just use the WA4D macro
-        TEM4D(i, j, k, t) = TEM4D(i, j, k, t) * 0.25 \
-                                *( KM4D(i-1, j, k, t) + KM4D(i, j, k, t) ) \
-                                *( (WA4D(i-1, j, k, t)) + (WA4D(i, j, k, t)) ); 
-        // tau 23
-        dum0 = data->tem6;
-        TEM4D(i, j, k, t) = TEM4D(i, j, k, t) * 0.25 \
-                                *( KM4D(i, j-1, k, t) + KM4D(i, j, k, t) ) \
-                                *( (WA4D(i, j-1, k, t) + WA4D(i, j, k, t)) ); 
-    }
+	buf0 = t23;
+	BUF(i, j, k) = 2.0 * kmval2 * BUF(i, j, k);
 }
 
 // TO-DO: These next 3 kernels effectively do the same thing... This is a place where consolidation needs to take place
