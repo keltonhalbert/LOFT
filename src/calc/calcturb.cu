@@ -5,8 +5,6 @@
 #ifndef TURB_CALC
 #define TURB_CALC
 
-// TO-DO: Need to revisit how this is iterated over... ie if that extrapolation
-// needs to be for zf(1) or zf(0). It's hard to keep track of these days...
 __device__ void calcrf(float *rhopert, float *rho0, float *rhof, int i, int j, int k, int NX, int NY) {
     // use the w staggered grid
     float *wstag = data->rhof;
@@ -17,74 +15,63 @@ __device__ void calcrf(float *rhopert, float *rho0, float *rhof, int i, int j, i
     }
 
 	// extrapolate for the lowest point
-    else if (k == 1) {
+    else if (k == 0) {
         WA(i, j, 0) = (1.75*(BUF(i, j, 1) + rho0[1]) - (BUF(i, j, 2) + rho0[2]) + 0.25*(BUF(i, j, 3) + rho0[3]));
     }
 }
 
-// calculate the deformation terms for the turbulence diagnostics. They get stored in the 
-// arrays later designated for tau stress tensors and variables are named according to
-// tensor notation
-__device__ void calcdef(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
-    int i = idx_4D[0];
-    int j = idx_4D[1];
-    int k = idx_4D[2];
-    int t = idx_4D[3];
+// Calculating the strain rate terms requires more than one stencil operation to get it right.
+// This first one handles the calculation of divergence and "easily" calculable vertical terms,
+// ie s11, s22, s33, and s12. The values of s13 and s23 are set in calcstrain2, and surface boundary
+// conditions are set in gettau. 
+__device__ void calcstrain1(float *ustag, float *vstag, float *wstag, float *rhopert, float *rho0, \
+		                float *s11, float *s12, float *s22, float *s33, float dx, float dy, float dz, \
+						int i, int j, int k, int nx, int ny) {
+	float *buf0 = rhopert;
+	float rho1 = BUF(i, j, k) + rho0[k];
+	float rho2 = BUF(i-1, j-1, k) + rho0[k];
+	float rho3 = BUF(i-1, j, k) + rho0[k];
+	float rho4 = BUF(i, j-1, k) + rho0[k];
 
-    float *dum0;
-    float *ustag, *vstag, *wstag;
-    ustag = data->ustag;
-    vstag = data->vstag;
-    wstag = data->wstag;
+	// Strain rate tensor 11
+	buf0 = s11;
+	BUF(i, j, k) = rho1 * (UA(i+1, j, k) - UA(i, j, k)) * (1./dx);
 
-    float dx = xf(i) - xf(i-1);
-    float dy = yf(j) - yf(j-1);
-    float dz = zf(k+1) - zf(k);
+	// Strain rate tensor 22
+	buf0 = s22;
+	BUF(i, j, k) = rho1 * (VA(i, j+1, k) - VA(i, j, k)) * (1./dy);
 
-    // apply the zero strain condition for free slip to out subsurface/ghost zone
-    // tau 11. Derivative is du/dx and therefore the derivative on the staggered mesh results on the scalar point.
-    dum0 = data->tem1;
-    TEM4D(i, j, k, t) = ( ( UA4D(i+1, j, k, t) - UA4D(i, j, k, t) ) / dx ) * UH(i);
+	// Strain rate tensor 33
+	buf0 = s33;
+	BUF(i, j, k) = rho1 * (WA(i, j, k+1) - WA(i, j, k)) * (1./dz);
 
-    // tau 12. Derivatives are no longer on the staggered mesh since it's du/dy and dv/dx. Therefore, and
-    // averaging step must take place on the TEM array after calculation. 
+	// Strain rate tensor 12
+	buf0 = s12;
+	BUF(i, j, k) = 0.5*( (UA(i, j, k) - UA(i, j-1, k))*(1./dy) \
+			          +  (VA(i, j, k) - VA(i-1, j, k))*(1./dx) ) \
+				 *0.25*( (rho+rho2+rho3+rho3) );
+}
 
-    dum0 = data->tem2;
-    TEM4D(i, j, k, t) = ( ( ( UA4D(i, j, k, t) - UA4D(i, j-1, k, t) ) / dy ) * VF(j) ) \
-                        + ( ( ( VA4D(i, j, k, t) - VA4D(i-1, j, k, t) ) / dx ) * UF(i) );
+// This routine computes the remaining strain rate ternsors, s13 and s23. These have to go on a different
+// kernel call because the stencils require handling the vertical loops differently, meaning they cannot
+// be combined into a single kernel call. Breaking them up into individual kernels for each stress
+// tensor would likely not give enough work per thread either. 
+__device__ void calcstrain2(float *ustag, float *vstag, float *wstag, float *rhof, float *s13, float *s23, \
+		                 float dx, float dy, float dz, int i, int j, int k, int nx, int ny) {
+	float *buf0 = rhof;
+	rf1 = BUF(i, j, k);
+	rf2 = BUF(i-1, j, k);
+	rf3 = BUF(i, j-1, k)
 
-    // tau 22. Once again back on the scalar mesh. 
-    dum0 = data->tem3;
-    TEM4D(i, j, k, t) = ( ( VA4D(i, j+1, k, t) - VA4D(i, j, k, t) ) / dy ) * VH(j);
-
-    // tau 33. On the scalar mesh. 
-    dum0 = data->tem4;
-    TEM4D(i, j, k, t) = ( ( WA4D(i, j, k+1, t) - WA4D(i, j, k, t) ) / dz ) * MH(k);
-
-    if (k == 1) {
-        // we'll go ahead and apply the zero strain condition on the lower boundary/ghost zone
-        // for tau 13 and tau 23
-        // tau 13 boundary
-        dum0 = data->tem5;
-        TEM4D(i, j, 0, t) = 0.0;
-        // tau 23 boundary
-        dum0 = data->tem6;
-        TEM4D(i, j, 0, t) = 0.0;
-    }
-
-    if (k > 1) {
-
-        // tau 13 is not on the scalar mesh
-        dum0 = data->tem5;
-        TEM4D(i, j, k, t) = ( ( ( WA4D(i, j, k, t) - WA4D(i-1, j, k, t) ) / dx ) * UF(i) ) \
-                           +( ( ( UA4D(i, j, k, t) - UA4D(i, j, k-1, t) ) / dz ) * MF(k) );
-
-        // tau 23 is not on the scalar mesh
-        dum0 = data->tem6;
-        TEM4D(i, j, k, t) = ( ( ( WA4D(i, j, k, t) - WA4D(i, j-1, k, t) ) / dy ) * VF(j) ) \
-                           +( ( ( VA4D(i, j, k, t) - VA4D(i, j, k-1, t) ) / dz ) * MF(k) );
-
-    }
+	buf0 = s13;
+	BUF(i, j, k) = 0.5*( (WA(i, j, k) - WA(i-1, j, k))*(1./dx) \
+					   + (UA(i, j, k) - UA(i, j, k-1))*(1./dz) ) \
+				   *0.5*(rf1 + rf2);
+	
+	buf0 = s23;
+	BUF(i, j, k) = 0.5*( (WA(i, j, k) - WA(i, j-1, k))*(1./dy) \
+					   + (VA(i, j, k) - VA(i, j, k-1))*(1./dz) ) \
+				   *0.5*(rf1 + rf3);
 }
 
 
