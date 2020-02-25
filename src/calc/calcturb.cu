@@ -26,7 +26,7 @@ __device__ void calcrf(float *rhopert, float *rho0, float *rhof, int i, int j, i
 // conditions are set in gettau. 
 __device__ void calcstrain1(float *ustag, float *vstag, float *wstag, float *rhopert, float *rho0, \
 		                float *s11, float *s12, float *s22, float *s33, float dx, float dy, float dz, \
-						int i, int j, int k, int nx, int ny) {
+						int i, int j, int k, int NX, int NY) {
 	float *buf0 = rhopert;
 	float rho1 = BUF(i, j, k) + rho0[k];
 	float rho2 = BUF(i-1, j-1, k) + rho0[k];
@@ -57,7 +57,7 @@ __device__ void calcstrain1(float *ustag, float *vstag, float *wstag, float *rho
 // be combined into a single kernel call. Breaking them up into individual kernels for each stress
 // tensor would likely not give enough work per thread either. 
 __device__ void calcstrain2(float *ustag, float *vstag, float *wstag, float *rhof, float *s13, float *s23, \
-		                 float dx, float dy, float dz, int i, int j, int k, int nx, int ny) {
+		                 float dx, float dy, float dz, int i, int j, int k, int NX, int NY) {
 	float *buf0 = rhof;
 	rf1 = BUF(i, j, k);
 	rf2 = BUF(i-1, j, k);
@@ -112,32 +112,20 @@ __device__ void gettau2(float *km, float *t13, float *t23, int i, int j, int k, 
 	BUF(i, j, k) = 2.0 * kmval2 * BUF(i, j, k);
 }
 
-// TO-DO: These next 3 kernels effectively do the same thing... This is a place where consolidation needs to take place
-// for both readability and maintainability. While reducing the duplicate kernels in one part of this, looking into
-// the CM1r19.8 formulation could help since it does operations in a slightly different way than CM1r16, which this
-// was primarily based on. 
-__device__ void calc_turbu(float *xturb, float *yturb, float *zturb, float *rhopert, float *rho0, float *turbu, \
+__device__ void calc_turbu(float *t11, float *t12, float *t13, float *rhopert, float *rho0, float *turbu, \
 		                   float dx, float dy, float dz, int i, int j, int k, int NX, int NY) {
-    // the momentum tendencies will lie on their staggered mesh counterparts,
-    // so we will use the stagger macros to store the data in order to maintain
-    // consistency
     float *ustag, *buf0, *dum0;
-	/*
-     *float dx = xf(i) - xf(i-1);
-     *float dy = yf(j) - yf(j-1);
-     *float dz = zf(k+1) - zf(k);
-	 */
 
     // tau 11
-    dum0 = xturb;
+    dum0 = t11;
     float turbx = ((TEM(i, j, k) - TEM(i-1, j, k)) / dx);
 
     // tau 12
-    dum0 = yturb;
+    dum0 = t12;
     float turby = ((TEM(i, j+1, k) - TEM(i, j, k)) / dy);
 
     // tau 13
-    dum0 = zturb;
+    dum0 = t13;
     float turbz = ((TEM(i, j, k+1) - TEM4D(i, j, k)) / dz);
 
     buf0 = rhopert;
@@ -147,28 +135,20 @@ __device__ void calc_turbu(float *xturb, float *yturb, float *zturb, float *rhop
     UA(i, j, k) = ( turbx + turby + turbz ) * rru0; 
 }
 
-__device__ void calc_turbv(float *xturb, float *yturb, float *zturb, float *rhopert, float *rho0, float *turbv, \
+__device__ void calc_turbv(float *t12, float *t22, float *t23, float *rhopert, float *rho0, float *turbv, \
 		                   float dx, float dy, float dz, int i, int j, int k, int NX, int NY) {
-    // the momentum tendencies will lie on their staggered mesh counterparts,
-    // so we will use the stagger macros to store the data in order to maintain
-    // consistency
     float *vstag, *buf0, *dum0;
-	/*
-     *float dx = xf(i) - xf(i-1);
-     *float dy = yf(j) - yf(j-1);
-     *float dz = zf(k+1) - zf(k);
-	 */
 
     // tau 12
-    dum0 = xturb;
+    dum0 = t12;
     float turbx = ((TEM(i+1, j, k) - TEM(i, j, k)) / dx);
 
     // tau 22
-    dum0 = yturb;
+    dum0 = t22;
     float turby = ((TEM(i, j, k) - TEM(i, j-1, k)) / dy);
 
     // tau 23
-    dum0 = zturb;
+    dum0 = t23;
     float turbz = ((TEM(i, j, k+1) - TEM(i, j, k)) / dz);
 
     buf0 = rhopert;
@@ -178,34 +158,27 @@ __device__ void calc_turbv(float *xturb, float *yturb, float *zturb, float *rhop
     VA(i, j, k) = ( turbx + turby + turbz ) * rrv0; 
 }
 
-__device__ void calc_turbw(float *xturb, float *yturb, float *zturb, float *rhopert, float *rho0, float *turbw, \
+__device__ void calc_turbw(float *t13, float *t23, float *t33, float *rhof, float *turbw, \
 		                   float dx, float dy, float dz, int i, int j, int k, int NX, int NY) {
-    // the momentum tendencies will lie on their staggered mesh counterparts,
-    // so we will use the stagger macros to store the data in order to maintain
-    // consistency
     float *wstag, *buf0, *dum0;
-	/*
-     *float dx = xf(i) - xf(i-1);
-     *float dy = yf(j) - yf(j-1);
-     *float dz = zf(k+1) - zf(k);
-	 */
 
     // tau 13
-    dum0 = xturb;
+    dum0 = t13;
     float turbx = ((TEM(i+1, j, k) - TEM(i, j, k)) / dx);
 
     // tau 23
-    dum0 = yturb;
+    dum0 = t23;
     float turby = ((TEM(i, j+1, k) - TEM(i, j, k)) / dy);
 
     // tau 33
-    dum0 = zturb;
+    dum0 = t33;
     float turbz = ((TEM(i, j, k) - TEM(i, j, k-1)) / dz);
 
-    buf0 = rhopert;
+    buf0 = rhof;
     // calculate the momentum tendency now
-    float rrf = 1.0 / (0.5 * (BUF(i, j, k-1) + rho0[k-1] + BUF(i, j, k) + rho0[k]));
+    float rrf = 1.0 / BUF(i, j, k);
     wstag = turbw;
     WA(i, j, k) = ( turbx + turby + turbz ) * rrf; 
 }
+
 #endif
