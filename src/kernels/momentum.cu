@@ -15,7 +15,7 @@ __global__ void cuCalcBuoy(datagrid *grid, float *thrhopert, float *buoy) {
     int NY = grid->NY;
     int NZ = grid->NZ;
     if ((i < NX+1) && (j < NY+1) && (k > 0) && (k < NZ+1)) {
-		calc_buoyancy(thrhopert, grid->th0, buoy, i, j, k, NX, NY);
+		    calc_buoyancy(thrhopert, grid->th0, buoy, i, j, k, NX, NY);
     }
 }
 
@@ -27,11 +27,11 @@ __global__ void cuCalcPgradU(datagrid *grid, float *pipert, float *thrhopert, fl
     int NX = grid->NX;
     int NY = grid->NY;
     int NZ = grid->NZ;
-	float dx;
 
+	  float dx;
     if ((i < NX) && (j < NY+1) && (i > 0) && (k < NZ+1)) {
-		dx = xh(i) - xh(i-1);
-		calc_pgrad_u(pipert, thrhopert, grid->qv0, grid->th0, pgradu, dx, i, j, k, NX, NY);
+		    dx = xh(i) - xh(i-1);
+		    calc_pgrad_u(pipert, thrhopert, grid->qv0, grid->th0, pgradu, dx, i, j, k, NX, NY);
     }
 }
 
