@@ -79,7 +79,7 @@ __global__ void cuCalcTurb(datagrid *grid, float *t11, float *t12, float *t13, \
 		dx = xf(i) - xf(i-1);
 		dy = yf(j+1) - yf(j);
 		dz = zf(k+1) - zf(k);
-		calc_turbu(t11, t12, t13, rhopert, grid->rho0, turbu, dx, dy, dz i, j, k, NX, NY);
+		calc_turbu(t11, t12, t13, rhopert, grid->rho0, turbu, dx, dy, dz, i, j, k, NX, NY);
     }
 
     if ((i < NX) && (j < NY+1) && (k < NZ)) {

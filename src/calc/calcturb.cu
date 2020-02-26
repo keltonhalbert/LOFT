@@ -7,8 +7,8 @@
 
 __device__ void calcrf(float *rhopert, float *rho0, float *rhof, int i, int j, int k, int NX, int NY) {
     // use the w staggered grid
-    float *wstag = data->rhof;
-    float *buf0 = data->rhopert;
+    float *wstag = rhof;
+    float *buf0 = rhopert;
 
     if (k >= 1) {
         WA(i, j, k) =  0.5*( (BUF(i, j, k-1) + rho0[k-1]) + (BUF(i, j, k) + rho0[k]) );
@@ -49,7 +49,7 @@ __device__ void calcstrain1(float *ustag, float *vstag, float *wstag, float *rho
 	buf0 = s12;
 	BUF(i, j, k) = 0.5*( (UA(i, j, k) - UA(i, j-1, k))*(1./dy) \
 			          +  (VA(i, j, k) - VA(i-1, j, k))*(1./dx) ) \
-				 *0.25*( (rho+rho2+rho3+rho3) );
+				 *0.25*( (rho1+rho2+rho3+rho4) );
 }
 
 // This routine computes the remaining strain rate ternsors, s13 and s23. These have to go on a different
@@ -59,9 +59,9 @@ __device__ void calcstrain1(float *ustag, float *vstag, float *wstag, float *rho
 __device__ void calcstrain2(float *ustag, float *vstag, float *wstag, float *rhof, float *s13, float *s23, \
 		                 float dx, float dy, float dz, int i, int j, int k, int NX, int NY) {
 	float *buf0 = rhof;
-	rf1 = BUF(i, j, k);
-	rf2 = BUF(i-1, j, k);
-	rf3 = BUF(i, j-1, k)
+	float rf1 = BUF(i, j, k);
+	float rf2 = BUF(i-1, j, k);
+	float rf3 = BUF(i, j-1, k);
 
 	buf0 = s13;
 	BUF(i, j, k) = 0.5*( (WA(i, j, k) - WA(i-1, j, k))*(1./dx) \
@@ -97,7 +97,7 @@ __device__ void gettau1(float *km, float *t11, float *t12, float *t22, float *t3
 	kmval = 0.125 * ( ( (BUF(i-1,j-1,k  )+BUF(i,j,k  ))+(BUF(i-1,j,k  )+BUF(i,j-1,k  )) )   \
                    +  ( (BUF(i-1,j-1,k+1)+BUF(i,j,k+1))+(BUF(i-1,j,k+1)+BUF(i,j-1,k+1)) ) );
 	buf0 = t12;
-	BUF(i, j, k) 2.0 * kmval * BUF(i, j, k);
+	BUF(i, j, k) = 2.0 * kmval * BUF(i, j, k);
 }
 
 __device__ void gettau2(float *km, float *t13, float *t23, int i, int j, int k, int NX, int NY) {
@@ -126,7 +126,7 @@ __device__ void calc_turbu(float *t11, float *t12, float *t13, float *rhopert, f
 
     // tau 13
     dum0 = t13;
-    float turbz = ((TEM(i, j, k+1) - TEM4D(i, j, k)) / dz);
+    float turbz = ((TEM(i, j, k+1) - TEM(i, j, k)) / dz);
 
     buf0 = rhopert;
     // calculate the momentum tendency now

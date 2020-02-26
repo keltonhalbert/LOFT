@@ -46,7 +46,7 @@ __global__ void cuCalcPgradV(datagrid *grid, float *pipert, float *thrhopert, fl
 	float dy;
 
     if ((i < NX+1) && (j < NY) && (j > 0) && (k < NZ+1)) {
-		dy = yh(i) - yh(i-1);
+		dy = yh(j) - yh(j-1);
 		calc_pgrad_v(pipert, thrhopert, grid->qv0, grid->th0, pgradv, dy, i, j, k, NX, NY);
     }
 }
@@ -62,7 +62,7 @@ __global__ void cuCalcPgradW(datagrid *grid, float *pipert, float *thrhopert, fl
 	float dz;
 
     if ((i < NX+1) && (j < NY+1) && (k > 0) && (k < NZ+1)) {
-		dz = zh(i) - zh(i-1);
+		dz = zh(k) - zh(k-1);
 		calc_pgrad_w(pipert, thrhopert, grid->qv0, grid->th0, pgradw, dz, i, j, k, NX, NY);
     }
 }
