@@ -15,3 +15,5 @@ As of right now, it's not at 100% generalization. This assumes CM1 is running wi
   * [NetCDF4 C++ API](https://github.com/Unidata/netcdf-cxx4)
   * [ZFP Floating Point Compression](https://computing.llnl.gov/projects/floating-point-compression)
   * [H5Z-ZFP](https://h5z-zfp.readthedocs.io/en/latest/) plugin for HDF5
+
+### This work was supported by NSF grants OAC-1614973, AGS-1832327 as part of the PhD thesis work of Kelton Halbert. 
