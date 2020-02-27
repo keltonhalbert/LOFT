@@ -6,7 +6,6 @@
 #ifndef VORT_CU
 #define VORT_CU
 
-<<<<<<< HEAD
 /*
  * Copyright (C) 2017-2020 Kelton Halbert, Space Science and Engineering Center (SSEC), University of Wisconsin - Madison
  * Written by Kelton Halbert at the University of Wisconsin - Madison,
@@ -14,19 +13,6 @@
  * Space Science and Engineering Center (SSEC). Provided under the GPLV3 License.
  * Email: kthalbert@wisc.edu
 */
-
-/* When doing the parcel trajectory integration, George Bryan does
-   some fun stuff with the lower boundaries/ghost zones of the arrays, presumably
-   to prevent the parcels from exiting out the bottom of the domain
-   or experience artificial values. This sets the ghost zone values. */
-__global__ void applyMomentumBC(float *ustag, float *vstag, float *wstag, int NX, int NY, int NZ, int tStart, int tEnd) {
-    int i = blockIdx.x*blockDim.x + threadIdx.x;
-    int j = blockIdx.y*blockDim.y + threadIdx.y;
-    int k = blockIdx.z*blockDim.z + threadIdx.z;
-
-    // this is done for easy comparison to CM1 code
-    int ni = NX; int nj = NY;
-=======
 __global__ void cuCalcPipert(datagrid *grid, float *prespert, float *pipert) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
@@ -35,7 +21,6 @@ __global__ void cuCalcPipert(datagrid *grid, float *prespert, float *pipert) {
     int NX = grid->NX;
     int NY = grid->NY;
     int NZ = grid->NZ;
->>>>>>> 87744aaf785dc218678a1a75e95a6bb7511e492b
 
     if ((i < NX+1) && (j < NY+1) && (k < NZ)) {
 		calc_pipert(prespert, grid->p0, pipert, i, j, k, NX, NY);
