@@ -93,93 +93,78 @@ __device__ void calc_zvort(float *ustag, float *vstag, float *zvort, float dx, f
     TEM(i, j, k) = dvdx - dudy;
 }
 
+__device__ void calc_dudy(float *ustag, float *dudy, float dy, int i, int j, int k, int NX, int NY) {
+	float *dum0 = dudy;
+	TEM(i, j, k) = ( UA(i, j, k) - UA(i, j-1, k) ) / dy;
+}
+
+__device__ void calc_dudz(float *ustag, float *dudz, float dz, int i, int j, int k, int NX, int NY) {
+	float *dum0 = dudz;
+	TEM(i, j, k) = ( UA(i, j, k) - UA(i, j, k-1) ) / dz;
+}
+
+__device__ void calc_dvdx(float *vstag, float *dvdx, float dx, int i, int j, int k, int NX, int NY) {
+	float *dum0 = dvdx;
+	TEM(i, j, k) = ( VA(i, j, k) - VA(i-1, j, k) ) / dx;
+}
+
+__device__ void calc_dvdz(float *vstag, float *dvdz, float dz, int i, int j, int k, int NX, int NY) {
+	float *dum0 = dvdz;
+	TEM(i, j, k) = ( VA(i, j, k) - VA(i, j, k-1) ) / dz;
+}
+
+__device__ void calc_dwdx(float *wstag, float *dwdx, float dx, int i, int j, int k, int NX, int NY) {
+	float *dum0 = dwdx;
+	TEM(i, j, k) = ( WA(i, j, k) - WA(i-1, j, k) ) / dx;
+}
+
+__device__ void calc_dwdy(float *wstag, float *dwdy, float dy, int i, int j, int k, int NX, int NY) {
+	float *dum0 = dwdy;
+	TEM(i, j, k) = ( WA(i, j, k) - WA(i, j-1, k) ) / dy;
+}
+
 /* Compute the X component of vorticity tendency due
    to tilting Y and Z components into the X direction */
-__device__ void calc_xvort_tilt(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
-    int i = idx_4D[0];
-    int j = idx_4D[1];
-    int k = idx_4D[2];
-    int t = idx_4D[3];
+__device__ void calc_xvort_tilt(float *yvort, float *zvort, float *dudy, float *dudz, float *xvtilt, int i, int j, int k, int NX, int NY) {
 
-    float *ustag = data->ustag;
-    float *dum0;
-    float dy = yf(j) - yf(j-1);
-    float dz = zf(k) - zf(k-1);
+	float *buf0, *dum0;
+	
+	buf0 = zvort; float zv = BUF(i, j, k);	
+	buf0 = yvort; float yv = BUF(i, j, k);
+	// The original derivative was done on a staggered mesh, and we need to put it on scalar points
+	buf0 = dudy; float tem1 = 0.25 * (BUF(i, j, k) + BUF(i+1, j, k) + BUF(i, j+1, k) + BUF(i+1, j+1, k));
+	buf0 = dudz; float tem2 = 0.25 * (BUF(i, j, k) + BUF(i+1, j, k) + BUF(i, j, k+1) + BUF(i+1, j, k+1));
 
-    if (k >= 0) {
-        // dudy in tem1
-        dum0 = data->tem1;
-        TEM4D(i, j, k, t) = ( ( UA4D(i, j, k, t) - UA4D(i, j-1, k, t) ) / dy );
-    }
-
-    if (k >= 1) {
-        // dudz in tem2
-        dum0 = data->tem2;
-        TEM4D(i, j, k, t) = ( ( UA4D(i, j, k, t) - UA4D(i, j, k-1, t) ) / dz );
-    }
-    // This is the equivalent of our zero strain lower boundary
-    if (k == 1) {
-        // dudz in tem2
-        dum0 = data->tem2;
-        TEM4D(i, j, 0, t) = ( ( UA4D(i, j, 1, t) - UA4D(i, j, 0, t) ) / dz );
-    }    
+	dum0 = xvtilt;
+	TEM(i, j, k) = (zv * tem2) + (yv * tem1);
 }
 
-/* Compute the Y component of vorticity tendency due
-   to tilting X and Z components into the X direction */
-__device__ void calc_yvort_tilt(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
-    int i = idx_4D[0];
-    int j = idx_4D[1];
-    int k = idx_4D[2];
-    int t = idx_4D[3];
+__device__ void calc_yvort_tilt(float *xvort, float *zvort, float *dvdx, float *dvdz, float *yvtilt, int i, int j, int k, int NX, int NY) {
 
-    float *vstag = data->vstag;
-    float *dum0;
-    float dx = xf(i) - xf(i-1);
-    float dz = zf(k) - zf(k-1);
-    
-    if (k >=0) {
-        // dvdx in tem1
-        dum0 = data->tem1;
-        TEM4D(i, j, k, t) = ( ( VA4D(i, j, k, t) - VA4D(i-1, j, k, t) ) / dx );
-    }
+	float *buf0, *dum0;
+	
+	buf0 = zvort; float zv = BUF(i, j, k);	
+	buf0 = xvort; float xv = BUF(i, j, k);
+	// The original derivative was done on a staggered mesh, and we need to put it on scalar points
+	buf0 = dvdx; float tem1 = 0.25 * (BUF(i, j, k) + BUF(i+1, j, k) + BUF(i, j+1, k) + BUF(i+1, j+1, k));
+	buf0 = dvdz; float tem2 = 0.25 * (BUF(i, j, k) + BUF(i, j+1, k) + BUF(i, j, k+1) + BUF(i, j+1, k+1));
 
-    if (k >= 1) {
-        // dvdz in tem2
-        dum0 = data->tem2;
-        TEM4D(i, j, k, t) = ( ( VA4D(i, j, k, t) - VA4D(i, j, k-1, t) ) / dz );
-    }
-    // This is the equivalent of our zero strain lower boundary
-    if (k == 1) {
-        // dvdz in tem2
-        dum0 = data->tem2;
-        TEM4D(i, j, 0, t) = ( ( VA4D(i, j, 1, t) - VA4D(i, j, 0, t) ) / dz );
-    }
+	dum0 = yvtilt;
+	TEM(i, j, k) = (zv * tem2) + (xv * tem1);
 }
 
-/* Compute the Z component of vorticity tendency due
-   to tilting X and Y components into the X direction */
-__device__ void calc_zvort_tilt(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {
-    int i = idx_4D[0];
-    int j = idx_4D[1];
-    int k = idx_4D[2];
-    int t = idx_4D[3];
+__device__ void calc_zvort_tilt(float *xvort, float *yvort, float *dwdx, float *dwdy, float *zvtilt, int i, int j, int k, int NX, int NY) {
 
-    float *wstag = data->wstag;
-    float dx = xf(i) - xf(i-1);
-    float dy = yf(j) - yf(j-1);
+	float *buf0, *dum0;
+	
+	buf0 = xvort; float xv = BUF(i, j, k);	
+	buf0 = yvort; float yv = BUF(i, j, k);
+	// The original derivative was done on a staggered mesh, and we need to put it on scalar points
+	buf0 = dwdx; float tem1 = 0.25 * (BUF(i, j, k) + BUF(i+1, j, k) + BUF(i, j+1, k) + BUF(i+1, j, k+1));
+	buf0 = dwdy; float tem2 = 0.25 * (BUF(i, j, k) + BUF(i, j+1, k) + BUF(i, j, k+1) + BUF(i, j+1, k+1));
 
-    // Compute dw/dx and put it in the tem1 array. The derivatives
-    // land on weird places so we have to average each derivative back
-    // to the scalar grid, resulting in this clunky approach
-    if (k >= 0) {
-        float *dum0 = data->tem1;
-        TEM4D(i, j, k, t) = ( ( WA4D(i, j, k, t) - WA4D(i-1, j, k, t) ) / dx );
-
-        // put dw/dy in tem2
-        dum0 = data->tem2;
-        TEM4D(i, j, k, t) = ( ( WA4D(i, j, k, t) - WA4D(i, j-1, k, t) ) / dy );
-    }
+	dum0 = zvtilt;
+	TEM(i, j, k) = (xv * tem1) + (yv * tem2);
 }
 
 /* Compute the X component of vorticity tendency due
