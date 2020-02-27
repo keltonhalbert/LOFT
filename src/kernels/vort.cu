@@ -6,6 +6,14 @@
 #ifndef VORT_CU
 #define VORT_CU
 
+/*
+ * Copyright (C) 2017-2020 Kelton Halbert, Space Science and Engineering Center (SSEC), University of Wisconsin - Madison
+ * Written by Kelton Halbert at the University of Wisconsin - Madison,
+ * Cooperative Institute for Meteorological Satellite Studies (CIMSS),
+ * Space Science and Engineering Center (SSEC). Provided under the GPLV3 License.
+ * Email: kthalbert@wisc.edu
+*/
+
 /* When doing the parcel trajectory integration, George Bryan does
    some fun stuff with the lower boundaries/ghost zones of the arrays, presumably
    to prevent the parcels from exiting out the bottom of the domain

@@ -4,6 +4,13 @@
 #include "../include/macros.h"
 #ifndef VORT_CALC
 #define VORT_CALC
+/*
+ * Copyright (C) 2017-2020 Kelton Halbert, Space Science and Engineering Center (SSEC), University of Wisconsin - Madison
+ * Written by Kelton Halbert at the University of Wisconsin - Madison,
+ * Cooperative Institute for Meteorological Satellite Studies (CIMSS),
+ * Space Science and Engineering Center (SSEC). Provided under the GPLV3 License.
+ * Email: kthalbert@wisc.edu
+*/
 
 /* Compute the nondimensional pressure */
 __device__ void calc_pipert(datagrid *grid, model_data *data, int *idx_4D, int NX, int NY, int NZ) {

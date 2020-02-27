@@ -8,6 +8,13 @@ using namespace std;
 
 #ifndef INTERP_CU
 #define INTERP_CU
+/*
+ * Copyright (C) 2017-2020 Kelton Halbert, Space Science and Engineering Center (SSEC), University of Wisconsin - Madison
+ * Written by Kelton Halbert at the University of Wisconsin - Madison,
+ * Cooperative Institute for Meteorological Satellite Studies (CIMSS),
+ * Space Science and Engineering Center (SSEC). Provided under the GPLV3 License.
+ * Email: kthalbert@wisc.edu
+*/
 
 // find the nearest grid index i, j, and k for a point contained inside of a cube.
 // i, j, and k are set to -1 if the point requested is out of the domain bounds
