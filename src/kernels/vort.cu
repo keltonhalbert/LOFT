@@ -93,10 +93,11 @@ __global__ void cuCalcXvortStretch(datagrid *grid, float *vstag, float *wstag, f
     int NZ = grid->NZ;
     float dy, dz;
 
+
     if ((i < NX) && (j < NY) && (k < NZ)) {
         dy = yf(j+1) - yf(j);
         dz = zf(k+1) - zf(k);
-		calc_xvort_stretch(vstag, wstag, xvort, xvstretch, dy, dz, i, j, k, NX, NY);
+		    calc_xvort_stretch(vstag, wstag, xvort, xvstretch, dy, dz, i, j, k, NX, NY);
     }
 }
 

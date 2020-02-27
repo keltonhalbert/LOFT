@@ -289,6 +289,7 @@ __device__ void calc_zvort_solenoid(float *pipert, float *thrhopert, float *zvor
     float dthdy = ( (BUF(i, j+1, k) - BUF(i, j-1, k)) / ( 2*dy ) );
 
     // compute and save to the array
+
     buf0 = zvort_solenoid; 
     BUF(i, j, k) = -cp*(dthdx*dpidy - dthdy*dpidx); 
 }
