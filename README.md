@@ -1,17 +1,13 @@
-# The TACOS Project
-TACOS - Trajectory Analysis for CUDA Optimized Systems
+# LOFT - Lagrangian Offline Flow Trajectories
+LOFT is an offline trajectory integration package that leverages Graphical Processing Units (GPUs) to integrate up to tens of millions of lagrangian trajectories through CM1 simulations. Included is the ability to compute budgets of momentum and vorticity to track along the trajectories, as well as various scalar fields. 
 
-Name clearly subject to change
+* Data must be written from [CM1r19.8-LOFS](https://github.com/leighorf/cm1r19.8-LOFS), which uses a specialized data format built on distributed HDF5 files. The primary advantage is I/O performance when running CM1, and additional storage perofrmance through the usage of ZFP compression. 
 
-To run in an interactive Blue Waters session (including himem node)
+* In order for LOFT to read the data from CM1, the [LOFS-read package must be installed](https://github.com/leighorf/LOFS-read). 
 
-```
-qsub -I -l nodes=1:ppn=16:xk -l walltime=1:00:00 -q high     
-qsub -I -l nodes=1:ppn=16:xkhimem -l walltime=1:00:00 -q high
-```
-
-Example usage:
-```
-mpirun -n 4 ./run --histpath=/apollo/orfstore/khalbert/24May2011-every-time-step/3D --base=24May2011-svc-5500s --x0=-3500 --y0=-1400 --z0=15 --nx=100 --ny=100 --nz=100 --dx=10 --dy=10 --dz=10 --time=5500 --ntimes=900
-```
-
+* Additional Requirements:
+  * NVIDIA CUDA 10.1+ 
+    * Note: It is assumed the GPU is compute compatability 61 or higher to leverage Unified Memory
+  * NetCDF4 C++ API
+  * ZFP
+  * H5Z-ZFP plugin for HDF5
