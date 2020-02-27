@@ -1,4 +1,5 @@
 # LOFT - Lagrangian Offline Flow Trajectories
+##### Copyright (C) 2017-2020 Kelton Halbert, Space Science and Engineering Center (SSEC), University of Wisconsin - Madison
 LOFT is an offline trajectory integration package that leverages Graphical Processing Units (GPUs) to integrate up to tens of millions of Lagrangian trajectories through CM1 simulations. Included is the ability to compute budgets of momentum and vorticity to track along the trajectories, as well as various scalar fields. 
 
 While its use cases are at the moment incredibly specific, the idea is that anyone who desires lossy compression of Large Eddy Simulations (LES) and high temporal resolution saves from simulations, these tools can be used to analyze the flow in a variety of ways using Lagrangian particle trajectories. In the event this isn't useful, it can provide some guidance on how to write CUDA C++ code for fluid dynamics problems, compute stencils that could be linked to for other projects, or just be an open resource so that results from publications can be verified. 
