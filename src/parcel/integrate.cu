@@ -32,222 +32,278 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
     model should work. */
 void doCalcVort(datagrid *grid, model_data *data, int tStart, int tEnd, dim3 numBlocks, dim3 threadsPerBlock, cudaStream_t stream) {
     // calculate the three compionents of vorticity
-    calcvort<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream) );
-    gpuErrchk( cudaPeekAtLastError() );
+	long bufidx;
+	int NX = grid->NX;
+	int NY = grid->NY;
+	int NZ = grid->NZ;
+	for ( int tidx = tStart; tidx < tEnd; ++tidx) {
+    	bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
+		cuCalcXvort<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->vstag[bufidx]), &(data->wstag[bufidx]), &(data->tem1[bufidx]));
+		cuCalcYvort<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->ustag[bufidx]), &(data->wstag[bufidx]), &(data->tem2[bufidx]));
+		cuCalcZvort<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->ustag[bufidx]), &(data->vstag[bufidx]), &(data->tem3[bufidx]));
+	}
 
-    // Average the vorticity to the scalar grid using the temporary
-    // arrays we allocated. After doing the averaging, we have to 
-    // set the pointers to the temporary arrays as the new xvort,
-    // yvort, and zvort, and set the old x/y/zvort arrays as the new
-    // temporary arrays. Note: may have to zero those out in the future...
-    doVortAvg<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
-
-    zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
+	gpuErrchk(cudaStreamSynchronize(stream) );
+	gpuErrchk( cudaPeekAtLastError() );
+	doVortAvg<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data->tem1, data->tem2, data->tem3, data->xvort, data->yvort, data->zvort, tStart, tEnd);
+	gpuErrchk(cudaStreamSynchronize(stream) );
+	gpuErrchk( cudaPeekAtLastError() );
+	zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+	gpuErrchk(cudaStreamSynchronize(stream) );
+	gpuErrchk( cudaPeekAtLastError() );
 } 
 
 void doMomentumBud(datagrid *grid, model_data *data, int tStart, int tEnd, dim3 numBlocks, dim3 threadsPerBlock, cudaStream_t stream) {
-    // Preprocess some calculations that are needed
-    doCalcRf<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    gpuErrchk( cudaPeekAtLastError() );
-    calcpipert<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk(cudaPeekAtLastError());
+    // get the io config from the user namelist
+    iocfg *io = data->io;
 
-    calcpgrad<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    calcbuoy<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+	long bufidx;
+	int NX = grid->NX;
+	int NY = grid->NY;
+	int NZ = grid->NZ;
 
-    // Do the SGS turbulence closure calculations
-    doCalcDef<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
-    doGetTau<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
-    doCalcTurb<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
-
-    /* U momentum tendency due to 6th order numerical diffusion */
+	// Make sure we don't have any weird residual values
+	// in the temporary arrays
     zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
-    doCalcDiffUXYZ<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
-    doCalcDiffU<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
+	gpuErrchk( cudaStreamSynchronize(stream) );
 
-    /* V momentum tendency due to 6th order numerical diffusion */
-    zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
-    doCalcDiffVXYZ<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
-    doCalcDiffV<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
+	// The scalars need to be computed and synchronized first
+	for ( int tidx = tStart; tidx < tEnd; ++tidx) {
+    	bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
+		cuCalcPipert<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->prespert[bufidx]), &(data->pipert[bufidx]));
+		cuCalcRf<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->rhopert[bufidx]), &(data->rhof[bufidx]));
+	}
+	gpuErrchk(cudaStreamSynchronize(stream));
 
-    /* W momentum tendency due to 6th order numerical diffusion */
+	for (int tidx = tStart; tidx < tEnd; ++tidx) {
+    	bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
+		cuCalcBuoy<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->thrhopert[bufidx]), &(data->buoy[bufidx]));
+		cuCalcPgradU<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->pipert[bufidx]), &(data->thrhopert[bufidx]), &(data->pgradu[bufidx]));
+		cuCalcPgradV<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->pipert[bufidx]), &(data->thrhopert[bufidx]), &(data->pgradv[bufidx]));
+		cuCalcPgradW<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->pipert[bufidx]), &(data->thrhopert[bufidx]), &(data->pgradw[bufidx]));
+	}
+	gpuErrchk(cudaStreamSynchronize(stream));
+
+	// These loops depend on temporary arrays so
+	// we have to be careful to not overwrite them
+
+	// compute momentum forcing on U from diffusion
+	for (int tidx = tStart; tidx < tEnd; ++tidx) { 
+    	bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
+
+    	cuCalcDiffUXYZ<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->ustag[bufidx]), &(data->tem1[bufidx]), \
+				                                                  &(data->tem2[bufidx]), &(data->tem3[bufidx]));
+    	cuCalcDiff<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->tem1[bufidx]), &(data->tem2[bufidx]), \
+				                                            &(data->tem3[bufidx]), &(data->diffu[bufidx]));
+	}
+	gpuErrchk(cudaStreamSynchronize(stream));
     zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
-    doCalcDiffWXYZ<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
-    doCalcDiffW<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
+	gpuErrchk(cudaStreamSynchronize(stream));
+
+	// compute momentum forcing on V from diffusion
+	for (int tidx = tStart; tidx < tEnd; ++tidx) { 
+    	bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
+
+    	cuCalcDiffVXYZ<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->vstag[bufidx]), &(data->tem1[bufidx]), \
+				                                                  &(data->tem2[bufidx]), &(data->tem3[bufidx]));
+    	cuCalcDiff<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->tem1[bufidx]), &(data->tem2[bufidx]), \
+				                                            &(data->tem3[bufidx]), &(data->diffv[bufidx]));
+	}
+	gpuErrchk(cudaStreamSynchronize(stream));
+    zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+	gpuErrchk(cudaStreamSynchronize(stream));
+
+	// compute momentum forcing on W from diffusion
+	for (int tidx = tStart; tidx < tEnd; ++tidx) { 
+    	bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
+
+    	cuCalcDiffWXYZ<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->wstag[bufidx]), &(data->tem1[bufidx]), \
+				                                                  &(data->tem2[bufidx]), &(data->tem3[bufidx]));
+    	cuCalcDiff<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->tem1[bufidx]), &(data->tem2[bufidx]), \
+				                                            &(data->tem3[bufidx]), &(data->diffw[bufidx]));
+	}
+	gpuErrchk(cudaStreamSynchronize(stream));
+    zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+	gpuErrchk(cudaStreamSynchronize(stream));
+
+
+	// Calculate the strain rate terms
+	for (int tidx = tStart; tidx < tEnd; ++tidx) { 
+    	bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
+		
+		cuCalcStrain<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->ustag[bufidx]), &(data->vstag[bufidx]), &(data->wstag[bufidx]), \
+				                                               &(data->rhopert[bufidx]), &(data->rhof[bufidx]), &(data->tem1[bufidx]),  \
+															   &(data->tem2[bufidx]), &(data->tem3[bufidx]), &(data->tem4[bufidx]), \
+															   &(data->tem5[bufidx]), &(data->tem6[bufidx]));
+	}
+	gpuErrchk(cudaStreamSynchronize(stream));
+	// Compute the stress terms from the strain rate
+	for (int tidx = tStart; tidx < tEnd; ++tidx) { 
+    	bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
+        cuGetTau<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->kmh[bufidx]), &(data->tem1[bufidx]), &(data->tem2[bufidx]), \
+				                                            &(data->tem3[bufidx]), &(data->tem4[bufidx]), &(data->tem5[bufidx]), &(data->tem6[bufidx]));
+	}
+	gpuErrchk(cudaStreamSynchronize(stream));
+	// compute the momentum tendency due to turbulence closure
+	for (int tidx = tStart; tidx < tEnd; ++tidx) { 
+    	bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
+		cuCalcTurb<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->tem1[bufidx]), &(data->tem2[bufidx]), &(data->tem3[bufidx]), \
+		                                                     &(data->tem4[bufidx]), &(data->tem5[bufidx]), &(data->tem6[bufidx]), \
+						                                     &(data->rhopert[bufidx]), &(data->rhof[bufidx]), &(data->turbu[bufidx]), \
+						                                     &(data->turbv[bufidx]), &(data->turbw[bufidx]));
+	}
+	gpuErrchk(cudaStreamSynchronize(stream));
+    zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+	gpuErrchk(cudaStreamSynchronize(stream));
 }
 
 void doCalcVortTend(datagrid *grid, model_data *data, int tStart, int tEnd, dim3 numBlocks, dim3 threadsPerBlock, cudaStream_t stream) {
     // get the io config from the user namelist
     iocfg *io = data->io;
 
-    doCalcRf<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
-    calcpipert<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk(cudaPeekAtLastError());
+	long bufidx;
+	int NX = grid->NX;
+	int NY = grid->NY;
+	int NZ = grid->NZ;
 
-    // Compute the vorticity tendency due to stretching. These conveniently
-    // end up on the scalar grid, and no extra steps are required. This will
-    // compute the tendency for all 3 components of vorticity. 
-    calcvortstretch<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
+	// The scalars need to be computed and synchronized first
+	for ( int tidx = tStart; tidx < tEnd; ++tidx) {
+    	bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
+		cuCalcPipert<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->prespert[bufidx]), &(data->pipert[bufidx]));
+		cuCalcRf<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->rhopert[bufidx]), &(data->rhof[bufidx]));
+	}
+	gpuErrchk(cudaStreamSynchronize(stream));
+
+	// Now do the budget terms that may or may not
+	// depend on those scalars
+	for (int tidx = tStart; tidx < tEnd; ++tidx) {
+    	bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
+
+		// Compute the vorticity tendency due to stretching. These conveniently
+		// end up on the scalar grid, and no extra steps are required. This will
+		// compute the tendency for all 3 components of vorticity. 
+		cuCalcXvortStretch<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->vstag[bufidx]), &(data->wstag[bufidx]), \
+				                                                      &(data->xvort[bufidx]), &(data->xvstretch[bufidx]));
+		cuCalcYvortStretch<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->ustag[bufidx]), &(data->wstag[bufidx]), \
+				                                                      &(data->yvort[bufidx]), &(data->yvstretch[bufidx]));
+		cuCalcZvortStretch<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->ustag[bufidx]), &(data->vstag[bufidx]), \
+				                                                      &(data->zvort[bufidx]), &(data->zvstretch[bufidx]));
+ 
+ 		cuCalcXvortBaro<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->thrhopert[bufidx]), &(data->xvort_baro[bufidx]));
+ 		cuCalcYvortBaro<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->thrhopert[bufidx]), &(data->yvort_baro[bufidx]));
+
+     	cuCalcXvortSolenoid<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->pipert[bufidx]), &(data->thrhopert[bufidx]), &(data->xvort_solenoid[bufidx]));
+     	cuCalcYvortSolenoid<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->pipert[bufidx]), &(data->thrhopert[bufidx]), &(data->yvort_solenoid[bufidx]));
+     	cuCalcZvortSolenoid<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->pipert[bufidx]), &(data->thrhopert[bufidx]), &(data->zvort_solenoid[bufidx]));
+ 
+	}
+	gpuErrchk(cudaStreamSynchronize(stream));
+	gpuErrchk(cudaPeekAtLastError());
+
+	// Have we already computed the momentum budgets?
+	if (!io->output_momentum_budget) {
+		doMomentumBud(grid, data, tStart, tEnd, numBlocks, threadsPerBlock, stream);
+		zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+		gpuErrchk(cudaStreamSynchronize(stream));
+		gpuErrchk( cudaPeekAtLastError() );
+	}
+
+	// compute vorticity due to momentum diffusion
+	for ( int tidx = tStart; tidx < tEnd; ++tidx) {
+    	bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
+		cuCalcXvort<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->diffv[bufidx]), &(data->diffw[bufidx]), &(data->tem1[bufidx]));
+		cuCalcYvort<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->diffu[bufidx]), &(data->diffw[bufidx]), &(data->tem2[bufidx]));
+		cuCalcZvort<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->diffu[bufidx]), &(data->diffv[bufidx]), &(data->tem3[bufidx]));
+	}
+	gpuErrchk(cudaStreamSynchronize(stream) );
+	gpuErrchk( cudaPeekAtLastError() );
+	doVortAvg<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data->tem1, data->tem2, data->tem3, data->diffxvort, data->diffyvort, data->diffzvort, tStart, tEnd);
+	gpuErrchk(cudaStreamSynchronize(stream) );
+	gpuErrchk( cudaPeekAtLastError() );
+	zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+	gpuErrchk(cudaStreamSynchronize(stream) );
+	gpuErrchk( cudaPeekAtLastError() );
+
+	// compute vorticity due to momentum turbulence
+	for ( int tidx = tStart; tidx < tEnd; ++tidx) {
+    	bufidx = P4(0, 0, 0, tidx, NX+2, NY+2, NZ+1);
+		cuCalcXvort<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->turbv[bufidx]), &(data->turbw[bufidx]), &(data->tem1[bufidx]));
+		cuCalcYvort<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->turbu[bufidx]), &(data->turbw[bufidx]), &(data->tem2[bufidx]));
+		cuCalcZvort<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, &(data->turbu[bufidx]), &(data->turbv[bufidx]), &(data->tem3[bufidx]));
+	}
+	gpuErrchk(cudaStreamSynchronize(stream) );
+	gpuErrchk( cudaPeekAtLastError() );
+	doVortAvg<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data->tem1, data->tem2, data->tem3, data->turbxvort, data->turbyvort, data->turbzvort, tStart, tEnd);
+	gpuErrchk(cudaStreamSynchronize(stream) );
+	gpuErrchk( cudaPeekAtLastError() );
+	zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+	gpuErrchk(cudaStreamSynchronize(stream) );
+	gpuErrchk( cudaPeekAtLastError() );
 
     // Compute the vertical vorticity tendency due to tilting. We have to do 
     // each component individually because we have to average the arrays back
     // to the scalar grid. It's a mess. 
-    calcxvorttilt<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
+    cuCalcXvortTilt<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaStreamSynchronize(stream));
     gpuErrchk( cudaPeekAtLastError() );
     doXVortTiltAvg<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
+    gpuErrchk(cudaStreamSynchronize(stream));
     gpuErrchk( cudaPeekAtLastError() );
     zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
+    gpuErrchk(cudaStreamSynchronize(stream));
     gpuErrchk( cudaPeekAtLastError() );
 
-    calcyvorttilt<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
+    cuCalcYvortTilt<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaStreamSynchronize(stream));
     gpuErrchk( cudaPeekAtLastError() );
     doYVortTiltAvg<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
+    gpuErrchk(cudaStreamSynchronize(stream));
     gpuErrchk( cudaPeekAtLastError() );
     zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
+    gpuErrchk(cudaStreamSynchronize(stream));
     gpuErrchk( cudaPeekAtLastError() );
 
-    calczvorttilt<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
+    cuCalcZvortTilt<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+    gpuErrchk(cudaStreamSynchronize(stream));
     gpuErrchk( cudaPeekAtLastError() );
     doZVortTiltAvg<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
+    gpuErrchk(cudaStreamSynchronize(stream));
     gpuErrchk( cudaPeekAtLastError() );
     zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
+    gpuErrchk(cudaStreamSynchronize(stream));
     gpuErrchk( cudaPeekAtLastError() );
+/*
+ *    // Do the SGS turbulence closure calculations
+ *    doCalcDef<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+ *    //gpuErrchk(cudaStreamSynchronize(stream));
+ *    gpuErrchk( cudaPeekAtLastError() );
+ *    doGetTau<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+ *    //gpuErrchk(cudaStreamSynchronize(stream));
+ *    gpuErrchk( cudaPeekAtLastError() );
+ *    doCalcTurb<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+ *    //gpuErrchk(cudaStreamSynchronize(stream));
+ *    gpuErrchk( cudaPeekAtLastError() );
+ *
+ */
 
-    // Have we already computed the momentum budgets?
-    if (!io->output_momentum_budget) {
-        // Do the SGS turbulence closure calculations
-        doCalcDef<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-        //gpuErrchk(cudaStreamSynchronize(stream));
-        gpuErrchk( cudaPeekAtLastError() );
-        doGetTau<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-        //gpuErrchk(cudaStreamSynchronize(stream));
-        gpuErrchk( cudaPeekAtLastError() );
-        doCalcTurb<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-        //gpuErrchk(cudaStreamSynchronize(stream));
-        gpuErrchk( cudaPeekAtLastError() );
-
-        /* U momentum tendency due to 6th order numerical diffusion */
-        zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-        //gpuErrchk(cudaStreamSynchronize(stream));
-        gpuErrchk( cudaPeekAtLastError() );
-        doCalcDiffUXYZ<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-        //gpuErrchk(cudaStreamSynchronize(stream));
-        gpuErrchk( cudaPeekAtLastError() );
-        doCalcDiffU<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-        //gpuErrchk(cudaStreamSynchronize(stream));
-        gpuErrchk( cudaPeekAtLastError() );
-
-        /* V momentum tendency due to 6th order numerical diffusion */
-        zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-        //gpuErrchk(cudaStreamSynchronize(stream));
-        gpuErrchk( cudaPeekAtLastError() );
-        doCalcDiffVXYZ<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-        //gpuErrchk(cudaStreamSynchronize(stream));
-        gpuErrchk( cudaPeekAtLastError() );
-        doCalcDiffV<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-        //gpuErrchk(cudaStreamSynchronize(stream));
-        gpuErrchk( cudaPeekAtLastError() );
-
-        /* W momentum tendency due to 6th order numerical diffusion */
-        zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-        //gpuErrchk(cudaStreamSynchronize(stream));
-        gpuErrchk( cudaPeekAtLastError() );
-        doCalcDiffWXYZ<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-        //gpuErrchk(cudaStreamSynchronize(stream));
-        gpuErrchk( cudaPeekAtLastError() );
-        doCalcDiffW<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-        //gpuErrchk(cudaStreamSynchronize(stream));
-        gpuErrchk( cudaPeekAtLastError() );
-    }
-
-    zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
-    doTurbVort<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
-
-    // Average the vorticity to the scalar grid using the temporary
-    // arrays we allocated. After doing the averaging, we have to 
-    // set the pointers to the temporary arrays as the new xvort,
-    // yvort, and zvort, and set the old x/y/zvort arrays as the new
-    // temporary arrays. Note: may have to zero those out in the future...
-    doTurbVortAvg<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
-
-    zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
-    calcvortsolenoid<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk(cudaPeekAtLastError());
-
-
-    zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
-    calcvortbaro<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk(cudaPeekAtLastError());
-
-    /* Vorticity tendency due to 6th order numerical diffusion */
-    zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
-    doDiffVort<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
-    doDiffVortAvg<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
-    zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
-    //gpuErrchk(cudaStreamSynchronize(stream));
-    gpuErrchk( cudaPeekAtLastError() );
+/*
+ *    zeroTemArrays<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+ *    //gpuErrchk(cudaStreamSynchronize(stream));
+ *    gpuErrchk( cudaPeekAtLastError() );
+ *    //doTurbVort<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+ *    //gpuErrchk(cudaStreamSynchronize(stream));
+ *    gpuErrchk( cudaPeekAtLastError() );
+ *
+ *    // Average the vorticity to the scalar grid using the temporary
+ *    // arrays we allocated. After doing the averaging, we have to 
+ *    // set the pointers to the temporary arrays as the new xvort,
+ *    // yvort, and zvort, and set the old x/y/zvort arrays as the new
+ *    // temporary arrays. Note: may have to zero those out in the future...
+ *    doTurbVortAvg<<<numBlocks, threadsPerBlock, 0, stream>>>(grid, data, tStart, tEnd);
+ *    //gpuErrchk(cudaStreamSynchronize(stream));
+ *    gpuErrchk( cudaPeekAtLastError() );
+ *
+ */
 }
 
 __global__ void integrate(datagrid *grid, parcel_pos *parcels, model_data *data, \
@@ -567,13 +623,8 @@ void cudaIntegrateParcels(datagrid *grid, model_data *data, parcel_pos *parcels,
 
 
     // set the thread/block execution strategy for the kernels
-
-    // Okay, so I think the last remaining issue might lie here. For some reason, some blocks 
-    // must not be executing or something, seemingly related to the threadsPerBlock size. 
-    // Changing to 4x4x4 fixed for xvort, but not yvort. I think we need to dynamically set
-    // threadsPerBloc(x, y, z) based on the size of our grid at a given time step. 
-    dim3 threadsPerBlock(8, 8, 6);
-    dim3 numBlocks((int)ceil(NX/threadsPerBlock.x)+1, (int)ceil(NY/threadsPerBlock.y)+1, (int)ceil(NZ/threadsPerBlock.z)+1); 
+    dim3 threadsPerBlock(256, 1, 1);
+    dim3 numBlocks((int)ceil(NX+2/threadsPerBlock.x)+1, (int)ceil(NY+2/threadsPerBlock.y)+1, (int)ceil(NZ+1/threadsPerBlock.z)+1); 
 
     if (io->output_momentum_budget) doMomentumBud(grid, data, tStart, tEnd, numBlocks, threadsPerBlock, calStream);
     // Calculate the three compionents of vorticity

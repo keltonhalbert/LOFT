@@ -27,6 +27,13 @@
 #define  WA4D(x,y,z,t) wstag[P4(x+1,y+1,z,t,NX+2,NY+2,NZ+1)]
 #define  KM4D(x,y,z,t) kmstag[P4(x+1,y+1,z,t,NX+2,NY+2,NZ+1)]
 
+#define BUF(x,y,z) buf0[P3(x+1,y+1,z,NX+2,NY+2)]
+#define TEM(x,y,z) dum0[P3(x+1,y+1,z,NX+2,NY+2)]
+#define  UA(x,y,z) ustag[P3(x+1,y+1,z,NX+2,NY+2)]
+#define  VA(x,y,z) vstag[P3(x+1,y+1,z,NX+2,NY+2)]
+#define  WA(x,y,z) wstag[P3(x+1,y+1,z,NX+2,NY+2)]
+#define  KM(x,y,z) kmstag[P3(x+1,y+1,z,NX+2,NY+2)]
+
 #define PCL(t,p,mt) (((p)*(mt))+(t))
 // stole this define from LOFS
 #define P3(x,y,z,mx,my) (((z)*(mx)*(my))+((y)*(mx))+(x))
