@@ -372,7 +372,6 @@ void seed_parcels(parcel_pos *parcels, float X0, float Y0, float Z0, int NX, int
         }
     }
     cout << "END PARCEL SEED" << endl;
-    cout << NC_FILL_FLOAT << endl;
 }
 
 
@@ -445,6 +444,7 @@ int main(int argc, char **argv ) {
     // runtime directory. If it hasn't been run,
     // this step can take fair amount of time.
     lofs_get_dataset_structure(base_dir);
+	return 0;
 
     // This is the main loop that does the data reading and eventually
     // calls the CUDA code to integrate forward.
