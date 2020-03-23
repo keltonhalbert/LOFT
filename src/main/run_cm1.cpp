@@ -410,6 +410,14 @@ int main(int argc, char **argv ) {
 
     string base_dir = histpath;
     string outfilename = string(base) + ".nc";
+	dir_meta dm;
+	hdf_meta hm;
+	grid gd;
+	cmdline cmd;
+	ncstruct nc;
+	mesh msh;
+	sounding snd;
+	readahead rh;
 
     int rank, size;
     long N_stag, N_scal, MX, MY, MZ;
@@ -443,7 +451,7 @@ int main(int argc, char **argv ) {
     // the information from cache files in the 
     // runtime directory. If it hasn't been run,
     // this step can take fair amount of time.
-    lofs_get_dataset_structure(base_dir);
+	lofs_get_dataset_structure(base_dir, &dm, &hm, &gd, &cmd, &nc, &msh, &snd, &rh);
 	return 0;
 
     // This is the main loop that does the data reading and eventually
