@@ -4,13 +4,11 @@ NV := nvcc
 
 ## The paths to various libraries required for linking
 CUDA=/usr/local/cuda
-LOFSINC=${HOME}/CODEBASE/LOFS-read/cm1tools-3.0
-HDF5ZFP=${HOME}/installs/H5Z-ZFP-1.0.1
-ZFP=${HOME}/installs/zfp
+LOFSDIR=${HOME}/installs/LOFS
 
 ## These flags are passed to the C++ compiler of the main program
-CFLAGS = -O3 -std=c++11 -I$(LOFSINC) -I$(ZFP)/include -I$(HDF5ZFP)/src
-LINKOPTS = -L$(LOFSINC) -L$(ZFP)/lib -L$(HDF5ZFP)/src -L$(CUDA)/lib64 -lh5zzfp -lzfp -lhdf5_hl -lhdf5 -lnetcdf -lnetcdf_c++4 -lcm -lcudart -lm -fopenmp
+CFLAGS = -O3 -std=c++11 -I$(LOFSDIR)/include
+LINKOPTS = -L$(LOFSDIR)/lib -L$(CUDA)/lib64 -lh5zzfp -lzfp -lhdf5_hl -lhdf5 -lnetcdf -lnetcdf_c++4 -llofs -lcudart -lm -fopenmp
 
 ## These flags are passed to the CUDA compiler
 NVFLAGS = --default-stream per-thread -gencode=arch=compute_61,code=compute_61 --prec-div=true --ftz=true --fmad=true --std=c++11
@@ -45,7 +43,7 @@ diff6.cu: calcdiff6.cu
 momentum.cu: calcmomentum.cu
 intergrate.cu: vort.o turb.o diff6.o momentum.o interp.o
 
-run.exe: $(BUILDDIR)/run_cm1.cpp $(LOFSINC)/libcm.a $(BUILDDIR)/integrate.o $(BUILDDIR)/datastructs.o
+run.exe: $(BUILDDIR)/run_cm1.cpp $(LOFSDIR)/lib/liblofs.a $(BUILDDIR)/integrate.o $(BUILDDIR)/datastructs.o
 	$(CC) $(CFLAGS) -o run/$@ $^ $(LINKOPTS)
 
 
