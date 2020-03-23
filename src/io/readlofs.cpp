@@ -92,15 +92,25 @@ void lofs_get_dataset_structure(std::string base_dir, dir_meta *dm, hdf_meta *hm
 	}
 
 	/* Check for idiocy and tweak the span (X0-X1/Y0-Y1/Z0-Z1) as necessary */
-
 	set_span(gd,*hm,*cmd);
 }
 
 
 // get the grid info and return the volume subset of the
 // grid we are interested in
-void lofs_get_grid( datagrid *grid ) {
+void lofs_get_grid( datagrid *grid, dir_meta *dm, hdf_meta *hm, grid *gd, mesh *msh, sounding *snd ) {
 	
+	gd->NX = gd->X1 - gd->X0 + 1;
+	gd->NY = gd->Y1 - gd->Y0 + 1;
+	gd->NZ = gd->Z1 - gd->Z0 + 1;
+
+	// get the 1D arrays for the grid and base
+	// state sounding from the HDF5 info
+	set_1d_arrays(*hm,*gd,msh,snd,&hdf_file_id);
+
+	// copy from the LOFS data structure to the
+	// CUDA array structure. There's potential here
+	// in the future to get rid of this step. 
 }
 
 void lofs_read_3dvar(datagrid *grid, float *buffer, char *varname, bool istag, double t0) {
