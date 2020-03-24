@@ -31,7 +31,7 @@ vpath %.cu $(DIRS)
 all: $(CU_OBJS) $(CPP_OBJS) run.exe
 
 $(BUILDDIR)/%.o: %.cu
-	$(NV) $(NVFLAGS) -c $< -o $@
+	$(NV) $(NVFLAGS) -L$(LOFSDIR)/lib -I$(LOFSDIR)/include -llofs -c $< -o $@
 
 vpath %.cpp $(DIRS)
 $(BUILDDIR)/%.o: %.cpp
