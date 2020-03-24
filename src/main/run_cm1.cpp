@@ -5,9 +5,16 @@
 #include "mpi.h"
 #include <map>
 
+extern "C" {
+#include <lofs-read.h>
+#include <dirstruct.h>
+#include <hdf2nc.h>
+#include <limits.h>
+#include <macros.h>
+}
+
 #include "../include/datastructs.h"
 #include "../include/integrate.h"
-#include "../include/macros.h"
 #include "../io/readlofs.cpp"
 #include "../io/writenc.cpp"
 
@@ -161,13 +168,10 @@ void parse_cfg(map<string, string> *usrCfg, iocfg *io, string *histpath, string 
 datagrid* loadMetadataAndGrid(string base_dir, parcel_pos *parcels, int rank) {
     // get the HDF metadata from LOFS - return the first filename
     cout << "Retrieving HDF Metadata" << endl;
-/*
- *    get_hdf_metadata(firstfilename,&nx,&ny,&nz,&nodex,&nodey);
- *
- *    // Create a temporary full grid that we will then subset. We will
- *    // only do this in CPU memory because this will get deleted
- *    datagrid *temp_grid;
- */
+
+	// Create a temporary full grid that we will then subset. We will
+	// only do this in CPU memory because this will get deleted
+	datagrid *temp_grid;
 	// this is the grid we will return
 	datagrid *requested_grid;
 /*
@@ -422,16 +426,6 @@ int main(int argc, char **argv ) {
     int rank, size;
     long N_stag, N_scal, MX, MY, MZ;
 
-    // initialize a bunch of MPI stuff.
-    // Rank tells you which process
-    // you are and size tells y ou how
-    // many processes there are total
-    MPI_Init(&argc, &argv);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-    MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_ARE_FATAL);
-    MPI_Barrier(MPI_COMM_WORLD);
-
     int nTimeChunks = (int) (nTimeSteps / size); // this is a temporary hack
     if (nTimeSteps % size > 0) nTimeChunks += 1;
     // to make the command line parser stuff work with the
@@ -451,8 +445,18 @@ int main(int argc, char **argv ) {
     // the information from cache files in the 
     // runtime directory. If it hasn't been run,
     // this step can take fair amount of time.
-	lofs_get_dataset_structure(base_dir, &dm, &hm, &gd, &cmd, &nc, &msh, &snd, &rh);
+	lofs_get_dataset_structure(base_dir, &dm, &hm, &gd, &cmd, &nc, &rh);
 	return 0;
+
+    // initialize a bunch of MPI stuff.
+    // Rank tells you which process
+    // you are and size tells y ou how
+    // many processes there are total
+    MPI_Init(&argc, &argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_ARE_FATAL);
+    MPI_Barrier(MPI_COMM_WORLD);
 
     // This is the main loop that does the data reading and eventually
     // calls the CUDA code to integrate forward.

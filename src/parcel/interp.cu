@@ -2,8 +2,14 @@
 #include <stdio.h>
 #include <assert.h>
 #include "math.h"
+extern "C" {
+#include <lofs-read.h>
+#include <dirstruct.h>
+#include <hdf2nc.h>
+#include <limits.h>
+#include <macros.h>
+}
 #include "../include/datastructs.h"
-#include "../include/macros.h"
 using namespace std;
 
 #ifndef INTERP_CU

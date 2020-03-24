@@ -1,8 +1,14 @@
 #include <iostream>
 #include <stdio.h>
+extern "C" {
+#include <lofs-read.h>
+#include <dirstruct.h>
+#include <hdf2nc.h>
+#include <limits.h>
+#include <macros.h>
+}
 #include "../include/datastructs.h"
 #include "../include/constants.h"
-#include "../include/macros.h"
 #ifndef DIFF6_CALC
 #define DIFF6_CALC
 /*

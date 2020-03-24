@@ -1,7 +1,13 @@
 #include <iostream>
 #include <stdio.h>
+extern "C" {
+#include <lofs-read.h>
+#include <dirstruct.h>
+#include <hdf2nc.h>
+#include <limits.h>
+#include <macros.h>
+}
 #include "../include/datastructs.h"
-#include "../include/macros.h"
 #include "../kernels/momentum.cu"
 #include "../kernels/turb.cu"
 #include "../kernels/vort.cu"

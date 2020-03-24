@@ -1,7 +1,13 @@
 #include <iostream>
 #include <stdio.h>
+extern "C" {
+#include <lofs-read.h>
+#include <dirstruct.h>
+#include <hdf2nc.h>
+#include <limits.h>
+#include <macros.h>
+}
 #include "../include/datastructs.h"
-#include "../include/macros.h"
 #include "../calc/calcvort.cu"
 #ifndef VORT_CU
 #define VORT_CU
@@ -13,28 +19,28 @@
  * Space Science and Engineering Center (SSEC). Provided under the Apache 2.0 License.
  * Email: kthalbert@wisc.edu
 */
-__global__ void cuCalcPipert(datagrid *grid, float *prespert, float *pipert) {
+__global__ void cuCalcPipert(grid *gd, sounding *snd, float *prespert, float *pipert) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = grid->NX;
-    int NY = grid->NY;
-    int NZ = grid->NZ;
+    int NX = gd->NX;
+    int NY = gd->NY;
+    int NZ = gd->NZ;
 
     if ((i < NX+1) && (j < NY+1) && (k < NZ)) {
-		calc_pipert(prespert, grid->p0, pipert, i, j, k, NX, NY);
+		calc_pipert(prespert, snd->p0, pipert, i, j, k, NX, NY);
     }
 }
 
-__global__ void cuCalcXvort(datagrid *grid, float *vstag, float *wstag, float *xvort) {
+__global__ void cuCalcXvort(grid *gd, mesh *msh, float *vstag, float *wstag, float *xvort) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = grid->NX;
-    int NY = grid->NY;
-    int NZ = grid->NZ;
+    int NX = gd->NX;
+    int NY = gd->NY;
+    int NZ = gd->NZ;
     float dy, dz;
 	float *buf0 = xvort;
 
@@ -50,14 +56,14 @@ __global__ void cuCalcXvort(datagrid *grid, float *vstag, float *wstag, float *x
     }
 }
 
-__global__ void cuCalcYvort(datagrid *grid, float *ustag, float *wstag, float *yvort) {
+__global__ void cuCalcYvort(grid *gd, mesh *msh, float *ustag, float *wstag, float *yvort) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = grid->NX;
-    int NY = grid->NY;
-    int NZ = grid->NZ;
+    int NX = gd->NX;
+    int NY = gd->NY;
+    int NZ = gd->NZ;
     float dx, dz;
 	float *buf0 = yvort;
 
@@ -72,14 +78,15 @@ __global__ void cuCalcYvort(datagrid *grid, float *ustag, float *wstag, float *y
 		}
     }
 }
-__global__ void cuCalcZvort(datagrid *grid, float *ustag, float *vstag, float *zvort) {
+
+__global__ void cuCalcZvort(grid *gd, mesh *msh, float *ustag, float *vstag, float *zvort) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = grid->NX;
-    int NY = grid->NY;
-    int NZ = grid->NZ;
+    int NX = gd->NX;
+    int NY = gd->NY;
+    int NZ = gd->NZ;
     float dx, dy;
 
     if ((i < NX+1) && (j < NY+1) && (k < NZ+1)) {
@@ -90,14 +97,14 @@ __global__ void cuCalcZvort(datagrid *grid, float *ustag, float *vstag, float *z
     }
 }
 
-__global__ void cuCalcXvortStretch(datagrid *grid, float *vstag, float *wstag, float *xvort, float *xvstretch) {
+__global__ void cuCalcXvortStretch(grid *gd, mesh *msh, float *vstag, float *wstag, float *xvort, float *xvstretch) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = grid->NX;
-    int NY = grid->NY;
-    int NZ = grid->NZ;
+    int NX = gd->NX;
+    int NY = gd->NY;
+    int NZ = gd->NZ;
     float dy, dz;
 
 
@@ -108,14 +115,14 @@ __global__ void cuCalcXvortStretch(datagrid *grid, float *vstag, float *wstag, f
     }
 }
 
-__global__ void cuCalcYvortStretch(datagrid *grid, float *ustag, float *wstag, float *yvort, float *yvstretch) {
+__global__ void cuCalcYvortStretch(grid *gd, mesh *msh, float *ustag, float *wstag, float *yvort, float *yvstretch) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = grid->NX;
-    int NY = grid->NY;
-    int NZ = grid->NZ;
+    int NX = gd->NX;
+    int NY = gd->NY;
+    int NZ = gd->NZ;
     float dx, dz;
 
     if ((i < NX) && (j < NY) && (k < NZ)) {
@@ -126,14 +133,14 @@ __global__ void cuCalcYvortStretch(datagrid *grid, float *ustag, float *wstag, f
 
 }
 /* Compute the forcing tendencies from the Vorticity Equation */
-__global__ void cuCalcZvortStretch(datagrid *grid, float *ustag, float *vstag, float *zvort, float *zvstretch) {
+__global__ void cuCalcZvortStretch(grid *gd, mesh *msh, float *ustag, float *vstag, float *zvort, float *zvstretch) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = grid->NX;
-    int NY = grid->NY;
-    int NZ = grid->NZ;
+    int NX = gd->NX;
+    int NY = gd->NY;
+    int NZ = gd->NZ;
     float dx, dy;
 
     if ((i < NX) && (j < NY) && (k < NZ)) {
@@ -143,14 +150,14 @@ __global__ void cuCalcZvortStretch(datagrid *grid, float *ustag, float *vstag, f
     }
 }
 
-__global__ void cuPreXvortTilt(datagrid *grid, float *ustag, float *dudy, float *dudz) {
+__global__ void cuPreXvortTilt(grid *gd, mesh *msh, sounding *snd, float *ustag, float *dudy, float *dudz) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = grid->NX;
-    int NY = grid->NY;
-    int NZ = grid->NZ;
+    int NX = gd->NX;
+    int NY = gd->NY;
+    int NZ = gd->NZ;
 	float dy, dz;
 
     if ((i < NX) && (j < NY) && (k < NZ)) {
@@ -165,14 +172,14 @@ __global__ void cuPreXvortTilt(datagrid *grid, float *ustag, float *dudy, float 
 	}
 }
 
-__global__ void cuPreYvortTilt(datagrid *grid, float *vstag, float *dvdx, float *dvdz) {
+__global__ void cuPreYvortTilt(grid *gd, mesh *msh, float *vstag, float *dvdx, float *dvdz) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = grid->NX;
-    int NY = grid->NY;
-    int NZ = grid->NZ;
+    int NX = gd->NX;
+    int NY = gd->NY;
+    int NZ = gd->NZ;
 	float dx, dz;
 
     if ((i < NX) && (j < NY) && (k < NZ)) {
@@ -187,14 +194,14 @@ __global__ void cuPreYvortTilt(datagrid *grid, float *vstag, float *dvdx, float 
 	}
 }
 
-__global__ void cuPreZvortTilt(datagrid *grid, float *wstag, float *dwdx, float *dwdy) {
+__global__ void cuPreZvortTilt(grid *gd, mesh *msh, float *wstag, float *dwdx, float *dwdy) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = grid->NX;
-    int NY = grid->NY;
-    int NZ = grid->NZ;
+    int NX = gd->NX;
+    int NY = gd->NY;
+    int NZ = gd->NZ;
 	float dx, dy;
 
     if ((i < NX) && (j < NY) && (k < NZ)) {
@@ -207,14 +214,14 @@ __global__ void cuPreZvortTilt(datagrid *grid, float *wstag, float *dwdx, float 
 }
 
 /* Compute the forcing tendencies from the Vorticity Equation */
-__global__ void cuCalcXvortTilt(datagrid *grid, float *yvort, float *zvort, float *dudy, float *dudz, float *xvtilt) {
+__global__ void cuCalcXvortTilt(grid *gd, mesh *msh, float *yvort, float *zvort, float *dudy, float *dudz, float *xvtilt) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = grid->NX;
-    int NY = grid->NY;
-    int NZ = grid->NZ;
+    int NX = gd->NX;
+    int NY = gd->NY;
+    int NZ = gd->NZ;
 
     if ((i < NX) && (j < NY) && (k < NZ)) {
         // loop over the number of time steps we have in memory
@@ -223,14 +230,14 @@ __global__ void cuCalcXvortTilt(datagrid *grid, float *yvort, float *zvort, floa
 }
 
 /* Compute the forcing tendencies from the Vorticity Equation */
-__global__ void cuCalcYvortTilt(datagrid *grid, float *xvort, float *zvort, float *dvdx, float *dvdz, float *yvtilt) {
+__global__ void cuCalcYvortTilt(grid *gd, mesh *msh, float *xvort, float *zvort, float *dvdx, float *dvdz, float *yvtilt) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = grid->NX;
-    int NY = grid->NY;
-    int NZ = grid->NZ;
+    int NX = gd->NX;
+    int NY = gd->NY;
+    int NZ = gd->NZ;
 
     if ((i < NX) && (j < NY) && (k < NZ)) {
         // loop over the number of time steps we have in memory
@@ -239,14 +246,14 @@ __global__ void cuCalcYvortTilt(datagrid *grid, float *xvort, float *zvort, floa
 }
 
 /* Compute the forcing tendencies from the Vorticity Equation */
-__global__ void cuCalcZvortTilt(datagrid *grid, float *xvort, float *yvort, float *dwdx, float *dwdy, float *zvtilt) {
+__global__ void cuCalcZvortTilt(grid *gd, mesh *msh, float *xvort, float *yvort, float *dwdx, float *dwdy, float *zvtilt) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = grid->NX;
-    int NY = grid->NY;
-    int NZ = grid->NZ;
+    int NX = gd->NX;
+    int NY = gd->NY;
+    int NZ = gd->NZ;
 
     if ((i < NX) && (j < NY) && (k < NZ)) {
         // loop over the number of time steps we have in memory
@@ -254,56 +261,56 @@ __global__ void cuCalcZvortTilt(datagrid *grid, float *xvort, float *yvort, floa
     }
 }
 
-__global__ void cuCalcXvortBaro(datagrid *grid, float *thrhopert, float *xvort_baro) {
+__global__ void cuCalcXvortBaro(grid *gd, mesh *msh, sounding *snd, float *thrhopert, float *xvort_baro) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = grid->NX;
-    int NY = grid->NY;
-    int NZ = grid->NZ;
+    int NX = gd->NX;
+    int NY = gd->NY;
+    int NZ = gd->NZ;
     float dx;
 
     if ((i < NX-1) && (j < NY-1) && (k < NZ) && ( i > 0 ) && (j > 0) && (k > 0)) {
         // loop over the number of time steps we have in memory
         dx = xh(i+1) - xh(i-1);
-		calc_xvort_baro(thrhopert, grid->th0, grid->qv0, xvort_baro, dx, i, j, k, NX, NY);
+		calc_xvort_baro(thrhopert, snd->th0, snd->qv0, xvort_baro, dx, i, j, k, NX, NY);
     }
 }
 
-__global__ void cuCalcYvortBaro(datagrid *grid, float *thrhopert, float *yvort_baro) {
+__global__ void cuCalcYvortBaro(grid *gd, mesh *msh, sounding *snd, float *thrhopert, float *yvort_baro) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = grid->NX;
-    int NY = grid->NY;
-    int NZ = grid->NZ;
+    int NX = gd->NX;
+    int NY = gd->NY;
+    int NZ = gd->NZ;
     float dy;
 
     if ((i < NX-1) && (j < NY-1) && (k < NZ) && ( i > 0 ) && (j > 0) && (k > 0)) {
         // loop over the number of time steps we have in memory
         dy = yh(j+1) - yh(j-1);
-		calc_yvort_baro(thrhopert, grid->th0, grid->qv0, yvort_baro, dy, i, j, k, NX, NY);
+		calc_yvort_baro(thrhopert, snd->th0, snd->qv0, yvort_baro, dy, i, j, k, NX, NY);
     }
 }
 
 /* Compute the forcing tendencies from the pressure-volume solenoid term */
-__global__ void cuCalcXvortSolenoid(datagrid *grid, float *pipert, float *thrhopert, float *xvort_solenoid) {
+__global__ void cuCalcXvortSolenoid(grid *gd, mesh *msh, sounding *snd, float *pipert, float *thrhopert, float *xvort_solenoid) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = grid->NX;
-    int NY = grid->NY;
-    int NZ = grid->NZ;
+    int NX = gd->NX;
+    int NY = gd->NY;
+    int NZ = gd->NZ;
     float dy, dz;
 
     if ((i < NX-1) && (j < NY-1) && (k < NZ) && ( i > 0 ) && (j > 0) && (k > 0)) {
         dy = yh(j+1)-yh(j-1);
         dz = zh(k+1)-zh(k-1);
 
-		calc_xvort_solenoid(pipert, thrhopert, grid->th0, grid->qv0, xvort_solenoid, dy, dz, i, j, k, NX, NY);
+		calc_xvort_solenoid(pipert, thrhopert, snd->th0, snd->qv0, xvort_solenoid, dy, dz, i, j, k, NX, NY);
 		if ((k == 1) && (zf(k-1) == 0)) {
 			xvort_solenoid[P3(i, j, 0, NX+2, NY+2)] = xvort_solenoid[P3(i, j, 1, NX+2, NY+2)];
 		}
@@ -311,21 +318,21 @@ __global__ void cuCalcXvortSolenoid(datagrid *grid, float *pipert, float *thrhop
 }
 
 /* Compute the forcing tendencies from the pressure-volume solenoid term */
-__global__ void cuCalcYvortSolenoid(datagrid *grid, float *pipert, float *thrhopert, float *yvort_solenoid) {
+__global__ void cuCalcYvortSolenoid(grid *gd, mesh *msh, sounding *snd, float *pipert, float *thrhopert, float *yvort_solenoid) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = grid->NX;
-    int NY = grid->NY;
-    int NZ = grid->NZ;
+    int NX = gd->NX;
+    int NY = gd->NY;
+    int NZ = gd->NZ;
     float dx, dz;
 
     if ((i < NX-1) && (j < NY-1) && (k < NZ) && ( i > 0 ) && (j > 0) && (k > 0)) {
         dx = xh(i+1)-xh(i-1);
         dz = zh(k+1)-zh(k-1);
 
-		calc_yvort_solenoid(pipert, thrhopert, grid->th0, grid->qv0, yvort_solenoid, dx, dz, i, j, k, NX, NY);
+		calc_yvort_solenoid(pipert, thrhopert, snd->th0, snd->qv0, yvort_solenoid, dx, dz, i, j, k, NX, NY);
 		if ((k == 1) && (zf(k-1) == 0)) {
 			yvort_solenoid[P3(i, j, 0, NX+2, NY+2)] = yvort_solenoid[P3(i, j, 1, NX+2, NY+2)];
 		}
@@ -333,14 +340,14 @@ __global__ void cuCalcYvortSolenoid(datagrid *grid, float *pipert, float *thrhop
 }
 
 /* Compute the forcing tendencies from the pressure-volume solenoid term */
-__global__ void cuCalcZvortSolenoid(datagrid *grid, float *pipert, float *thrhopert, float *zvort_solenoid) {
+__global__ void cuCalcZvortSolenoid(grid *gd, mesh *msh, float *pipert, float *thrhopert, float *zvort_solenoid) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = grid->NX;
-    int NY = grid->NY;
-    int NZ = grid->NZ;
+    int NX = gd->NX;
+    int NY = gd->NY;
+    int NZ = gd->NZ;
     float dx, dy;
 
     // Even though there are NZ points, it's a center difference
@@ -354,14 +361,14 @@ __global__ void cuCalcZvortSolenoid(datagrid *grid, float *pipert, float *thrhop
 }
 
 /* Zero out the temporary arrays */
-__global__ void zeroTemArrays(datagrid *grid, model_data *data, int tStart, int tEnd) {
+__global__ void zeroTemArrays(grid *gd, model_data *data, int tStart, int tEnd) {
     int i = blockIdx.x*blockDim.x + threadIdx.x;
     int j = blockIdx.y*blockDim.y + threadIdx.y;
     int k = blockIdx.z*blockDim.z + threadIdx.z;
 
-    int NX = grid->NX;
-    int NY = grid->NY;
-    int NZ = grid->NZ;
+    int NX = gd->NX;
+    int NY = gd->NY;
+    int NZ = gd->NZ;
     float *dum0;
     if (( i < NX+1) && ( j < NY+1) && ( k < NZ+1)) {
         dum0 = data->tem1;
@@ -396,16 +403,16 @@ __global__ void zeroTemArrays(datagrid *grid, model_data *data, int tStart, int 
    to the parcel paths. We're able to do this in parallel by making use of
    the three temporary arrays allocated on our grid, which means that the
    xvort/yvort/zvort arrays will be averaged into tem1/tem2/tem3. */ 
-__global__ void doVortAvg(datagrid *grid, float *tem1, float *tem2, float *tem3, float *xvort, float *yvort, float *zvort, int tStart, int tEnd) {
+__global__ void doVortAvg(grid *gd, float *tem1, float *tem2, float *tem3, float *xvort, float *yvort, float *zvort, int tStart, int tEnd) {
 
     // get our grid indices based on our block and thread info
     int i = blockIdx.x*blockDim.x + threadIdx.x;
     int j = blockIdx.y*blockDim.y + threadIdx.y;
     int k = blockIdx.z*blockDim.z + threadIdx.z;
 
-    int NX = grid->NX;
-    int NY = grid->NY;
-    int NZ = grid->NZ;
+    int NX = gd->NX;
+    int NY = gd->NY;
+    int NZ = gd->NZ;
     float *buf0, *dum0;
 
     if ((i < NX) && (j < NY) && (k < NZ)) {

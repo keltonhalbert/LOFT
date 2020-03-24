@@ -1,5 +1,11 @@
-#include "../include/macros.h"
 #include "../include/datastructs.h"
+extern "C" {
+#include <lofs-read.h>
+#include <dirstruct.h>
+#include <hdf2nc.h>
+#include <limits.h>
+#include <macros.h>
+}
 #include <iostream>
 #ifndef DATASTRUCTS
 #define DATASTRUCTS
@@ -15,151 +21,150 @@ using namespace std;
 /* Allocate memory on the CPU and GPU for a grid. There are times,
     like for various MPI ranks, that you don't want to do this on both.
     See the similar function for doing this on just the CPU */
-datagrid* allocate_grid_managed( int X0, int X1, int Y0, int Y1, int Z0, int Z1 ) {
-    datagrid *grid;
-    long NX, NY, NZ;
+mesh* allocate_mesh_managed( hdf_meta *hm, grid *gd ) { 
+    mesh *msh;
 
-    cudaMallocManaged(&grid, sizeof(datagrid));
-    grid->X0 = X0; grid->X1 = X1;
-    grid->Y0 = Y0; grid->Y1 = Y1;
-    grid->Z0 = Z0; grid->Z1 = Z1;
+    cudaMallocManaged(&msh, sizeof(mesh));
 
-	NX = grid->X1 - grid->X0 + 1;
-	NY = grid->Y1 - grid->Y0 + 1;
-	NZ = grid->Z1 - grid->Z0 + 1;
-
-    // set the grid attributes
-    grid->NX = NX;
-    grid->NY = NY;
-    grid->NZ = NZ;
 
     // allocage grid arrays
-    cudaMallocManaged(&(grid->xf), (NX+2)*sizeof(float));
-    cudaMallocManaged(&(grid->xh), (NX+2)*sizeof(float));
+    cudaMallocManaged(&(msh->xffull), (hm->nx+1)*sizeof(float));
+    cudaMallocManaged(&(msh->xhfull), (hm->nx)*sizeof(float));
+    cudaMallocManaged(&(msh->xfout), (gd->NX)*sizeof(float));
+    cudaMallocManaged(&(msh->xhout), (gd->NX)*sizeof(float));
 
-    cudaMallocManaged(&(grid->yf), (NY+2)*sizeof(float));
-    cudaMallocManaged(&(grid->yh), (NY+2)*sizeof(float));
+    cudaMallocManaged(&(msh->yffull), (hm->ny+1)*sizeof(float));
+    cudaMallocManaged(&(msh->yfull), (hm->ny)*sizeof(float));
+    cudaMallocManaged(&(msh->yfout), (gd->NY)*sizeof(float));
+    cudaMallocManaged(&(msh->yhout), (gd->NY)*sizeof(float));
 
     // +2 is +1 for stagger, +1 for potential bottom ghost zone
-    cudaMallocManaged(&(grid->zf), (NZ+2)*sizeof(float));
-    cudaMallocManaged(&(grid->zh), (NZ+2)*sizeof(float));
+    cudaMallocManaged(&(msh->zf), (gd->NZ)*sizeof(float));
+    cudaMallocManaged(&(msh->zh), (gd->NZ)*sizeof(float));
+    cudaMallocManaged(&(msh->zfout), (gd->NZ)*sizeof(float));
+    cudaMallocManaged(&(msh->zhout), (gd->NZ)*sizeof(float));
 
-    cudaMallocManaged(&(grid->uf), (NX+2)*sizeof(float));
-    cudaMallocManaged(&(grid->uh), (NX+2)*sizeof(float));
+    cudaMallocManaged(&(msh->uf), (gd->NX+2)*sizeof(float));
+    cudaMallocManaged(&(msh->uh), (gd->NX+2)*sizeof(float));
 
-    cudaMallocManaged(&(grid->vf), (NY+2)*sizeof(float));
-    cudaMallocManaged(&(grid->vh), (NY+2)*sizeof(float));
+    cudaMallocManaged(&(msh->vf), (gd->NY+2)*sizeof(float));
+    cudaMallocManaged(&(msh->vh), (gd->NY+2)*sizeof(float));
 
-    cudaMallocManaged(&(grid->mf), (NZ+2)*sizeof(float));
-    cudaMallocManaged(&(grid->mh), (NZ+2)*sizeof(float));
-
-    // allocate base state arrays
-    cudaMallocManaged(&(grid->u0),   (NZ+1)*sizeof(float));
-    cudaMallocManaged(&(grid->v0),   (NZ+1)*sizeof(float));
-    cudaMallocManaged(&(grid->qv0),  (NZ+1)*sizeof(float));
-    cudaMallocManaged(&(grid->th0),  (NZ+1)*sizeof(float));
-    cudaMallocManaged(&(grid->rho0), (NZ+1)*sizeof(float));
-    cudaMallocManaged(&(grid->p0),   (NZ+1)*sizeof(float));
-    cudaDeviceSynchronize();
-
-    return grid;
+    cudaMallocManaged(&(msh->mf), (gd->NZ+2)*sizeof(float));
+    cudaMallocManaged(&(msh->mh), (gd->NZ+2)*sizeof(float));
+    return msh;
 }
 
 /* Allocate arrays only on the CPU for the grid. This is important
    for using with MPI, as only 1 rank should be allocating memory
    on the GPU */
-datagrid* allocate_grid_cpu( int X0, int X1, int Y0, int Y1, int Z0, int Z1 ) {
-    datagrid *grid = new datagrid();
-    long NX, NY, NZ;
-
-    grid->X0 = X0; grid->X1 = X1;
-    grid->Y0 = Y0; grid->Y1 = Y1;
-    grid->Z0 = Z0; grid->Z1 = Z1;
-
-	NX = grid->X1 - grid->X0 + 1;
-	NY = grid->Y1 - grid->Y0 + 1;
-	NZ = grid->Z1 - grid->Z0 + 1;
-
-    // set the grid attributes
-    grid->NX = NX;
-    grid->NY = NY;
-    grid->NZ = NZ;
+mesh* allocate_mesh_cpu( hdf_meta *hm, grid *gd ) { 
+    mesh *msh = new mesh();
 
     // allocage grid arrays
-    grid->xf = new float[NX+2];
-    grid->xh = new float[NX+2];
+    msh->xffull = new float[hm->nx+1];
+    msh->xhfull = new float[hm->nx];
+    msh->xfout = new float[gd->NX];
+    msh->xhout = new float[gd->NX];
 
-    grid->yf = new float[NY+2];
-    grid->yh = new float[NY+2];
+    msh->yffull = new float[hm->ny+1];
+    msh->yhfull = new float[hm->ny];
+    msh->yfout = new float[gd->NY];
+    msh->yhout = new float[gd->NY];
 
-    grid->zf = new float[NZ+2];
-    grid->zh = new float[NZ+2];
+    msh->zfout = new float[gd->NZ];
+    msh->zhout = new float[gd->NZ];
+    msh->zf = new float[gd->NZ];
+    msh->zh = new float[gd->NZ];
 
-    grid->uf = new float[NX+2];
-    grid->uh = new float[NX+2];
+    msh->uf = new float[gd->NX+2];
+    msh->uh = new float[gd->NX+2];
 
-    grid->vf = new float[NY+2];
-    grid->vh = new float[NY+2];
+    msh->vf = new float[gd->NY+2];
+    msh->vh = new float[gd->NY+2];
 
-    grid->mf = new float[NZ+2];
-    grid->mh = new float[NZ+2];
+    msh->mf = new float[gd->NZ+2];
+    msh->mh = new float[gd->NZ+2];
+	return msh;
+}
 
+sounding* allocate_sounding_managed(grid *gd) {
+	sounding *snd;
+    cudaMallocManaged(&snd, sizeof(sounding));
     // allocate base state arrays
-    grid->u0 = new float[NZ+1];
-    grid->v0 = new float[NZ+1];
-    grid->qv0 = new float[NZ+1];
-    grid->th0 = new float[NZ+1];
-    grid->rho0 = new float[NZ+1];
-    grid->p0 = new float[NZ+1];
+    cudaMallocManaged(&(msh->u0),   (gd->NZ)*sizeof(float));
+    cudaMallocManaged(&(msh->v0),   (gd->NZ)*sizeof(float));
+    cudaMallocManaged(&(msh->qv0),  (gd->NZ)*sizeof(float));
+    cudaMallocManaged(&(msh->th0),  (gd->NZ)*sizeof(float));
+    cudaMallocManaged(&(msh->rho0), (gd->NZ)*sizeof(float));
+    cudaMallocManaged(&(msh->p0),   (gd->NZ)*sizeof(float));
+    cudaDeviceSynchronize();
+}
 
-    return grid;
+sounding* allocate_sounding_cpu(grid *gd) {
+
+	sounding *snd = new sounding();
+    // allocate base state arrays
+    msh->u0 = new float[gd->NZ];
+    msh->v0 = new float[gd->NZ];
+    msh->qv0 = new float[gd->NZ];
+    msh->th0 = new float[gd->NZ];
+    msh->rho0 = new float[gd->NZ];
+    msh->p0 = new float[gd->NZ];
+
+    return snd;
 }
 
 /* Deallocate all of the arrays in the 
    struct for both the GPU and CPU */
-void deallocate_grid_managed(datagrid *grid) {
-    cudaFree(grid->xf);
-    cudaFree(grid->xh);
-    cudaFree(grid->yf);
-    cudaFree(grid->yh);
-    cudaFree(grid->zf);
-    cudaFree(grid->zh);
-    cudaFree(grid->uf);
-    cudaFree(grid->uh);
-    cudaFree(grid->vf);
-    cudaFree(grid->vh);
-    cudaFree(grid->mf);
-    cudaFree(grid->mh);
-    cudaFree(grid->u0);
-    cudaFree(grid->v0);
-    cudaFree(grid->rho0);
-    cudaFree(grid->th0);
-    cudaFree(grid->qv0);
-    cudaFree(grid->p0);
-    cudaDeviceSynchronize();
+void deallocate_mesh_managed(mesh *msh) {
+    cudaFree(msh->xf);
+    cudaFree(msh->xh);
+    cudaFree(msh->yf);
+    cudaFree(msh->yh);
+    cudaFree(msh->zf);
+    cudaFree(msh->zh);
+    cudaFree(msh->uf);
+    cudaFree(msh->uh);
+    cudaFree(msh->vf);
+    cudaFree(msh->vh);
+    cudaFree(msh->mf);
+    cudaFree(msh->mh);
 }
 
 /* Deallocate all of the arrays in the
    struct only for the CPU */
-void deallocate_grid_cpu(datagrid *grid) {
-    delete[] grid->xf;
-    delete[] grid->xh;
-    delete[] grid->yf;
-    delete[] grid->yh;
-    delete[] grid->zf;
-    delete[] grid->zh;
-    delete[] grid->uf;
-    delete[] grid->uh;
-    delete[] grid->vf;
-    delete[] grid->vh;
-    delete[] grid->mf;
-    delete[] grid->mh;
-    delete[] grid->u0;
-    delete[] grid->v0;
-    delete[] grid->rho0;
-    delete[] grid->th0;
-    delete[] grid->qv0;
-    delete[] grid->p0;
+void deallocate_mesh_cpu(mesh *msh) {
+    delete[] msh->xf;
+    delete[] msh->xh;
+    delete[] msh->yf;
+    delete[] msh->yh;
+    delete[] msh->zf;
+    delete[] msh->zh;
+    delete[] msh->uf;
+    delete[] msh->uh;
+    delete[] msh->vf;
+    delete[] msh->vh;
+    delete[] msh->mf;
+    delete[] msh->mh;
+}
+
+void deallocate_sounding_managed(sounding *snd) {
+    cudaFree(snd->u0);
+    cudaFree(snd->v0);
+    cudaFree(snd->rho0);
+    cudaFree(snd->th0);
+    cudaFree(snd->qv0);
+    cudaFree(snd->p0);
+}
+
+void deallocate_sounding_cpu(sounding *snd) {
+    delete[] snd->u0;
+    delete[] snd->v0;
+    delete[] snd->rho0;
+    delete[] snd->th0;
+    delete[] snd->qv0;
+    delete[] snd->p0;
 }
 
 /* Allocate arrays for parcel info on both the CPU and GPU.
