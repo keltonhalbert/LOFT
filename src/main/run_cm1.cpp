@@ -46,7 +46,7 @@ int find_nearest_index(double *arr, double val, int N) {
     return nearest;
 }
 
-void nearest_grid_idx(float *point, datagrid *grid, int *idx_4D) {
+void nearest_grid_idx(grid *gd, mesh *msh, float *point, int *idx_4D) {
 
 	int near_i = -1;
 	int near_j = -1;
@@ -58,20 +58,20 @@ void nearest_grid_idx(float *point, datagrid *grid, int *idx_4D) {
 
 
 	// loop over the X grid
-	for ( int i = 0; i < grid->NX; i++ ) {
+	for ( int i = 0; i < gd->NX; i++ ) {
 		// find the nearest grid point index at X
-		if ( ( pt_x >= grid->xf[i] ) && ( pt_x <= grid->xf[i+1] ) ) { near_i = i; } 
+		if ( ( pt_x >= xf(i) ) && ( pt_x <= xf(i+1) ) ) { near_i = i; } 
 	}
 
 	// loop over the Y grid
-	for ( int j = 0; j < grid->NY; j++ ) {
+	for ( int j = 0; j < gd->NY; j++ ) {
 		// find the nearest grid point index in the Y
-		if ( ( pt_y >= grid->yf[j] ) && ( pt_y <= grid->yf[j+1] ) ) { near_j = j; } 
+		if ( ( pt_y >= yf(j) ) && ( pt_y <= yf(j+1) ) ) { near_j = j; } 
 	}
 
 	// loop over the Z grid
     int k = 1;
-    while (pt_z >= grid->zf[k+1]) {
+    while (pt_z >= zf(k+1)) {
         k = k + 1;
     }
     near_k = k;
@@ -165,15 +165,15 @@ void parse_cfg(map<string, string> *usrCfg, iocfg *io, string *histpath, string 
  * When the next chunk of time is read in, check and see where the parcels
  * are currently and request a subset that is relevent to those parcels.   
  */
-datagrid* loadMetadataAndGrid(string base_dir, parcel_pos *parcels, int rank) {
+void loadMetadataAndGrid(string base_dir, grid *gd, mesh *msh, parcel_pos *parcels, int rank) {
     // get the HDF metadata from LOFS - return the first filename
     cout << "Retrieving HDF Metadata" << endl;
 
 	// Create a temporary full grid that we will then subset. We will
 	// only do this in CPU memory because this will get deleted
-	datagrid *temp_grid;
+	//datagrid *temp_grid;
 	// this is the grid we will return
-	datagrid *requested_grid;
+	//datagrid *requested_grid;
 /*
  *        
  *
@@ -293,14 +293,13 @@ datagrid* loadMetadataAndGrid(string base_dir, parcel_pos *parcels, int rank) {
  *    cout << "MY DZ IS " << requested_grid->dz << endl;
  *    cout << "END METADATA & GRID REQUEST" << endl;
  */
-    return requested_grid;
 }
 
 /* Read in the U, V, and W vector components plus the buoyancy and turbulence fields 
  * from the disk, provided previously allocated memory buffers
  * and the time requested in the dataset. 
  */
-void loadDataFromDisk(iocfg *io, datagrid *requested_grid, float *ustag, float *vstag, float *wstag, \
+void loadDataFromDisk(iocfg *io, grid *gd, mesh *msh, float *ustag, float *vstag, float *wstag, \
                         float *pbuffer, float *tbuffer, float *thbuffer, float *rhobuffer, \
                         float *qvbuffer, float *qcbuffer, float *qibuffer, float *qsbuffer, \
                         float *qgbuffer, float*kmhbuffer, double t0) {
@@ -313,34 +312,34 @@ void loadDataFromDisk(iocfg *io, datagrid *requested_grid, float *ustag, float *
     // grid bounds should be requested to accomodate the
     // data. 
     bool istag = true;
-    lofs_read_3dvar(requested_grid, ustag, (char *)"u", istag, t0);
-    lofs_read_3dvar(requested_grid, vstag, (char *)"v", istag, t0);
-    lofs_read_3dvar(requested_grid, wstag, (char *)"w", istag, t0);
+    lofs_read_3dvar(gd, msh, ustag, (char *)"u", istag, t0);
+    lofs_read_3dvar(gd, msh, vstag, (char *)"v", istag, t0);
+    lofs_read_3dvar(gd, msh, wstag, (char *)"w", istag, t0);
     if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh ) {
-        lofs_read_3dvar(requested_grid, kmhbuffer, (char *)"kmh", istag, t0);
+        lofs_read_3dvar(gd, msh, kmhbuffer, (char *)"kmh", istag, t0);
     }
 
     // request additional fields for calculations
     istag = false;
     if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert ) {
-        lofs_read_3dvar(requested_grid, pbuffer, (char *)"prespert", istag, t0);
+        lofs_read_3dvar(gd, msh, pbuffer, (char *)"prespert", istag, t0);
     }
     if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thetapert ) {
-        lofs_read_3dvar(requested_grid, tbuffer, (char *)"thpert", istag, t0);
+        lofs_read_3dvar(gd, msh, tbuffer, (char *)"thpert", istag, t0);
     }
     if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhopert ) {
-        lofs_read_3dvar(requested_grid, thbuffer, (char *)"thrhopert", istag, t0);
+        lofs_read_3dvar(gd, msh, thbuffer, (char *)"thrhopert", istag, t0);
     }
     if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert ) {
-        lofs_read_3dvar(requested_grid, rhobuffer, (char *)"rhopert", istag, t0);
+        lofs_read_3dvar(gd, msh, rhobuffer, (char *)"rhopert", istag, t0);
     }
     if (io->output_momentum_budget || io->output_vorticity_budget || io->output_qvpert ) {
-        lofs_read_3dvar(requested_grid, qvbuffer, (char *)"qvpert", istag, t0);
+        lofs_read_3dvar(gd, msh, qvbuffer, (char *)"qvpert", istag, t0);
     }
-    if (io->output_qc) lofs_read_3dvar(requested_grid, qcbuffer, (char *)"qc", istag, t0);
-    if (io->output_qs) lofs_read_3dvar(requested_grid, qsbuffer, (char *)"qs", istag, t0);
-    if (io->output_qi) lofs_read_3dvar(requested_grid, qibuffer, (char *)"qi", istag, t0);
-    if (io->output_qg) lofs_read_3dvar(requested_grid, qgbuffer, (char *)"qg", istag, t0);
+    if (io->output_qc) lofs_read_3dvar(gd, msh, qcbuffer, (char *)"qc", istag, t0);
+    if (io->output_qs) lofs_read_3dvar(gd, msh, qsbuffer, (char *)"qs", istag, t0);
+    if (io->output_qi) lofs_read_3dvar(gd, msh, qibuffer, (char *)"qi", istag, t0);
+    if (io->output_qg) lofs_read_3dvar(gd, msh, qgbuffer, (char *)"qg", istag, t0);
 
 }
 
@@ -390,7 +389,6 @@ int main(int argc, char **argv ) {
     // our parcel struct containing 
     // the position arrays
     iocfg *io = new iocfg();
-    datagrid *requested_grid;
     parcel_pos *parcels;
     // variables for parcel seed locations,
     // amount, and spacing
@@ -492,18 +490,20 @@ int main(int argc, char **argv ) {
         // arrays on both the CPU and GPU.
         
         //requested_grid = loadMetadataAndGrid(base_dir, parcels, rank); 
-        if (requested_grid->isValid == 0) {
-            cout << "Something went horribly wrong when requesting a domain subset. Abort." << endl;
-            exit(-1);
-        }
+		/*
+         *if (requested_grid->isValid == 0) {
+         *    cout << "Something went horribly wrong when requesting a domain subset. Abort." << endl;
+         *    exit(-1);
+         *}
+		 */
 
 
         // The number of grid points requested...
         // There's some awkwardness here I have to figure out a better way around,
         // but MPI Scatter/Gather behaves weird if I use the generic large buffer,
         // so I use N_scalar for the MPI calls to non staggered/scalar fields. 
-        N_stag = (requested_grid->NX+2)*(requested_grid->NY+2)*(requested_grid->NZ+1);
-        N_scal = (requested_grid->NX+2)*(requested_grid->NY+2)*(requested_grid->NZ+1);
+        N_stag = (gd.NX+2)*(gd.NY+2)*(gd.NZ+1);
+        N_scal = (gd.NX+2)*(gd.NY+2)*(gd.NZ+1);
 
 
         // allocate space for U, V, and W arrays
@@ -555,9 +555,9 @@ int main(int argc, char **argv ) {
         //double dt = fabs(alltimes[1] - alltimes[0]);
 		double dt = 0.16;
         //printf("TIMESTEP %d/%d %d %f dt= %f\n", rank, size, rank + tChunk*size, alltimes[nearest_tidx + direct*( rank + tChunk*size)], dt);
-        requested_grid->dt = dt;
+        msh.dt = dt;
         // load u, v, and w into memory
-        //loadDataFromDisk(io, requested_grid, ubuf, vbuf, wbuf, pbuf, tbuf, thbuf, \
+        //loadDataFromDisk(io, gd, msh, ubuf, vbuf, wbuf, pbuf, tbuf, thbuf, \
                          rhobuf, qvbuf, qcbuf, qibuf, qsbuf, qgbuf, kmhbuf, \
                          alltimes[nearest_tidx + direct*(rank + tChunk*size)]);
 
@@ -653,7 +653,7 @@ int main(int argc, char **argv ) {
 
             int nParcels = parcels->nParcels;
             cout << "Beginning parcel integration! Heading over to the GPU to do GPU things..." << endl;
-            //cudaIntegrateParcels(requested_grid, data, parcels, size, nTotTimes, direct); 
+            //cudaIntegrateParcels(gd, msh, data, parcels, size, nTotTimes, direct); 
             cout << "Finished integrating parcels!" << endl;
             // write out our information to disk
             cout << "Beginning to write to disk..." << endl;
@@ -672,7 +672,7 @@ int main(int argc, char **argv ) {
             cout << "Parcel position arrays reset." << endl;
 
             // memory management for root rank
-            deallocate_grid_managed(requested_grid);
+            deallocate_mesh_managed(&msh);
             deallocate_model_managed(io, data);
         }
 
@@ -680,7 +680,7 @@ int main(int argc, char **argv ) {
         // MPI ranks
         else {
             // memory management
-            deallocate_grid_cpu(requested_grid);
+            deallocate_mesh_cpu(&msh);
         }
         // receive the updated parcel arrays
         // so that we can do proper subseting. This happens

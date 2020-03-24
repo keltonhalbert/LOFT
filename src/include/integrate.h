@@ -11,6 +11,6 @@
 */
 
 
-void _nearest_grid_idx(float *point, datagrid *grid, int *idx_4D);
-void cudaIntegrateParcels(datagrid *grid, model_data *data, parcel_pos *parcels, int nT, int totTime, int direct);
+void _nearest_grid_idx(grid *gd, mesh *msh, float *point, int *idx_4D);
+void cudaIntegrateParcels(grid *gd, mesh *msh, model_data *data, parcel_pos *parcels, int nT, int totTime, int direct);
 #endif

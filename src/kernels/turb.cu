@@ -19,7 +19,7 @@ extern "C" {
  * Email: kthalbert@wisc.edu
 */
 
-__global__ void cuCalcRf(grid *gd, mesh *msh, sounding *snd,, float *rhopert, float *rhof) {
+__global__ void cuCalcRf(grid *gd, mesh *msh, sounding *snd, float *rhopert, float *rhof) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;

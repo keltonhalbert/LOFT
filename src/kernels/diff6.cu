@@ -24,22 +24,22 @@ __global__ void cuCalcDiffUXYZ(grid *gd, mesh *msh, sounding *snd, float *ustag,
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = gd->NX;
-    int NY = gd->NY;
-    int NZ = gd->NZ;
+    int nx = gd->NX;
+    int ny = gd->NY;
+    int nz = gd->NZ;
 
     // this is a pretty large stencil so we have to be careful
-    if ((i < NX-3) && (j < NY-3) && (k >= 3) && (k < NZ-4) && (i >= 3) && (j >= 3)) {
-		calc_diffx_u(ustag, tem1, i, j, k, NX, NY);
-		calc_diffy_u(ustag, tem2, i, j, k, NX, NY);
-		calc_diffz_u(ustag, snd->u0, tem3, i, j, k, NX, NY);
+    if ((i < nx-3) && (j < ny-3) && (k >= 3) && (k < nz-4) && (i >= 3) && (j >= 3)) {
+		calc_diffx_u(ustag, tem1, i, j, k, nx, ny);
+		calc_diffy_u(ustag, tem2, i, j, k, nx, ny);
+		calc_diffz_u(ustag, snd->u0, tem3, i, j, k, nx, ny);
 
 		// handle lower boundary condition for diffz_u
 		// we've kind of ignored the top boundary...
 		if ( (k == 3)  && (zf(0) == 0.0) ) {
-			tem3[P3(i, j, 2, NX+2, NY+2)] = -1.0*tem3[P3(i, j, 4, NX+2, NY+2)];
-			tem3[P3(i, j, 1, NX+2, NY+2)] = tem3[P3(i, j, 3, NX+2, NY+2)];
-			tem3[P3(i, j, 0, NX+2, NY+2)] = 0.0;
+			tem3[P3(i, j, 2, nx+2, ny+2)] = -1.0*tem3[P3(i, j, 4, nx+2, ny+2)];
+			tem3[P3(i, j, 1, nx+2, ny+2)] = tem3[P3(i, j, 3, nx+2, ny+2)];
+			tem3[P3(i, j, 0, nx+2, ny+2)] = 0.0;
 		}
     }
 }
@@ -49,22 +49,22 @@ __global__ void cuCalcDiffVXYZ(grid *gd, mesh *msh, sounding *snd, float *vstag,
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = gd->NX;
-    int NY = gd->NY;
-    int NZ = gd->NZ;
+    int nx = gd->NX;
+    int ny = gd->NY;
+    int nz = gd->NZ;
 
     // this is a pretty large stencil so we have to be careful
-    if ((i < NX-3) && (j < NY-3) && (k >= 3) && (k < NZ-4) && (i >= 3) && (j >= 3)) {
-		calc_diffx_v(vstag, tem1, i, j, k, NX, NY);
-		calc_diffy_v(vstag, tem2, i, j, k, NX, NY);
-		calc_diffz_v(vstag, snd->v0, tem3, i, j, k, NX, NY);
+    if ((i < nx-3) && (j < ny-3) && (k >= 3) && (k < nz-4) && (i >= 3) && (j >= 3)) {
+		calc_diffx_v(vstag, tem1, i, j, k, nx, ny);
+		calc_diffy_v(vstag, tem2, i, j, k, nx, ny);
+		calc_diffz_v(vstag, snd->v0, tem3, i, j, k, nx, ny);
 
 		// handle lower boundary condition for diffz_u
 		// we've kind of ignored the top boundary...
 		if ( (k == 3)  && (zf(0) == 0.0) ) {
-			tem3[P3(i, j, 2, NX+2, NY+2)] = -1.0*tem3[P3(i, j, 4, NX+2, NY+2)];
-			tem3[P3(i, j, 1, NX+2, NY+2)] = tem3[P3(i, j, 3, NX+2, NY+2)];
-			tem3[P3(i, j, 0, NX+2, NY+2)] = 0.0;
+			tem3[P3(i, j, 2, nx+2, ny+2)] = -1.0*tem3[P3(i, j, 4, nx+2, ny+2)];
+			tem3[P3(i, j, 1, nx+2, ny+2)] = tem3[P3(i, j, 3, nx+2, ny+2)];
+			tem3[P3(i, j, 0, nx+2, ny+2)] = 0.0;
 		}
     }
 }
@@ -74,22 +74,22 @@ __global__ void cuCalcDiffWXYZ(grid *gd, mesh *msh, sounding *snd, float *wstag,
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = gd->NX;
-    int NY = gd->NY;
-    int NZ = gd->NZ;
+    int nx = gd->NX;
+    int ny = gd->NY;
+    int nz = gd->NZ;
 
     // this is a pretty large stencil so we have to be careful
-    if ((i < NX-3) && (j < NY-3) && (k >= 3) && (k < NZ-4) && (i >= 3) && (j >= 3)) {
-		calc_diffx_w(wstag, tem1, i, j, k, NX, NY);
-		calc_diffy_w(wstag, tem2, i, j, k, NX, NY);
-		calc_diffz_w(wstag, tem3, i, j, k, NX, NY);
+    if ((i < nx-3) && (j < ny-3) && (k >= 3) && (k < nz-4) && (i >= 3) && (j >= 3)) {
+		calc_diffx_w(wstag, tem1, i, j, k, nx, ny);
+		calc_diffy_w(wstag, tem2, i, j, k, nx, ny);
+		calc_diffz_w(wstag, tem3, i, j, k, nx, ny);
 
 		// handle lower boundary condition for diffz_u
 		// we've kind of ignored the top boundary...
 		if ( (k == 3)  && (zf(0) == 0.0) ) {
-			tem3[P3(i, j, 2, NX+2, NY+2)] = -1.0*tem3[P3(i, j, 4, NX+2, NY+2)];
-			tem3[P3(i, j, 1, NX+2, NY+2)] = tem3[P3(i, j, 3, NX+2, NY+2)];
-			tem3[P3(i, j, 0, NX+2, NY+2)] = 0.0;
+			tem3[P3(i, j, 2, nx+2, ny+2)] = -1.0*tem3[P3(i, j, 4, nx+2, ny+2)];
+			tem3[P3(i, j, 1, nx+2, ny+2)] = tem3[P3(i, j, 3, nx+2, ny+2)];
+			tem3[P3(i, j, 0, nx+2, ny+2)] = 0.0;
 		}
     }
 }
@@ -99,12 +99,12 @@ __global__ void cuCalcDiff(grid *gd, mesh *msh, sounding *snd, float *diffx, flo
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = gd->NX;
-    int NY = gd->NY;
-    int NZ = gd->NZ;
+    int nx = gd->NX;
+    int ny = gd->NY;
+    int nz = gd->NZ;
 
-    if ((i < NX+1) && (j < NY+1) && (k < NZ)) {
-		calc_diff(diffx, diffy, diffz, difften, gd->dt, i, j, k, NX, NY);
+    if ((i < nx+1) && (j < ny+1) && (k < nz)) {
+		calc_diff(diffx, diffy, diffz, difften, msh->dt, i, j, k, nx, ny);
     }
 }
 

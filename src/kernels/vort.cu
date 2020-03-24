@@ -24,12 +24,12 @@ __global__ void cuCalcPipert(grid *gd, sounding *snd, float *prespert, float *pi
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = gd->NX;
-    int NY = gd->NY;
-    int NZ = gd->NZ;
+    int nx = gd->NX;
+    int ny = gd->NY;
+    int nz = gd->NZ;
 
-    if ((i < NX+1) && (j < NY+1) && (k < NZ)) {
-		calc_pipert(prespert, snd->p0, pipert, i, j, k, NX, NY);
+    if ((i < nx+1) && (j < ny+1) && (k < nz)) {
+		calc_pipert(prespert, snd->pres0, pipert, i, j, k, nx, ny);
     }
 }
 
@@ -38,17 +38,17 @@ __global__ void cuCalcXvort(grid *gd, mesh *msh, float *vstag, float *wstag, flo
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = gd->NX;
-    int NY = gd->NY;
-    int NZ = gd->NZ;
+    int nx = gd->NX;
+    int ny = gd->NY;
+    int nz = gd->NZ;
     float dy, dz;
 	float *buf0 = xvort;
 
-    if ((i < NX) && (j < NY+1) && (k > 0) && (k < NZ)) {
+    if ((i < nx) && (j < ny+1) && (k > 0) && (k < nz)) {
         dy = yf(j) - yf(j-1);
         dz = zf(k) - zf(k-1);
 
-		calc_xvort(vstag, wstag, xvort, dy, dz, i, j, k, NX, NY);
+		calc_xvort(vstag, wstag, xvort, dy, dz, i, j, k, nx, ny);
 		// lower boundary condition of stencil
 		if ((k == 1) && (zf(k-1) == 0)) {
 			BUF(i, j, 0) = BUF(i, j, 1);
@@ -61,17 +61,17 @@ __global__ void cuCalcYvort(grid *gd, mesh *msh, float *ustag, float *wstag, flo
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = gd->NX;
-    int NY = gd->NY;
-    int NZ = gd->NZ;
+    int nx = gd->NX;
+    int ny = gd->NY;
+    int nz = gd->NZ;
     float dx, dz;
 	float *buf0 = yvort;
 
-    if ((i < NX+1) && (j < NY) && (k > 0) && (k < NZ+1)) {
+    if ((i < nx+1) && (j < ny) && (k > 0) && (k < nz+1)) {
         dx = xf(i) - xf(i-1);
         dz = zf(k) - zf(k-1);
 
-		calc_yvort(ustag, wstag, yvort, dx, dz, i, j, k, NX, NY);
+		calc_yvort(ustag, wstag, yvort, dx, dz, i, j, k, nx, ny);
 		// lower boundary condition of stencil
 		if ((k == 1) && (zf(k-1) == 0)) {
 			BUF(i, j, 0) = BUF(i, j, 1);
@@ -84,16 +84,16 @@ __global__ void cuCalcZvort(grid *gd, mesh *msh, float *ustag, float *vstag, flo
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = gd->NX;
-    int NY = gd->NY;
-    int NZ = gd->NZ;
+    int nx = gd->NX;
+    int ny = gd->NY;
+    int nz = gd->NZ;
     float dx, dy;
 
-    if ((i < NX+1) && (j < NY+1) && (k < NZ+1)) {
+    if ((i < nx+1) && (j < ny+1) && (k < nz+1)) {
         dx = xf(i) - xf(i-1);
         dy = yf(j) - yf(j-1);
 
-		calc_zvort(ustag, vstag, zvort, dx, dy, i, j, k, NX, NY);
+		calc_zvort(ustag, vstag, zvort, dx, dy, i, j, k, nx, ny);
     }
 }
 
@@ -102,16 +102,16 @@ __global__ void cuCalcXvortStretch(grid *gd, mesh *msh, float *vstag, float *wst
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = gd->NX;
-    int NY = gd->NY;
-    int NZ = gd->NZ;
+    int nx = gd->NX;
+    int ny = gd->NY;
+    int nz = gd->NZ;
     float dy, dz;
 
 
-    if ((i < NX) && (j < NY) && (k < NZ)) {
+    if ((i < nx) && (j < ny) && (k < nz)) {
         dy = yf(j+1) - yf(j);
         dz = zf(k+1) - zf(k);
-		    calc_xvort_stretch(vstag, wstag, xvort, xvstretch, dy, dz, i, j, k, NX, NY);
+		    calc_xvort_stretch(vstag, wstag, xvort, xvstretch, dy, dz, i, j, k, nx, ny);
     }
 }
 
@@ -120,15 +120,15 @@ __global__ void cuCalcYvortStretch(grid *gd, mesh *msh, float *ustag, float *wst
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = gd->NX;
-    int NY = gd->NY;
-    int NZ = gd->NZ;
+    int nx = gd->NX;
+    int ny = gd->NY;
+    int nz = gd->NZ;
     float dx, dz;
 
-    if ((i < NX) && (j < NY) && (k < NZ)) {
+    if ((i < nx) && (j < ny) && (k < nz)) {
         dx = xf(i+1) - xf(i);
         dz = zf(k+1) - zf(k);
-		calc_yvort_stretch(ustag, wstag, yvort, yvstretch, dx, dz, i, j, k, NX, NY);
+		calc_yvort_stretch(ustag, wstag, yvort, yvstretch, dx, dz, i, j, k, nx, ny);
     }
 
 }
@@ -138,15 +138,15 @@ __global__ void cuCalcZvortStretch(grid *gd, mesh *msh, float *ustag, float *vst
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = gd->NX;
-    int NY = gd->NY;
-    int NZ = gd->NZ;
+    int nx = gd->NX;
+    int ny = gd->NY;
+    int nz = gd->NZ;
     float dx, dy;
 
-    if ((i < NX) && (j < NY) && (k < NZ)) {
+    if ((i < nx) && (j < ny) && (k < nz)) {
         dx = xf(i+1) - xf(i);
         dy = yf(j+1) - yf(j);
-		calc_zvort_stretch(ustag, vstag, zvort, zvstretch, dx, dy, i, j, k, NX, NY);
+		calc_zvort_stretch(ustag, vstag, zvort, zvstretch, dx, dy, i, j, k, nx, ny);
     }
 }
 
@@ -155,20 +155,20 @@ __global__ void cuPreXvortTilt(grid *gd, mesh *msh, sounding *snd, float *ustag,
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = gd->NX;
-    int NY = gd->NY;
-    int NZ = gd->NZ;
+    int nx = gd->NX;
+    int ny = gd->NY;
+    int nz = gd->NZ;
 	float dy, dz;
 
-    if ((i < NX) && (j < NY) && (k < NZ)) {
+    if ((i < nx) && (j < ny) && (k < nz)) {
 		dy = yf(j) - yf(j-1);
         // loop over the number of time steps we have in memory
-		calc_dudy(ustag, dudy, dy, i, j, k, NX, NY);
+		calc_dudy(ustag, dudy, dy, i, j, k, nx, ny);
     }
 
-	if ((i < NX) && (j < NY) && (k < NZ) && (k > 0)) {
+	if ((i < nx) && (j < ny) && (k < nz) && (k > 0)) {
 		dz = zf(k) - zf(k-1);
-		calc_dudz(ustag, dudz, dz, i, j, k, NX, NY);
+		calc_dudz(ustag, dudz, dz, i, j, k, nx, ny);
 	}
 }
 
@@ -177,20 +177,20 @@ __global__ void cuPreYvortTilt(grid *gd, mesh *msh, float *vstag, float *dvdx, f
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = gd->NX;
-    int NY = gd->NY;
-    int NZ = gd->NZ;
+    int nx = gd->NX;
+    int ny = gd->NY;
+    int nz = gd->NZ;
 	float dx, dz;
 
-    if ((i < NX) && (j < NY) && (k < NZ)) {
+    if ((i < nx) && (j < ny) && (k < nz)) {
 		dx = xf(i) - xf(i-1);
         // loop over the number of time steps we have in memory
-		calc_dvdx(vstag, dvdx, dx, i, j, k, NX, NY);
+		calc_dvdx(vstag, dvdx, dx, i, j, k, nx, ny);
     }
 
-	if ((i < NX) && (j < NY) && (k < NZ) && (k > 0)) {
+	if ((i < nx) && (j < ny) && (k < nz) && (k > 0)) {
 		dz = zf(k) - zf(k-1);
-		calc_dvdz(vstag, dvdz, dz, i, j, k, NX, NY);
+		calc_dvdz(vstag, dvdz, dz, i, j, k, nx, ny);
 	}
 }
 
@@ -199,17 +199,17 @@ __global__ void cuPreZvortTilt(grid *gd, mesh *msh, float *wstag, float *dwdx, f
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = gd->NX;
-    int NY = gd->NY;
-    int NZ = gd->NZ;
+    int nx = gd->NX;
+    int ny = gd->NY;
+    int nz = gd->NZ;
 	float dx, dy;
 
-    if ((i < NX) && (j < NY) && (k < NZ)) {
+    if ((i < nx) && (j < ny) && (k < nz)) {
 		dx = xf(i) - xf(i-1);
 		dy = yf(j) - yf(j-1);
         // loop over the number of time steps we have in memory
-		calc_dwdx(wstag, dwdx, dx, i, j, k, NX, NY);
-		calc_dwdy(wstag, dwdy, dy, i, j, k, NX, NY);
+		calc_dwdx(wstag, dwdx, dx, i, j, k, nx, ny);
+		calc_dwdy(wstag, dwdy, dy, i, j, k, nx, ny);
     }
 }
 
@@ -219,13 +219,13 @@ __global__ void cuCalcXvortTilt(grid *gd, mesh *msh, float *yvort, float *zvort,
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = gd->NX;
-    int NY = gd->NY;
-    int NZ = gd->NZ;
+    int nx = gd->NX;
+    int ny = gd->NY;
+    int nz = gd->NZ;
 
-    if ((i < NX) && (j < NY) && (k < NZ)) {
+    if ((i < nx) && (j < ny) && (k < nz)) {
         // loop over the number of time steps we have in memory
-		calc_xvort_tilt(yvort, zvort, dudy, dudz, xvtilt, i, j, k, NX, NY);
+		calc_xvort_tilt(yvort, zvort, dudy, dudz, xvtilt, i, j, k, nx, ny);
     }
 }
 
@@ -235,13 +235,13 @@ __global__ void cuCalcYvortTilt(grid *gd, mesh *msh, float *xvort, float *zvort,
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = gd->NX;
-    int NY = gd->NY;
-    int NZ = gd->NZ;
+    int nx = gd->NX;
+    int ny = gd->NY;
+    int nz = gd->NZ;
 
-    if ((i < NX) && (j < NY) && (k < NZ)) {
+    if ((i < nx) && (j < ny) && (k < nz)) {
         // loop over the number of time steps we have in memory
-		calc_yvort_tilt(xvort, zvort, dvdx, dvdz, yvtilt, i, j, k, NX, NY);
+		calc_yvort_tilt(xvort, zvort, dvdx, dvdz, yvtilt, i, j, k, nx, ny);
     }
 }
 
@@ -251,13 +251,13 @@ __global__ void cuCalcZvortTilt(grid *gd, mesh *msh, float *xvort, float *yvort,
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = gd->NX;
-    int NY = gd->NY;
-    int NZ = gd->NZ;
+    int nx = gd->NX;
+    int ny = gd->NY;
+    int nz = gd->NZ;
 
-    if ((i < NX) && (j < NY) && (k < NZ)) {
+    if ((i < nx) && (j < ny) && (k < nz)) {
         // loop over the number of time steps we have in memory
-		calc_zvort_tilt(xvort, yvort, dwdx, dwdy, zvtilt, i, j, k, NX, NY);
+		calc_zvort_tilt(xvort, yvort, dwdx, dwdy, zvtilt, i, j, k, nx, ny);
     }
 }
 
@@ -266,15 +266,15 @@ __global__ void cuCalcXvortBaro(grid *gd, mesh *msh, sounding *snd, float *thrho
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = gd->NX;
-    int NY = gd->NY;
-    int NZ = gd->NZ;
+    int nx = gd->NX;
+    int ny = gd->NY;
+    int nz = gd->NZ;
     float dx;
 
-    if ((i < NX-1) && (j < NY-1) && (k < NZ) && ( i > 0 ) && (j > 0) && (k > 0)) {
+    if ((i < nx-1) && (j < ny-1) && (k < nz) && ( i > 0 ) && (j > 0) && (k > 0)) {
         // loop over the number of time steps we have in memory
         dx = xh(i+1) - xh(i-1);
-		calc_xvort_baro(thrhopert, snd->th0, snd->qv0, xvort_baro, dx, i, j, k, NX, NY);
+		calc_xvort_baro(thrhopert, snd->th0, snd->qv0, xvort_baro, dx, i, j, k, nx, ny);
     }
 }
 
@@ -283,15 +283,15 @@ __global__ void cuCalcYvortBaro(grid *gd, mesh *msh, sounding *snd, float *thrho
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = gd->NX;
-    int NY = gd->NY;
-    int NZ = gd->NZ;
+    int nx = gd->NX;
+    int ny = gd->NY;
+    int nz = gd->NZ;
     float dy;
 
-    if ((i < NX-1) && (j < NY-1) && (k < NZ) && ( i > 0 ) && (j > 0) && (k > 0)) {
+    if ((i < nx-1) && (j < ny-1) && (k < nz) && ( i > 0 ) && (j > 0) && (k > 0)) {
         // loop over the number of time steps we have in memory
         dy = yh(j+1) - yh(j-1);
-		calc_yvort_baro(thrhopert, snd->th0, snd->qv0, yvort_baro, dy, i, j, k, NX, NY);
+		calc_yvort_baro(thrhopert, snd->th0, snd->qv0, yvort_baro, dy, i, j, k, nx, ny);
     }
 }
 
@@ -301,18 +301,18 @@ __global__ void cuCalcXvortSolenoid(grid *gd, mesh *msh, sounding *snd, float *p
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = gd->NX;
-    int NY = gd->NY;
-    int NZ = gd->NZ;
+    int nx = gd->NX;
+    int ny = gd->NY;
+    int nz = gd->NZ;
     float dy, dz;
 
-    if ((i < NX-1) && (j < NY-1) && (k < NZ) && ( i > 0 ) && (j > 0) && (k > 0)) {
+    if ((i < nx-1) && (j < ny-1) && (k < nz) && ( i > 0 ) && (j > 0) && (k > 0)) {
         dy = yh(j+1)-yh(j-1);
         dz = zh(k+1)-zh(k-1);
 
-		calc_xvort_solenoid(pipert, thrhopert, snd->th0, snd->qv0, xvort_solenoid, dy, dz, i, j, k, NX, NY);
+		calc_xvort_solenoid(pipert, thrhopert, snd->th0, snd->qv0, xvort_solenoid, dy, dz, i, j, k, nx, ny);
 		if ((k == 1) && (zf(k-1) == 0)) {
-			xvort_solenoid[P3(i, j, 0, NX+2, NY+2)] = xvort_solenoid[P3(i, j, 1, NX+2, NY+2)];
+			xvort_solenoid[P3(i, j, 0, nx+2, ny+2)] = xvort_solenoid[P3(i, j, 1, nx+2, ny+2)];
 		}
     }
 }
@@ -323,18 +323,18 @@ __global__ void cuCalcYvortSolenoid(grid *gd, mesh *msh, sounding *snd, float *p
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = gd->NX;
-    int NY = gd->NY;
-    int NZ = gd->NZ;
+    int nx = gd->NX;
+    int ny = gd->NY;
+    int nz = gd->NZ;
     float dx, dz;
 
-    if ((i < NX-1) && (j < NY-1) && (k < NZ) && ( i > 0 ) && (j > 0) && (k > 0)) {
+    if ((i < nx-1) && (j < ny-1) && (k < nz) && ( i > 0 ) && (j > 0) && (k > 0)) {
         dx = xh(i+1)-xh(i-1);
         dz = zh(k+1)-zh(k-1);
 
-		calc_yvort_solenoid(pipert, thrhopert, snd->th0, snd->qv0, yvort_solenoid, dx, dz, i, j, k, NX, NY);
+		calc_yvort_solenoid(pipert, thrhopert, snd->th0, snd->qv0, yvort_solenoid, dx, dz, i, j, k, nx, ny);
 		if ((k == 1) && (zf(k-1) == 0)) {
-			yvort_solenoid[P3(i, j, 0, NX+2, NY+2)] = yvort_solenoid[P3(i, j, 1, NX+2, NY+2)];
+			yvort_solenoid[P3(i, j, 0, nx+2, ny+2)] = yvort_solenoid[P3(i, j, 1, nx+2, ny+2)];
 		}
     }
 }
@@ -345,18 +345,18 @@ __global__ void cuCalcZvortSolenoid(grid *gd, mesh *msh, float *pipert, float *t
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
     int k = (blockIdx.z*blockDim.z) + threadIdx.z;
-    int NX = gd->NX;
-    int NY = gd->NY;
-    int NZ = gd->NZ;
+    int nx = gd->NX;
+    int ny = gd->NY;
+    int nz = gd->NZ;
     float dx, dy;
 
-    // Even though there are NZ points, it's a center difference
+    // Even though there are nz points, it's a center difference
     // and we reach out NZ+1 points to get the derivatives
-    if ((i < NX-1) && (j < NY-1) && (k < NZ) && ( i > 0 ) && (j > 0)) {
+    if ((i < nx-1) && (j < ny-1) && (k < nz) && ( i > 0 ) && (j > 0)) {
         dx = xh(i+1)-xh(i-1);
         dy = yh(j+1)-yh(j-1);
 
-		calc_zvort_solenoid(pipert, thrhopert, zvort_solenoid, dx, dy, i, j, k, NX, NY);
+		calc_zvort_solenoid(pipert, thrhopert, zvort_solenoid, dx, dy, i, j, k, nx, ny);
     }
 }
 
@@ -366,34 +366,34 @@ __global__ void zeroTemArrays(grid *gd, model_data *data, int tStart, int tEnd) 
     int j = blockIdx.y*blockDim.y + threadIdx.y;
     int k = blockIdx.z*blockDim.z + threadIdx.z;
 
-    int NX = gd->NX;
-    int NY = gd->NY;
-    int NZ = gd->NZ;
+    int nx = gd->NX;
+    int ny = gd->NY;
+    int nz = gd->NZ;
     float *dum0;
-    if (( i < NX+1) && ( j < NY+1) && ( k < NZ+1)) {
+    if (( i < nx+1) && ( j < ny+1) && ( k < nz+1)) {
         dum0 = data->tem1;
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            TEM4D(i, j, k, tidx) = 0.0;
+            dum0[P4(i, j, k, tidx, nx+2, ny+2, nz+1)] = 0.0;
         }
         dum0 = data->tem2;
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            TEM4D(i, j, k, tidx) = 0.0;
+            dum0[P4(i, j, k, tidx, nx+2, ny+2, nz+1)] = 0.0;
         }
         dum0 = data->tem3;
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            TEM4D(i, j, k, tidx) = 0.0;
+            dum0[P4(i, j, k, tidx, nx+2, ny+2, nz+1)] = 0.0;
         }
         dum0 = data->tem4;
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            TEM4D(i, j, k, tidx) = 0.0;
+            dum0[P4(i, j, k, tidx, nx+2, ny+2, nz+1)] = 0.0;
         }
         dum0 = data->tem5;
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            TEM4D(i, j, k, tidx) = 0.0;
+            dum0[P4(i, j, k, tidx, nx+2, ny+2, nz+1)] = 0.0;
         }
         dum0 = data->tem6;
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            TEM4D(i, j, k, tidx) = 0.0;
+            dum0[P4(i, j, k, tidx, nx+2, ny+2, nz+1)] = 0.0;
         }
     }
 }
@@ -410,12 +410,12 @@ __global__ void doVortAvg(grid *gd, float *tem1, float *tem2, float *tem3, float
     int j = blockIdx.y*blockDim.y + threadIdx.y;
     int k = blockIdx.z*blockDim.z + threadIdx.z;
 
-    int NX = gd->NX;
-    int NY = gd->NY;
-    int NZ = gd->NZ;
-    float *buf0, *dum0;
+    int nx = gd->NX;
+    int ny = gd->NY;
+    int nz = gd->NZ;
 
-    if ((i < NX) && (j < NY) && (k < NZ)) {
+    float *buf0, *dum0;
+    if ((i < nx) && (j < ny) && (k < nz)) {
         // loop over the number of time steps we have in memory
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
             // average the temporary arrays into the result arrays

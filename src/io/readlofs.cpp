@@ -121,7 +121,7 @@ void lofs_get_grid( dir_meta *dm, hdf_meta *hm, grid *gd, mesh *msh, sounding *s
 
 }
 
-void lofs_read_3dvar(datagrid *grid, float *buffer, char *varname, bool istag, double t0) {
+void lofs_read_3dvar(grid *gd, mesh *msh, float *buffer, char *varname, bool istag, double t0) {
 }
 
 #endif
