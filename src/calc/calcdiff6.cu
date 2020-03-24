@@ -19,7 +19,7 @@ extern "C" {
  * Email: kthalbert@wisc.edu
 */
 
-__device__ void calc_diffx_u(float *ustag, float *diffxu, int i, int j, int k, int NX, int NY) {
+__device__ void calc_diffx_u(float *ustag, float *diffxu, int i, int j, int k, int nx, int ny) {
     // we're going to store our x diffusion of u
     // in the tem1 array for later use
     float *dum0 = diffxu;
@@ -33,7 +33,7 @@ __device__ void calc_diffx_u(float *ustag, float *diffxu, int i, int j, int k, i
     TEM(i, j, k) = pval;
 }
 
-__device__ void calc_diffx_v(float *vstag, float *diffxv, int i, int j , int k, int NX, int NY) {
+__device__ void calc_diffx_v(float *vstag, float *diffxv, int i, int j , int k, int nx, int ny) {
     // we're going to store our x diffusion of v
     // in the tem1 array for later use
     float *dum0 = diffxv;
@@ -47,7 +47,7 @@ __device__ void calc_diffx_v(float *vstag, float *diffxv, int i, int j , int k, 
     TEM(i, j, k) = pval;
 }
 
-__device__ void calc_diffx_w(float *wstag, float *diffxw, int i, int j, int k, int NX, int NY) {
+__device__ void calc_diffx_w(float *wstag, float *diffxw, int i, int j, int k, int nx, int ny) {
     // we're going to store our x diffusion of w
     // in the tem1 array for later use
     float *dum0 = diffxw;
@@ -61,7 +61,7 @@ __device__ void calc_diffx_w(float *wstag, float *diffxw, int i, int j, int k, i
     TEM(i, j, k) = pval;
 }
 
-__device__ void calc_diffy_u(float *ustag, float *diffyu, int i, int j, int k, int NX, int NY) {
+__device__ void calc_diffy_u(float *ustag, float *diffyu, int i, int j, int k, int nx, int ny) {
     // we're going to store our y diffusion of u
     // in the tem2 array for later use
     float *dum0 = diffyu;
@@ -75,7 +75,7 @@ __device__ void calc_diffy_u(float *ustag, float *diffyu, int i, int j, int k, i
     TEM(i, j, k) = pval;
 }
 
-__device__ void calc_diffy_v(float *vstag, float *diffyv, int i, int j, int k, int NX, int NY) {
+__device__ void calc_diffy_v(float *vstag, float *diffyv, int i, int j, int k, int nx, int ny) {
     // we're going to store our y diffusion of v
     // in the tem2 array for later use
     float *dum0 = diffyv;
@@ -89,7 +89,7 @@ __device__ void calc_diffy_v(float *vstag, float *diffyv, int i, int j, int k, i
     TEM(i, j, k) = pval;
 }
 
-__device__ void calc_diffy_w(float *wstag, float *diffyw, int i, int j, int k, int NX, int NY) {
+__device__ void calc_diffy_w(float *wstag, float *diffyw, int i, int j, int k, int nx, int ny) {
     // we're going to store our y diffusion of w
     // in the tem2 array for later use
     float *dum0 = diffyw;
@@ -103,7 +103,7 @@ __device__ void calc_diffy_w(float *wstag, float *diffyw, int i, int j, int k, i
     TEM(i, j, k) = pval;
 }
 
-__device__ void calc_diffz_u(float *ustag, float *u0, float *diffzu, int i, int j, int k, int NX, int NY) {
+__device__ void calc_diffz_u(float *ustag, float *u0, float *diffzu, int i, int j, int k, int nx, int ny) {
     // we're going to store our z diffusion of u
     // in the tem3 array for later use
     float *dum0 = diffzu;
@@ -126,7 +126,7 @@ __device__ void calc_diffz_u(float *ustag, float *u0, float *diffzu, int i, int 
     TEM(i, j, k) = pval;
 }
 
-__device__ void calc_diffz_v(float *vstag, float *v0, float *diffzv, int i, int j, int k, int NX, int NY) {
+__device__ void calc_diffz_v(float *vstag, float *v0, float *diffzv, int i, int j, int k, int nx, int ny) {
     // we're going to store our z diffusion of v
     // in the tem3 array for later use
     float *dum0 = diffzv;
@@ -151,7 +151,7 @@ __device__ void calc_diffz_v(float *vstag, float *v0, float *diffzv, int i, int 
     TEM(i, j, k) = pval;
 }
 
-__device__ void calc_diffz_w(float *wstag, float *diffzw, int i, int j, int k, int NX, int NY) {
+__device__ void calc_diffz_w(float *wstag, float *diffzw, int i, int j, int k, int nx, int ny) {
     // we're going to store our z diffusion of w
     // in the tem3 array for later use
     float *dum0 = diffzw;
@@ -165,7 +165,7 @@ __device__ void calc_diffz_w(float *wstag, float *diffzw, int i, int j, int k, i
     TEM(i, j, k) = pval;
 }
 
-__device__ void calc_diff(float *diffx, float *diffy, float *diffz, float *difften, float dt, int i, int j, int k, int NX, int NY) {
+__device__ void calc_diff(float *diffx, float *diffy, float *diffz, float *difften, float dt, int i, int j, int k, int nx, int ny) {
     const float coeff = (kdiff6/64.0/dt);
 
     float *dum0 = diffx; 
