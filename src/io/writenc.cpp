@@ -8,6 +8,13 @@
  * Email: kthalbert@wisc.edu
 */
 
+extern "C" {
+#include <lofs-read.h>
+#include <lofs-dirstruct.h>
+#include <lofs-hdf2nc.h>
+#include <lofs-limits.h>
+#include <lofs-macros.h>
+}
 #include "../include/datastructs.h"
 #include <iostream>
 #include <string>

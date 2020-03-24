@@ -1,10 +1,9 @@
 #include "../include/datastructs.h"
 extern "C" {
-#include <lofs-read.h>
-#include <dirstruct.h>
-#include <hdf2nc.h>
-#include <limits.h>
-#include <macros.h>
+#include <lofs-dirstruct.h>
+#include <lofs-hdf2nc.h>
+#include <lofs-limits.h>
+#include <lofs-macros.h>
 }
 #include <iostream>
 #ifndef DATASTRUCTS
@@ -34,7 +33,7 @@ mesh* allocate_mesh_managed( hdf_meta *hm, grid *gd ) {
     cudaMallocManaged(&(msh->xhout), (gd->NX)*sizeof(float));
 
     cudaMallocManaged(&(msh->yffull), (hm->ny+1)*sizeof(float));
-    cudaMallocManaged(&(msh->yfull), (hm->ny)*sizeof(float));
+    cudaMallocManaged(&(msh->yffull), (hm->ny)*sizeof(float));
     cudaMallocManaged(&(msh->yfout), (gd->NY)*sizeof(float));
     cudaMallocManaged(&(msh->yhout), (gd->NY)*sizeof(float));
 
@@ -92,25 +91,25 @@ sounding* allocate_sounding_managed(grid *gd) {
 	sounding *snd;
     cudaMallocManaged(&snd, sizeof(sounding));
     // allocate base state arrays
-    cudaMallocManaged(&(msh->u0),   (gd->NZ)*sizeof(float));
-    cudaMallocManaged(&(msh->v0),   (gd->NZ)*sizeof(float));
-    cudaMallocManaged(&(msh->qv0),  (gd->NZ)*sizeof(float));
-    cudaMallocManaged(&(msh->th0),  (gd->NZ)*sizeof(float));
-    cudaMallocManaged(&(msh->rho0), (gd->NZ)*sizeof(float));
-    cudaMallocManaged(&(msh->p0),   (gd->NZ)*sizeof(float));
-    cudaDeviceSynchronize();
+    cudaMallocManaged(&(snd->u0),   (gd->NZ)*sizeof(float));
+    cudaMallocManaged(&(snd->v0),   (gd->NZ)*sizeof(float));
+    cudaMallocManaged(&(snd->qv0),  (gd->NZ)*sizeof(float));
+    cudaMallocManaged(&(snd->th0),  (gd->NZ)*sizeof(float));
+    cudaMallocManaged(&(snd->rho0), (gd->NZ)*sizeof(float));
+    cudaMallocManaged(&(snd->pres0),   (gd->NZ)*sizeof(float));
+	return snd;
 }
 
 sounding* allocate_sounding_cpu(grid *gd) {
 
 	sounding *snd = new sounding();
     // allocate base state arrays
-    msh->u0 = new float[gd->NZ];
-    msh->v0 = new float[gd->NZ];
-    msh->qv0 = new float[gd->NZ];
-    msh->th0 = new float[gd->NZ];
-    msh->rho0 = new float[gd->NZ];
-    msh->p0 = new float[gd->NZ];
+    snd->u0 = new float[gd->NZ];
+    snd->v0 = new float[gd->NZ];
+    snd->qv0 = new float[gd->NZ];
+    snd->th0 = new float[gd->NZ];
+    snd->rho0 = new float[gd->NZ];
+    snd->pres0 = new float[gd->NZ];
 
     return snd;
 }
@@ -118,10 +117,16 @@ sounding* allocate_sounding_cpu(grid *gd) {
 /* Deallocate all of the arrays in the 
    struct for both the GPU and CPU */
 void deallocate_mesh_managed(mesh *msh) {
-    cudaFree(msh->xf);
-    cudaFree(msh->xh);
-    cudaFree(msh->yf);
-    cudaFree(msh->yh);
+    cudaFree(msh->xffull);
+    cudaFree(msh->xhfull);
+    cudaFree(msh->xfout);
+    cudaFree(msh->xhout);
+    cudaFree(msh->yffull);
+    cudaFree(msh->yhfull);
+    cudaFree(msh->yfout);
+    cudaFree(msh->yhout);
+    cudaFree(msh->zfout);
+    cudaFree(msh->zhout);
     cudaFree(msh->zf);
     cudaFree(msh->zh);
     cudaFree(msh->uf);
@@ -135,10 +140,16 @@ void deallocate_mesh_managed(mesh *msh) {
 /* Deallocate all of the arrays in the
    struct only for the CPU */
 void deallocate_mesh_cpu(mesh *msh) {
-    delete[] msh->xf;
-    delete[] msh->xh;
-    delete[] msh->yf;
-    delete[] msh->yh;
+    delete[] msh->xffull;
+    delete[] msh->xhfull;
+    delete[] msh->xfout;
+    delete[] msh->xhout;
+    delete[] msh->yffull;
+    delete[] msh->yhfull;
+    delete[] msh->yfout;
+    delete[] msh->yhout;
+    delete[] msh->zfout;
+    delete[] msh->zhout;
     delete[] msh->zf;
     delete[] msh->zh;
     delete[] msh->uf;
@@ -155,7 +166,7 @@ void deallocate_sounding_managed(sounding *snd) {
     cudaFree(snd->rho0);
     cudaFree(snd->th0);
     cudaFree(snd->qv0);
-    cudaFree(snd->p0);
+    cudaFree(snd->pres0);
 }
 
 void deallocate_sounding_cpu(sounding *snd) {
@@ -164,7 +175,7 @@ void deallocate_sounding_cpu(sounding *snd) {
     delete[] snd->rho0;
     delete[] snd->th0;
     delete[] snd->qv0;
-    delete[] snd->p0;
+    delete[] snd->pres0;
 }
 
 /* Allocate arrays for parcel info on both the CPU and GPU.

@@ -1,8 +1,8 @@
 // header file for reading CUDA compiled
 // stuffs
 
-#include <dirstructs.h>
-#include <hdf2nc.h>
+#include <lofs-dirstruct.h>
+#include <lofs-hdf2nc.h>
 #ifndef DATASTRUCTS_H
 #define DATASTRUCTS_H
 /*

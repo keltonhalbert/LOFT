@@ -4,10 +4,10 @@
 #include "math.h"
 extern "C" {
 #include <lofs-read.h>
-#include <dirstruct.h>
-#include <hdf2nc.h>
-#include <limits.h>
-#include <macros.h>
+#include <lofs-dirstruct.h>
+#include <lofs-hdf2nc.h>
+#include <lofs-limits.h>
+#include <lofs-macros.h>
 }
 #include "../include/datastructs.h"
 using namespace std;
