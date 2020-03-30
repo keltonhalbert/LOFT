@@ -87,29 +87,29 @@ mesh* allocate_mesh_cpu( hdf_meta *hm, grid *gd ) {
 	return msh;
 }
 
-sounding* allocate_sounding_managed(grid *gd) {
+sounding* allocate_sounding_managed( int NZ ) {
 	sounding *snd;
     cudaMallocManaged(&snd, sizeof(sounding));
     // allocate base state arrays
-    cudaMallocManaged(&(snd->u0),   (gd->NZ)*sizeof(float));
-    cudaMallocManaged(&(snd->v0),   (gd->NZ)*sizeof(float));
-    cudaMallocManaged(&(snd->qv0),  (gd->NZ)*sizeof(float));
-    cudaMallocManaged(&(snd->th0),  (gd->NZ)*sizeof(float));
-    cudaMallocManaged(&(snd->rho0), (gd->NZ)*sizeof(float));
-    cudaMallocManaged(&(snd->pres0),   (gd->NZ)*sizeof(float));
+    cudaMallocManaged(&(snd->u0),   (NZ)*sizeof(float));
+    cudaMallocManaged(&(snd->v0),   (NZ)*sizeof(float));
+    cudaMallocManaged(&(snd->qv0),  (NZ)*sizeof(float));
+    cudaMallocManaged(&(snd->th0),  (NZ)*sizeof(float));
+    cudaMallocManaged(&(snd->rho0), (NZ)*sizeof(float));
+    cudaMallocManaged(&(snd->pres0),   (NZ)*sizeof(float));
 	return snd;
 }
 
-sounding* allocate_sounding_cpu(grid *gd) {
+sounding* allocate_sounding_cpu( int NZ ) {
 
 	sounding *snd = new sounding();
     // allocate base state arrays
-    snd->u0 = new float[gd->NZ];
-    snd->v0 = new float[gd->NZ];
-    snd->qv0 = new float[gd->NZ];
-    snd->th0 = new float[gd->NZ];
-    snd->rho0 = new float[gd->NZ];
-    snd->pres0 = new float[gd->NZ];
+    snd->u0 = new float[NZ];
+    snd->v0 = new float[NZ];
+    snd->qv0 = new float[NZ];
+    snd->th0 = new float[NZ];
+    snd->rho0 = new float[NZ];
+    snd->pres0 = new float[NZ];
 
     return snd;
 }

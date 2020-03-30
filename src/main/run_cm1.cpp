@@ -165,134 +165,126 @@ void parse_cfg(map<string, string> *usrCfg, iocfg *io, string *histpath, string 
  * When the next chunk of time is read in, check and see where the parcels
  * are currently and request a subset that is relevent to those parcels.   
  */
-void loadMetadataAndGrid(string base_dir, grid *gd, mesh *msh, parcel_pos *parcels, int rank) {
-    // get the HDF metadata from LOFS - return the first filename
+void loadMetadataAndGrid(string base_dir, dir_meta *dm, hdf_meta *hm, grid *gd, mesh *req_msh, sounding *snd, parcel_pos *parcels, int rank) {
     cout << "Retrieving HDF Metadata" << endl;
 
 	// Create a temporary full grid that we will then subset. We will
 	// only do this in CPU memory because this will get deleted
-	//datagrid *temp_grid;
-	// this is the grid we will return
-	//datagrid *requested_grid;
-/*
- *        
- *
- *    // load the saved grid dimmensions into 
- *    // the temporary grid, then we will find
- *    // a smaller subset to load into memory.
- *    //  nz comes from readlofs
- *    cout << "Allocating temporary grid" << endl;
- *    temp_grid = allocate_grid_cpu( saved_X0, saved_X1, saved_Y0, saved_Y1, 0, nz-1);
- *
- *    // request the full grid so that we can find the indices
- *    // of where our parcels are, and then request a smaller
- *    // subset from there.
- *    cout << "Calling LOFS on temporary grid" << endl;
- *    lofs_get_grid(temp_grid);
- *
- *    // find the min/max index bounds of 
- *    // our parcels
- *    float point[3];
- *    int idx_4D[4];
- *    int min_i = temp_grid->NX+1;
- *    int min_j = temp_grid->NY+1;
- *    int min_k = temp_grid->NZ+1;
- *    int max_i = -1;
- *    int max_j = -1;
- *    int max_k = -1;
- *    int invalidCount = 0;
- *    cout << "Searching the parcel bounds" << endl;
- *    for (int pcl = 0; pcl < parcels->nParcels; ++pcl) {
- *        point[0] = parcels->xpos[PCL(0, pcl, parcels->nTimes)];
- *        point[1] = parcels->ypos[PCL(0, pcl, parcels->nTimes)];
- *        point[2] = parcels->zpos[PCL(0, pcl, parcels->nTimes)];
- *        // find the nearest grid point!
- *        if ((point[0] == NC_FILL_FLOAT) || (point[1] == NC_FILL_FLOAT) || (point[2] == NC_FILL_FLOAT)) continue;
- *        nearest_grid_idx(point, temp_grid, idx_4D);
- *        if ( (idx_4D[0] == -1) || (idx_4D[1] == -1) || (idx_4D[2] == -1) ) {
- *            cout << "INVALID POINT X " << point[0] << " Y " << point[1] << " Z " << point[2] << endl;
- *            cout << "Parcel X " << parcels->xpos[PCL(0, pcl, parcels->nTimes)];
- *            cout << " Parcel Y " << parcels->ypos[PCL(0, pcl, parcels->nTimes)];
- *            cout << " Parcel Z " << parcels->zpos[PCL(0, pcl, parcels->nTimes)] << endl;
- *            invalidCount += 1;
- *        }
- *
- *        // check to see if we've found the min/max
- *        // for the dimension
- *        if (idx_4D[0] < min_i) min_i = idx_4D[0]; 
- *        if (idx_4D[0] > max_i) max_i = idx_4D[0]; 
- *        if (idx_4D[1] < min_j) min_j = idx_4D[1]; 
- *        if (idx_4D[1] > max_j) max_j = idx_4D[1]; 
- *        if (idx_4D[2] < min_k) min_k = idx_4D[2]; 
- *        if (idx_4D[2] > max_k) max_k = idx_4D[2]; 
- *    }
- *    cout << "Finished searching parcel bounds" << endl;
- *    // clear the memory from the temp grid
- *    cout << "Deallocating temporary grid" << endl;
- *    deallocate_grid_cpu(temp_grid);
- *
- *    // we want to add a buffer to our dimensions so that
- *    // the parcels don't accidentally move outside of our
- *    // requested data. If the buffer goes outside the 
- *    // saved dimensions, set it to the saved dimensions.
- *    // We also do this for our staggered grid calculations
- *    min_i = saved_X0 + min_i - 10;
- *    max_i = saved_X0 + max_i + 10;
- *    min_j = saved_Y0 + min_j - 10;
- *    max_j = saved_Y0 + max_j + 10;
- *    min_k = min_k - 10;
- *    max_k = max_k + 10;
- *    cout << "Attempted Parcel Bounds In Grid" << endl;
- *    cout << "X0: " << min_i << " X1: " << max_i << endl;
- *    cout << "Y0: " << min_j << " Y1: " << max_j << endl;
- *    cout << "Z0: " << min_k << " Z1: " << max_k << endl;
- *
- *    // keep the data in our saved bounds
- *    if (min_i < saved_X0) min_i = saved_X0+1;
- *    if (max_i > saved_X1) max_i = saved_X1-1;
- *    if (min_j < saved_Y0) min_j = saved_Y0+1;
- *    if (max_j > saved_Y1) max_j = saved_Y1-1;
- *    if (min_k < 0) min_k = 0;
- *    if (max_k > nkwrite_val-2) max_k = nkwrite_val-2;
- *
- *
- *    cout << "Parcel Bounds In Grid" << endl;
- *    cout << "X0: " << min_i << " X1: " << max_i << endl;
- *    cout << "Y0: " << min_j << " Y1: " << max_j << endl;
- *    cout << "Z0: " << min_k << " Z1: " << max_k << endl;
- *
- *
- *    // request our grid subset now
- *    cout << "REQUESTING METADATA & GRID" << endl;
- *    // on rank zero, allocate our grid on both the
- *    // CPU and GPU so that the GPU knows something
- *    // about our data for future integration.
- *    if (rank == 0) {
- *        requested_grid = allocate_grid_managed( min_i, max_i, min_j, max_j, min_k, max_k);
- *    }
- *    // For the other MPI ranks, we only need to
- *    // allocate the grids on the CPU for copying
- *    // data to the MPI_Gather call
- *    else {
- *        requested_grid = allocate_grid_cpu( min_i, max_i, min_j, max_j, min_k, max_k);
- *    }
- *
- *    requested_grid->isValid = 1;
- *    // if literally all of our parcels aren't
- *    // in the domain then something has gone
- *    // horribly wrong
- *    if (invalidCount == parcels->nParcels) {
- *        requested_grid->isValid = 0;
- *        return requested_grid;
- *    }
- *
- *
- *    lofs_get_grid(requested_grid);
- *    cout << "MY DX IS " << requested_grid->dx << endl;
- *    cout << "MY DY IS " << requested_grid->dy << endl;
- *    cout << "MY DZ IS " << requested_grid->dz << endl;
- *    cout << "END METADATA & GRID REQUEST" << endl;
- */
+	mesh *temp_msh;	
+
+	// load the saved grid dimmensions into 
+	// the temporary grid, then we will find
+	// a smaller subset to load into memory.
+	//  nz comes from readlofs
+	cout << "Allocating temporary mesh" << endl;
+	temp_msh = allocate_mesh_cpu(hm, gd);
+
+	// request the full grid so that we can find the indices
+	// of where our parcels are, and then request a smaller
+	// subset from there.
+	cout << "Calling LOFS on temporary grid" << endl;
+	lofs_get_grid(dm, hm, gd, temp_msh, snd);
+
+	// find the min/max index bounds of 
+	// our parcels
+	float point[3];
+	int idx_4D[4];
+	int min_i = gd->NX+1;
+	int min_j = gd->NY+1;
+	int min_k = gd->NZ+1;
+	int max_i = -1;
+	int max_j = -1;
+	int max_k = -1;
+	cout << "Searching the parcel bounds" << endl;
+	for (int pcl = 0; pcl < parcels->nParcels; ++pcl) {
+		point[0] = parcels->xpos[PCL(0, pcl, parcels->nTimes)];
+		point[1] = parcels->ypos[PCL(0, pcl, parcels->nTimes)];
+		point[2] = parcels->zpos[PCL(0, pcl, parcels->nTimes)];
+		// find the nearest grid point!
+		if ((point[0] == NC_FILL_FLOAT) || (point[1] == NC_FILL_FLOAT) || (point[2] == NC_FILL_FLOAT)) continue;
+		nearest_grid_idx(gd, temp_msh, point, idx_4D);
+		if ( (idx_4D[0] == -1) || (idx_4D[1] == -1) || (idx_4D[2] == -1) ) {
+			cout << "INVALID POINT X " << point[0] << " Y " << point[1] << " Z " << point[2] << endl;
+			cout << "Parcel X " << parcels->xpos[PCL(0, pcl, parcels->nTimes)];
+			cout << " Parcel Y " << parcels->ypos[PCL(0, pcl, parcels->nTimes)];
+			cout << " Parcel Z " << parcels->zpos[PCL(0, pcl, parcels->nTimes)] << endl;
+		}
+
+		// check to see if we've found the min/max
+		// for the dimension
+		if (idx_4D[0] < min_i) min_i = idx_4D[0]; 
+		if (idx_4D[0] > max_i) max_i = idx_4D[0]; 
+		if (idx_4D[1] < min_j) min_j = idx_4D[1]; 
+		if (idx_4D[1] > max_j) max_j = idx_4D[1]; 
+		if (idx_4D[2] < min_k) min_k = idx_4D[2]; 
+		if (idx_4D[2] > max_k) max_k = idx_4D[2]; 
+	}
+	cout << "Finished searching parcel bounds" << endl;
+	// clear the memory from the temp grid
+	cout << "Deallocating temporary grid" << endl;
+	deallocate_mesh_cpu(temp_msh);
+
+	// we want to add a buffer to our dimensions so that
+	// the parcels don't accidentally move outside of our
+	// requested data. If the buffer goes outside the 
+	// saved dimensions, set it to the saved dimensions.
+	// We also do this for our staggered grid calculations
+	min_i = gd->saved_X0 + min_i - 10;
+	max_i = gd->saved_X0 + max_i + 10;
+	min_j = gd->saved_Y0 + min_j - 10;
+	max_j = gd->saved_Y0 + max_j + 10;
+	min_k = gd->saved_Z0 + min_k - 10;
+	max_k = gd->saved_Z0 + max_k + 10;
+	cout << "Attempted Parcel Bounds In Grid" << endl;
+	cout << "X0: " << min_i << " X1: " << max_i << endl;
+	cout << "Y0: " << min_j << " Y1: " << max_j << endl;
+	cout << "Z0: " << min_k << " Z1: " << max_k << endl;
+
+	// keep the data in our saved bounds
+	if (min_i < gd->saved_X0) min_i = gd->saved_X0+1;
+	if (max_i > gd->saved_X1) max_i = gd->saved_X1-1;
+	if (min_j < gd->saved_Y0) min_j = gd->saved_Y0+1;
+	if (max_j > gd->saved_Y1) max_j = gd->saved_Y1-1;
+	if (min_k < gd->saved_Z0) min_k = gd->saved_Z0;
+	if (max_k > gd->saved_Z1) max_k = gd->saved_Z1-1;
+
+
+	cout << "Parcel Bounds In Grid" << endl;
+	cout << "X0: " << min_i << " X1: " << max_i << endl;
+	cout << "Y0: " << min_j << " Y1: " << max_j << endl;
+	cout << "Z0: " << min_k << " Z1: " << max_k << endl;
+	// We need to set our grid attributes to
+	// the new, smaller domain around the parcels
+	gd->X0 = min_i; gd->X1 = max_i;
+	gd->Y0 = min_j; gd->Y1 = max_j;
+	gd->Z0 = min_k; gd->Z1 = max_k;
+	// we do not need to re-set NX, NY, or NZ, 
+	// because lofs_get_grid will set those for us
+	// based on X0, X1, etc
+
+
+	// request our mesh subset now
+	cout << "REQUESTING METADATA & MESH" << endl;
+	// on rank zero, allocate our grid on both the
+	// CPU and GPU so that the GPU knows something
+	// about our data for future integration.
+	if (rank == 0) {
+		req_msh = allocate_mesh_managed( hm, gd );
+		snd = allocate_sounding_managed( max_k - min_k + 1);
+	}
+	// For the other MPI ranks, we only need to
+	// allocate the grids on the CPU for copying
+	// data to the MPI_Gather call
+	else {
+		req_msh = allocate_mesh_cpu( hm, gd ); 
+		snd = allocate_sounding_cpu( max_k - min_k + 1);
+	}
+
+	lofs_get_grid(dm, hm, gd, req_msh, snd);
+	cout << "MY DX IS " << req_msh->dx << endl;
+	cout << "MY DY IS " << req_msh->dy << endl;
+	cout << "MY DZ IS " << req_msh->dz << endl;
+	cout << "END METADATA & GRID REQUEST" << endl;
 }
 
 /* Read in the U, V, and W vector components plus the buoyancy and turbulence fields 

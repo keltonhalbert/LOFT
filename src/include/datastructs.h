@@ -181,7 +181,7 @@ struct model_data {
 // These functions should only be compiled if 
 // we're actually using a GPU... otherwise
 // only expose the CPU functions
-mesh* allocate_mesh_managed( int X0, int X1, int Y0, int Y1, int Z0, int Z1 );
+mesh* allocate_mesh_managed( hdf_meta *hm, grid *gd );
 void deallocate_mesh_managed(mesh *msh);
 sounding* allocate_sounding_managed(int NZ);
 void deallocate_sounding_managed(mesh *msh);
@@ -190,7 +190,7 @@ void deallocate_parcels_managed(iocfg* io, parcel_pos *parcels);
 model_data* allocate_model_managed(iocfg* io, long bufsize);
 void deallocate_model_managed(iocfg* io, model_data *data);
 
-mesh* allocate_mesh_cpu( int X0, int X1, int Y0, int Y1, int Z0, int Z1 );
+mesh* allocate_mesh_cpu( hdf_meta *hm, grid *gd );
 void deallocate_mesh_cpu(mesh *msh);
 sounding* allocate_sounding_cpu(int NZ);
 void deallocate_sounding_cpu(mesh *msh);
