@@ -444,7 +444,6 @@ int main(int argc, char **argv ) {
     // runtime directory. If it hasn't been run,
     // this step can take fair amount of time.
 	lofs_get_dataset_structure(base_dir, &dm, &hm, &gd, &cmd, &nc, &rh);
-	return 0;
 
     // initialize a bunch of MPI stuff.
     // Rank tells you which process
