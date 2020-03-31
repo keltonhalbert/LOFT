@@ -184,7 +184,7 @@ struct model_data {
 mesh* allocate_mesh_managed( hdf_meta *hm, grid *gd );
 void deallocate_mesh_managed(mesh *msh);
 sounding* allocate_sounding_managed(int NZ);
-void deallocate_sounding_managed(mesh *msh);
+void deallocate_sounding_managed(sounding *snd);
 parcel_pos* allocate_parcels_managed(iocfg *io, int NX, int NY, int NZ, int nTotTimes);
 void deallocate_parcels_managed(iocfg* io, parcel_pos *parcels);
 model_data* allocate_model_managed(iocfg* io, long bufsize);
@@ -193,7 +193,7 @@ void deallocate_model_managed(iocfg* io, model_data *data);
 mesh* allocate_mesh_cpu( hdf_meta *hm, grid *gd );
 void deallocate_mesh_cpu(mesh *msh);
 sounding* allocate_sounding_cpu(int NZ);
-void deallocate_sounding_cpu(mesh *msh);
+void deallocate_sounding_cpu(sounding *snd);
 parcel_pos* allocate_parcels_cpu(iocfg *io, int NX, int NY, int NZ, int nTotTimes);
 void deallocate_parcels_cpu(iocfg *io, parcel_pos *parcels);
 

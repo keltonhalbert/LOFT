@@ -95,7 +95,11 @@ void lofs_get_dataset_structure(std::string base_dir, dir_meta *dm, hdf_meta *hm
 
 	/* Check for idiocy and tweak the span (X0-X1/Y0-Y1/Z0-Z1) as necessary */
 	set_span(gd,*hm,*cmd);
+	gd->NX = gd->X1 - gd->X0 + 1;
+	gd->NY = gd->Y1 - gd->Y0 + 1;
+	gd->NZ = gd->Z1 - gd->Z0 + 1;
 	printf("X0: %d Y0: %d Z0: %d X1: %d Y1: %d Z1: %d\n", gd->X0, gd->Y0, gd->Z0, gd->X1, gd->Y1, gd->Z1);
+	H5Fclose(hdf_file_id);
 }
 
 
@@ -103,12 +107,8 @@ void lofs_get_dataset_structure(std::string base_dir, dir_meta *dm, hdf_meta *hm
 // grid we are interested in
 void lofs_get_grid( dir_meta *dm, hdf_meta *hm, grid *gd, mesh *msh, sounding *snd ) {
 	
+	cout << dm->firstfilename << endl;
 	hid_t hdf_file_id;
-	
-	gd->NX = gd->X1 - gd->X0 + 1;
-	gd->NY = gd->Y1 - gd->Y0 + 1;
-	gd->NZ = gd->Z1 - gd->Z0 + 1;
-
 	if ((hdf_file_id = H5Fopen (dm->firstfilename, H5F_ACC_RDONLY,H5P_DEFAULT)) < 0)
 	{
 		fprintf(stderr,"Unable to open %s, bailing!\n", dm->firstfilename);

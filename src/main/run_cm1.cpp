@@ -165,12 +165,14 @@ void parse_cfg(map<string, string> *usrCfg, iocfg *io, string *histpath, string 
  * When the next chunk of time is read in, check and see where the parcels
  * are currently and request a subset that is relevent to those parcels.   
  */
-void loadMetadataAndGrid(string base_dir, dir_meta *dm, hdf_meta *hm, grid *gd, mesh *req_msh, sounding *snd, parcel_pos *parcels, int rank) {
+mesh* getMeshAndBounds(string base_dir, dir_meta *dm, hdf_meta *hm, grid *gd, parcel_pos *parcels, int rank) {
     cout << "Retrieving HDF Metadata" << endl;
 
 	// Create a temporary full grid that we will then subset. We will
 	// only do this in CPU memory because this will get deleted
 	mesh *temp_msh;	
+	mesh *req_msh;
+	sounding *temp_snd;
 
 	// load the saved grid dimmensions into 
 	// the temporary grid, then we will find
@@ -178,12 +180,13 @@ void loadMetadataAndGrid(string base_dir, dir_meta *dm, hdf_meta *hm, grid *gd, 
 	//  nz comes from readlofs
 	cout << "Allocating temporary mesh" << endl;
 	temp_msh = allocate_mesh_cpu(hm, gd);
+	temp_snd = allocate_sounding_cpu(gd->NZ);
 
 	// request the full grid so that we can find the indices
 	// of where our parcels are, and then request a smaller
 	// subset from there.
 	cout << "Calling LOFS on temporary grid" << endl;
-	lofs_get_grid(dm, hm, gd, temp_msh, snd);
+	lofs_get_grid(dm, hm, gd, temp_msh, temp_snd);
 
 	// find the min/max index bounds of 
 	// our parcels
@@ -223,6 +226,7 @@ void loadMetadataAndGrid(string base_dir, dir_meta *dm, hdf_meta *hm, grid *gd, 
 	// clear the memory from the temp grid
 	cout << "Deallocating temporary grid" << endl;
 	deallocate_mesh_cpu(temp_msh);
+	deallocate_sounding_cpu(temp_snd);
 
 	// we want to add a buffer to our dimensions so that
 	// the parcels don't accidentally move outside of our
@@ -261,6 +265,9 @@ void loadMetadataAndGrid(string base_dir, dir_meta *dm, hdf_meta *hm, grid *gd, 
 	// we do not need to re-set NX, NY, or NZ, 
 	// because lofs_get_grid will set those for us
 	// based on X0, X1, etc
+	cout << gd->X0 << " " << gd->X1 << endl;
+	cout << gd->Y0 << " " << gd->Y1 << endl;
+	cout << gd->Z0 << " " << gd->Z1 << endl;
 
 
 	// request our mesh subset now
@@ -268,23 +275,22 @@ void loadMetadataAndGrid(string base_dir, dir_meta *dm, hdf_meta *hm, grid *gd, 
 	// on rank zero, allocate our grid on both the
 	// CPU and GPU so that the GPU knows something
 	// about our data for future integration.
-	if (rank == 0) {
-		req_msh = allocate_mesh_managed( hm, gd );
-		snd = allocate_sounding_managed( max_k - min_k + 1);
-	}
+	//if (rank == 0) {
+	//	req_msh = allocate_mesh_managed( hm, gd );
+	//}
 	// For the other MPI ranks, we only need to
 	// allocate the grids on the CPU for copying
 	// data to the MPI_Gather call
-	else {
-		req_msh = allocate_mesh_cpu( hm, gd ); 
-		snd = allocate_sounding_cpu( max_k - min_k + 1);
-	}
+	//else {
+	//	req_msh = allocate_mesh_cpu( hm, gd ); 
+	//}
+	return req_msh;
 
-	lofs_get_grid(dm, hm, gd, req_msh, snd);
-	cout << "MY DX IS " << req_msh->dx << endl;
-	cout << "MY DY IS " << req_msh->dy << endl;
-	cout << "MY DZ IS " << req_msh->dz << endl;
-	cout << "END METADATA & GRID REQUEST" << endl;
+	//lofs_get_grid(dm, hm, gd, req_msh, snd);
+	//cout << "MY DX IS " << req_msh->dx << endl;
+	//cout << "MY DY IS " << req_msh->dy << endl;
+	//cout << "MY DZ IS " << req_msh->dz << endl;
+	//cout << "END METADATA & GRID REQUEST" << endl;
 }
 
 /* Read in the U, V, and W vector components plus the buoyancy and turbulence fields 
@@ -378,6 +384,18 @@ void seed_parcels(parcel_pos *parcels, float X0, float Y0, float Z0, int NX, int
  * data chunks to the GPU, and then proceeds with another time chunk.
  */
 int main(int argc, char **argv ) {
+    // initialize a bunch of MPI stuff.
+    // Rank tells you which process
+    // you are and size tells y ou how
+    // many processes there are total
+    int rank, size;
+    long N_stag, N_scal, MX, MY, MZ;
+    MPI_Init(&argc, &argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_ARE_FATAL);
+    MPI_Barrier(MPI_COMM_WORLD);
+
     // our parcel struct containing 
     // the position arrays
     iocfg *io = new iocfg();
@@ -404,26 +422,18 @@ int main(int argc, char **argv ) {
 
     string base_dir = histpath;
     string outfilename = string(base) + ".nc";
-	dir_meta dm;
-	hdf_meta hm;
-	grid gd;
-	cmdline cmd;
-	ncstruct nc;
-	mesh msh;
-	sounding snd;
-	readahead rh;
+	dir_meta *dm = new dir_meta();
+	hdf_meta *hm = new hdf_meta();
+	grid *gd = new grid();
+	cmdline *cmd = new cmdline();
+	ncstruct *nc = new ncstruct();
+	mesh *req_msh;
+	sounding *snd;
+	readahead *rh = new readahead();
 
-    int rank, size;
-    long N_stag, N_scal, MX, MY, MZ;
 
     int nTimeChunks = (int) (nTimeSteps / size); // this is a temporary hack
     if (nTimeSteps % size > 0) nTimeChunks += 1;
-    // to make the command line parser stuff work with the
-    // existing code.
-    // KELTON PLEASE REMEMBER TO CHANGE THIS SO THAT WE
-    // DON'T HAVE 800000000 VARIABLES DOING THE SAME THING
-    // LYING AROUND
-
 
     // the number of time steps we have is 
     // the number of MPI ranks there are
@@ -435,17 +445,7 @@ int main(int argc, char **argv ) {
     // the information from cache files in the 
     // runtime directory. If it hasn't been run,
     // this step can take fair amount of time.
-	lofs_get_dataset_structure(base_dir, &dm, &hm, &gd, &cmd, &nc, &rh);
-
-    // initialize a bunch of MPI stuff.
-    // Rank tells you which process
-    // you are and size tells y ou how
-    // many processes there are total
-    MPI_Init(&argc, &argv);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-    MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_ARE_FATAL);
-    MPI_Barrier(MPI_COMM_WORLD);
+	lofs_get_dataset_structure(base_dir, dm, hm, gd, cmd, nc, rh);
 
     // This is the main loop that does the data reading and eventually
     // calls the CUDA code to integrate forward.
@@ -480,211 +480,223 @@ int main(int argc, char **argv ) {
         // steps, but only Rank 0 will allocate the grid
         // arrays on both the CPU and GPU.
         
-        //requested_grid = loadMetadataAndGrid(base_dir, parcels, rank); 
+		//loadMetadataAndGrid(base_dir, &dm, &hm, &gd, req_msh, snd, parcels, rank);
+		//req_msh = getMeshAndBounds(base_dir, &dm, &hm, &gd, parcels, rank);
 		/*
-         *if (requested_grid->isValid == 0) {
-         *    cout << "Something went horribly wrong when requesting a domain subset. Abort." << endl;
-         *    exit(-1);
-         *}
+		 *if (rank == 0) {
+		 *    snd = allocate_sounding_managed( gd.Z1 - gd.Z0 + 1);
+		 *}
+		 *else {
+		 *    snd = allocate_sounding_cpu( gd.Z1 - gd.Z0 + 1);
+		 *}
 		 */
-
 
         // The number of grid points requested...
         // There's some awkwardness here I have to figure out a better way around,
         // but MPI Scatter/Gather behaves weird if I use the generic large buffer,
         // so I use N_scalar for the MPI calls to non staggered/scalar fields. 
-        N_stag = (gd.NX+2)*(gd.NY+2)*(gd.NZ+1);
-        N_scal = (gd.NX+2)*(gd.NY+2)*(gd.NZ+1);
+		N_stag = (gd.NX+2)*(gd.NY+2)*(gd.NZ+1);
+		N_scal = (gd.NX+2)*(gd.NY+2)*(gd.NZ+1);
 
 
         // allocate space for U, V, and W arrays
         // for all ranks, because this is what
         // LOFS will return it's data subset to
-        float *ubuf, *vbuf, *wbuf, *pbuf, *tbuf, *thbuf, *rhobuf, *qvbuf, *qcbuf, *qibuf, *qsbuf, *qgbuf, *kmhbuf;
+		float *ubuf, *vbuf, *wbuf, *pbuf, *tbuf, *thbuf, *rhobuf, *qvbuf, *qcbuf, *qibuf, *qsbuf, *qgbuf, *kmhbuf;
 
-        ubuf = new float[N_stag];
-        vbuf = new float[N_stag];
-        wbuf = new float[N_stag];
-        // khh and kmh are on the staggered W mesh
-        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh) kmhbuf = new float[N_stag];
-        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert) pbuf = new float[N_scal];
-        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thetapert) tbuf = new float[N_scal];
-        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhopert) thbuf = new float[N_scal];
-        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert) rhobuf = new float[N_scal];
-        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_qvpert) qvbuf = new float[N_scal];
-        if (io->output_qc) qcbuf = new float[N_scal];
-        if (io->output_qi) qibuf = new float[N_scal];
-        if (io->output_qs) qsbuf = new float[N_scal];
-        if (io->output_qg) qgbuf = new float[N_scal];
-
-
-        // construct a 4D contiguous array to store stuff in.
-        // bufsize is the size of the 3D component and size is
-        // the number of MPI ranks (which is also the number of times)
-        // read in
-        //
-        // declare the struct on all ranks, but only
-        // allocate space for it on Rank 0
-        model_data *data;
-        if (rank == 0) {
-            data = allocate_model_managed(io, N_stag*size);
-        }
-        else {
-            data = new model_data();
-        }
+		ubuf = new float[N_stag];
+		vbuf = new float[N_stag];
+		wbuf = new float[N_stag];
+		// khh and kmh are on the staggered W mesh
+		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh) kmhbuf = new float[N_stag];
+		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert) pbuf = new float[N_scal];
+		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thetapert) tbuf = new float[N_scal];
+		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhopert) thbuf = new float[N_scal];
+		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert) rhobuf = new float[N_scal];
+		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_qvpert) qvbuf = new float[N_scal];
+		if (io->output_qc) qcbuf = new float[N_scal];
+		if (io->output_qi) qibuf = new float[N_scal];
+		if (io->output_qs) qsbuf = new float[N_scal];
+		if (io->output_qg) qgbuf = new float[N_scal];
 
 
-        // we need to find the index of the nearest time to the user requested
-        // time. If the index isn't found, abort.
-        //int nearest_tidx = find_nearest_index(alltimes, time, ntottimes);
+		// construct a 4D contiguous array to store stuff in.
+		// bufsize is the size of the 3D component and size is
+		// the number of MPI ranks (which is also the number of times)
+		// read in
+		//
+		// declare the struct on all ranks, but only
+		// allocate space for it on Rank 0
+		model_data *data;
+		if (rank == 0) {
+			data = allocate_model_managed(io, N_stag*size);
+		}
+		else {
+			data = new model_data();
+		}
+
+
+		// we need to find the index of the nearest time to the user requested
+		// time. If the index isn't found, abort.
+		//int nearest_tidx = find_nearest_index(alltimes, time, ntottimes);
 		int nearest_tidx = 0;
-        if (nearest_tidx < 0) {
-            cout << "Invalid time index: " << nearest_tidx << " for time " << time << ". Abort." << endl;
-            return 0;
-        }
+		if (nearest_tidx < 0) {
+			cout << "Invalid time index: " << nearest_tidx << " for time " << time << ". Abort." << endl;
+			return 0;
+		}
         //double dt = fabs(alltimes[nearest_tidx + direct*(1+tChunk*size)] - alltimes[nearest_tidx + direct*(tChunk*size)]);
         //double dt = fabs(alltimes[1] - alltimes[0]);
 		double dt = 0.16;
-        //printf("TIMESTEP %d/%d %d %f dt= %f\n", rank, size, rank + tChunk*size, alltimes[nearest_tidx + direct*( rank + tChunk*size)], dt);
-        msh.dt = dt;
-        // load u, v, and w into memory
-        //loadDataFromDisk(io, gd, msh, ubuf, vbuf, wbuf, pbuf, tbuf, thbuf, \
-                         rhobuf, qvbuf, qcbuf, qibuf, qsbuf, qgbuf, kmhbuf, \
-                         alltimes[nearest_tidx + direct*(rank + tChunk*size)]);
+		//printf("TIMESTEP %d/%d %d %f dt= %f\n", rank, size, rank + tChunk*size, alltimes[nearest_tidx + direct*( rank + tChunk*size)], dt);
+		//req_msh->dt = dt;
+		// load u, v, and w into memory
+		//loadDataFromDisk(io, gd, msh, ubuf, vbuf, wbuf, pbuf, tbuf, thbuf, \
+						 rhobuf, qvbuf, qcbuf, qibuf, qsbuf, qgbuf, kmhbuf, \
+						 alltimes[nearest_tidx + direct*(rank + tChunk*size)]);
 
-        // for MPI runs that load multiple time steps into memory,
-        // communicate the data you've read into our 4D array
-        
-        int senderr_u, senderr_v, senderr_w, senderr_kmh;
-        int senderr_p, senderr_t, senderr_th, senderr_rho;
-        int senderr_qv, senderr_qc, senderr_qi, senderr_qs, senderr_qg;
+		// for MPI runs that load multiple time steps into memory,
+		// communicate the data you've read into our 4D array
+		
+		int senderr_u, senderr_v, senderr_w, senderr_kmh;
+		int senderr_p, senderr_t, senderr_th, senderr_rho;
+		int senderr_qv, senderr_qc, senderr_qi, senderr_qs, senderr_qg;
 
-        senderr_u = MPI_Gather(ubuf, N_stag, MPI_FLOAT, data->ustag, N_stag, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        senderr_v = MPI_Gather(vbuf, N_stag, MPI_FLOAT, data->vstag, N_stag, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        senderr_w = MPI_Gather(wbuf, N_stag, MPI_FLOAT, data->wstag, N_stag, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh) {
-            senderr_kmh = MPI_Gather(kmhbuf, N_stag, MPI_FLOAT, data->kmh, N_stag, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        }
+		senderr_u = MPI_Gather(ubuf, N_stag, MPI_FLOAT, data->ustag, N_stag, MPI_FLOAT, 0, MPI_COMM_WORLD);
+		senderr_v = MPI_Gather(vbuf, N_stag, MPI_FLOAT, data->vstag, N_stag, MPI_FLOAT, 0, MPI_COMM_WORLD);
+		senderr_w = MPI_Gather(wbuf, N_stag, MPI_FLOAT, data->wstag, N_stag, MPI_FLOAT, 0, MPI_COMM_WORLD);
+		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh) {
+			senderr_kmh = MPI_Gather(kmhbuf, N_stag, MPI_FLOAT, data->kmh, N_stag, MPI_FLOAT, 0, MPI_COMM_WORLD);
+		}
 
-        // Use N_scalar here so that there aren't random zeroes throughout the middle of the array
-        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert) {
-            senderr_p = MPI_Gather(pbuf, N_scal, MPI_FLOAT, data->prespert, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        }
-        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thetapert) {
-            senderr_t = MPI_Gather(tbuf, N_scal, MPI_FLOAT, data->thetapert, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        }
-        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhopert) {
-            senderr_th = MPI_Gather(thbuf, N_scal, MPI_FLOAT, data->thrhopert, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        }
-        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert) {
-            senderr_rho = MPI_Gather(rhobuf, N_scal, MPI_FLOAT, data->rhopert, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        }
-        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_qvpert) {
-            senderr_qv = MPI_Gather(qvbuf, N_scal, MPI_FLOAT, data->qvpert, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        }
-        if (io->output_qc) senderr_qc = MPI_Gather(qcbuf, N_scal, MPI_FLOAT, data->qc, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        if (io->output_qi) senderr_qi = MPI_Gather(qibuf, N_scal, MPI_FLOAT, data->qi, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        if (io->output_qs) senderr_qs = MPI_Gather(qsbuf, N_scal, MPI_FLOAT, data->qs, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        if (io->output_qg) senderr_qg = MPI_Gather(qgbuf, N_scal, MPI_FLOAT, data->qg, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
+		// Use N_scalar here so that there aren't random zeroes throughout the middle of the array
+		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert) {
+			senderr_p = MPI_Gather(pbuf, N_scal, MPI_FLOAT, data->prespert, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
+		}
+		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thetapert) {
+			senderr_t = MPI_Gather(tbuf, N_scal, MPI_FLOAT, data->thetapert, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
+		}
+		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhopert) {
+			senderr_th = MPI_Gather(thbuf, N_scal, MPI_FLOAT, data->thrhopert, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
+		}
+		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert) {
+			senderr_rho = MPI_Gather(rhobuf, N_scal, MPI_FLOAT, data->rhopert, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
+		}
+		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_qvpert) {
+			senderr_qv = MPI_Gather(qvbuf, N_scal, MPI_FLOAT, data->qvpert, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
+		}
+		if (io->output_qc) senderr_qc = MPI_Gather(qcbuf, N_scal, MPI_FLOAT, data->qc, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
+		if (io->output_qi) senderr_qi = MPI_Gather(qibuf, N_scal, MPI_FLOAT, data->qi, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
+		if (io->output_qs) senderr_qs = MPI_Gather(qsbuf, N_scal, MPI_FLOAT, data->qs, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
+		if (io->output_qg) senderr_qg = MPI_Gather(qgbuf, N_scal, MPI_FLOAT, data->qg, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-        // clean up temporary buffers
-        delete[] ubuf;
-        delete[] vbuf;
-        delete[] wbuf;
-        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert) {
-            delete[] pbuf;
-        }
-        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thetapert) {
-            delete[] tbuf;
-        }
-        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhopert) {
-            delete[] thbuf;
-        }
-        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert) {
-            delete[] rhobuf;
-        }
-        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh) {
-            delete[] kmhbuf;
-        }
-        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_qvpert) {
-            delete[] qvbuf;
-        }
-        if (io->output_qc) delete[] qcbuf;
-        if (io->output_qi) delete[] qibuf;
-        if (io->output_qs) delete[] qsbuf;
-        if (io->output_qg) delete[] qgbuf;
+		// clean up temporary buffers
+		delete[] ubuf;
+		delete[] vbuf;
+		delete[] wbuf;
+		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert) {
+			delete[] pbuf;
+		}
+		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thetapert) {
+			delete[] tbuf;
+		}
+		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhopert) {
+			delete[] thbuf;
+		}
+		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert) {
+			delete[] rhobuf;
+		}
+		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh) {
+			delete[] kmhbuf;
+		}
+		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_qvpert) {
+			delete[] qvbuf;
+		}
+		if (io->output_qc) delete[] qcbuf;
+		if (io->output_qi) delete[] qibuf;
+		if (io->output_qs) delete[] qsbuf;
+		if (io->output_qg) delete[] qgbuf;
 
         if (rank == 0) {
             // send to the GPU!!
-            cout << "MPI Gather Error U: " << senderr_u << endl;
-            cout << "MPI Gather Error V: " << senderr_v << endl;
-            cout << "MPI Gather Error W: " << senderr_w << endl;
-            if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert) {
-                cout << "MPI Gather Error P: " << senderr_p << endl;
-            }
-            if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thetapert) {
-                cout << "MPI Gather Error T: " << senderr_t << endl;
-            }
-            if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhopert) {
-                cout << "MPI Gather Error TH: " << senderr_th << endl;
-            }
-            if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert) {
-                cout << "MPI Gather Error RHO: " << senderr_rho << endl;
-            }
-            if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh) {
-                cout << "MPI Gather Error KMH: " << senderr_kmh << endl;
-            }
-            if (io->output_momentum_budget || io->output_vorticity_budget || io->output_qvpert) {
-                cout << "MPI Gather Error QV: " << senderr_qv << endl;
-            }
-            if (io->output_qc) cout << "MPI Gather Error QC: " << senderr_qc << endl;
-            if (io->output_qi) cout << "MPI Gather Error QI: " << senderr_qi << endl;
-            if (io->output_qs) cout << "MPI Gather Error QS: " << senderr_qs << endl;
-            if (io->output_qs) cout << "MPI Gather Error QG: " << senderr_qg << endl;
+			cout << "MPI Gather Error U: " << senderr_u << endl;
+			cout << "MPI Gather Error V: " << senderr_v << endl;
+			cout << "MPI Gather Error W: " << senderr_w << endl;
+			if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert) {
+				cout << "MPI Gather Error P: " << senderr_p << endl;
+			}
+			if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thetapert) {
+				cout << "MPI Gather Error T: " << senderr_t << endl;
+			}
+			if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhopert) {
+				cout << "MPI Gather Error TH: " << senderr_th << endl;
+			}
+			if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert) {
+				cout << "MPI Gather Error RHO: " << senderr_rho << endl;
+			}
+			if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh) {
+				cout << "MPI Gather Error KMH: " << senderr_kmh << endl;
+			}
+			if (io->output_momentum_budget || io->output_vorticity_budget || io->output_qvpert) {
+				cout << "MPI Gather Error QV: " << senderr_qv << endl;
+			}
+			if (io->output_qc) cout << "MPI Gather Error QC: " << senderr_qc << endl;
+			if (io->output_qi) cout << "MPI Gather Error QI: " << senderr_qi << endl;
+			if (io->output_qs) cout << "MPI Gather Error QS: " << senderr_qs << endl;
+			if (io->output_qs) cout << "MPI Gather Error QG: " << senderr_qg << endl;
 
-            int nParcels = parcels->nParcels;
-            cout << "Beginning parcel integration! Heading over to the GPU to do GPU things..." << endl;
-            //cudaIntegrateParcels(gd, msh, data, parcels, size, nTotTimes, direct); 
-            cout << "Finished integrating parcels!" << endl;
-            // write out our information to disk
-            cout << "Beginning to write to disk..." << endl;
-            write_parcels(outfilename, parcels, tChunk);
+			int nParcels = parcels->nParcels;
+			cout << "Beginning parcel integration! Heading over to the GPU to do GPU things..." << endl;
+			//cudaIntegrateParcels(gd, msh, data, parcels, size, nTotTimes, direct); 
+			cout << "Finished integrating parcels!" << endl;
+			// write out our information to disk
+			cout << "Beginning to write to disk..." << endl;
+			write_parcels(outfilename, parcels, tChunk);
 
-            // Now that we've integrated forward and written to disk, before we can go again
-            // we have to set the current end position of the parcel to the beginning for 
-            // the next leg of integration. Do that, and then reset all the other values
-            // to missing.
-            cout << "Setting final parcel position to beginning of array for next integration cycle..." << endl;
-            for (int pcl = 0; pcl < parcels->nParcels; ++pcl) {
-                parcels->xpos[PCL(0, pcl, parcels->nTimes)] = parcels->xpos[PCL(size, pcl, parcels->nTimes)];
-                parcels->ypos[PCL(0, pcl, parcels->nTimes)] = parcels->ypos[PCL(size, pcl, parcels->nTimes)];
-                parcels->zpos[PCL(0, pcl, parcels->nTimes)] = parcels->zpos[PCL(size, pcl, parcels->nTimes)];
-            }
+			// Now that we've integrated forward and written to disk, before we can go again
+			// we have to set the current end position of the parcel to the beginning for 
+			// the next leg of integration. Do that, and then reset all the other values
+			// to missing.
+			cout << "Setting final parcel position to beginning of array for next integration cycle..." << endl;
+			for (int pcl = 0; pcl < parcels->nParcels; ++pcl) {
+				parcels->xpos[PCL(0, pcl, parcels->nTimes)] = parcels->xpos[PCL(size, pcl, parcels->nTimes)];
+				parcels->ypos[PCL(0, pcl, parcels->nTimes)] = parcels->ypos[PCL(size, pcl, parcels->nTimes)];
+				parcels->zpos[PCL(0, pcl, parcels->nTimes)] = parcels->zpos[PCL(size, pcl, parcels->nTimes)];
+			}
             cout << "Parcel position arrays reset." << endl;
 
             // memory management for root rank
-            deallocate_mesh_managed(&msh);
-            deallocate_model_managed(io, data);
+			/*
+             *deallocate_mesh_managed(req_msh);
+             *deallocate_sounding_managed(snd);
+			 */
+            //deallocate_model_managed(io, data);
         }
 
         // house keeping for the non-master
         // MPI ranks
         else {
             // memory management
-            deallocate_mesh_cpu(&msh);
+			/*
+             *deallocate_mesh_cpu(req_msh);
+             *deallocate_sounding_managed(snd);
+			 */
         }
         // receive the updated parcel arrays
         // so that we can do proper subseting. This happens
         // after integration is complete from CUDA.
-        MPI_Status status;
-        MPI_Bcast(parcels->xpos, parcels->nParcels*nTotTimes, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        MPI_Bcast(parcels->ypos, parcels->nParcels*nTotTimes, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        MPI_Bcast(parcels->zpos, parcels->nParcels*nTotTimes, MPI_FLOAT, 0, MPI_COMM_WORLD);
+		MPI_Status status;
+		MPI_Bcast(parcels->xpos, parcels->nParcels*nTotTimes, MPI_FLOAT, 0, MPI_COMM_WORLD);
+		MPI_Bcast(parcels->ypos, parcels->nParcels*nTotTimes, MPI_FLOAT, 0, MPI_COMM_WORLD);
+		MPI_Bcast(parcels->zpos, parcels->nParcels*nTotTimes, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
     }
 
     if (rank == 0) {
+		deallocate_parcels_managed(io, parcels);
         cout << "Finished!" << endl << endl;
     }
+	else {
+		deallocate_parcels_cpu(io, parcels);
+	}
     MPI_Finalize();
 }
