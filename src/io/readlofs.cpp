@@ -118,6 +118,7 @@ void lofs_get_grid( dir_meta *dm, hdf_meta *hm, grid *gd, mesh *msh, sounding *s
 	// get the 1D arrays for the grid and base
 	// state sounding from the HDF5 info
 	set_1d_arrays(*hm,*gd,msh,snd,&hdf_file_id);
+	H5Fclose(hdf_file_id);
 
 }
 

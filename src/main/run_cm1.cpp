@@ -190,107 +190,111 @@ mesh* getMeshAndBounds(string base_dir, dir_meta *dm, hdf_meta *hm, grid *gd, pa
 
 	// find the min/max index bounds of 
 	// our parcels
-	float point[3];
-	int idx_4D[4];
-	int min_i = gd->NX+1;
-	int min_j = gd->NY+1;
-	int min_k = gd->NZ+1;
-	int max_i = -1;
-	int max_j = -1;
-	int max_k = -1;
-	cout << "Searching the parcel bounds" << endl;
-	for (int pcl = 0; pcl < parcels->nParcels; ++pcl) {
-		point[0] = parcels->xpos[PCL(0, pcl, parcels->nTimes)];
-		point[1] = parcels->ypos[PCL(0, pcl, parcels->nTimes)];
-		point[2] = parcels->zpos[PCL(0, pcl, parcels->nTimes)];
-		// find the nearest grid point!
-		if ((point[0] == NC_FILL_FLOAT) || (point[1] == NC_FILL_FLOAT) || (point[2] == NC_FILL_FLOAT)) continue;
-		nearest_grid_idx(gd, temp_msh, point, idx_4D);
-		if ( (idx_4D[0] == -1) || (idx_4D[1] == -1) || (idx_4D[2] == -1) ) {
-			cout << "INVALID POINT X " << point[0] << " Y " << point[1] << " Z " << point[2] << endl;
-			cout << "Parcel X " << parcels->xpos[PCL(0, pcl, parcels->nTimes)];
-			cout << " Parcel Y " << parcels->ypos[PCL(0, pcl, parcels->nTimes)];
-			cout << " Parcel Z " << parcels->zpos[PCL(0, pcl, parcels->nTimes)] << endl;
-		}
-
-		// check to see if we've found the min/max
-		// for the dimension
-		if (idx_4D[0] < min_i) min_i = idx_4D[0]; 
-		if (idx_4D[0] > max_i) max_i = idx_4D[0]; 
-		if (idx_4D[1] < min_j) min_j = idx_4D[1]; 
-		if (idx_4D[1] > max_j) max_j = idx_4D[1]; 
-		if (idx_4D[2] < min_k) min_k = idx_4D[2]; 
-		if (idx_4D[2] > max_k) max_k = idx_4D[2]; 
-	}
+/*
+ *    float point[3];
+ *    int idx_4D[4];
+ *    int min_i = gd->NX+1;
+ *    int min_j = gd->NY+1;
+ *    int min_k = gd->NZ+1;
+ *    int max_i = -1;
+ *    int max_j = -1;
+ *    int max_k = -1;
+ *    cout << "Searching the parcel bounds" << endl;
+ *    for (int pcl = 0; pcl < parcels->nParcels; ++pcl) {
+ *        point[0] = parcels->xpos[PCL(0, pcl, parcels->nTimes)];
+ *        point[1] = parcels->ypos[PCL(0, pcl, parcels->nTimes)];
+ *        point[2] = parcels->zpos[PCL(0, pcl, parcels->nTimes)];
+ *        // find the nearest grid point!
+ *        if ((point[0] == NC_FILL_FLOAT) || (point[1] == NC_FILL_FLOAT) || (point[2] == NC_FILL_FLOAT)) continue;
+ *        nearest_grid_idx(gd, temp_msh, point, idx_4D);
+ *        if ( (idx_4D[0] == -1) || (idx_4D[1] == -1) || (idx_4D[2] == -1) ) {
+ *            cout << "INVALID POINT X " << point[0] << " Y " << point[1] << " Z " << point[2] << endl;
+ *            cout << "Parcel X " << parcels->xpos[PCL(0, pcl, parcels->nTimes)];
+ *            cout << " Parcel Y " << parcels->ypos[PCL(0, pcl, parcels->nTimes)];
+ *            cout << " Parcel Z " << parcels->zpos[PCL(0, pcl, parcels->nTimes)] << endl;
+ *        }
+ *
+ *        // check to see if we've found the min/max
+ *        // for the dimension
+ *        if (idx_4D[0] < min_i) min_i = idx_4D[0]; 
+ *        if (idx_4D[0] > max_i) max_i = idx_4D[0]; 
+ *        if (idx_4D[1] < min_j) min_j = idx_4D[1]; 
+ *        if (idx_4D[1] > max_j) max_j = idx_4D[1]; 
+ *        if (idx_4D[2] < min_k) min_k = idx_4D[2]; 
+ *        if (idx_4D[2] > max_k) max_k = idx_4D[2]; 
+ *    }
+ */
 	cout << "Finished searching parcel bounds" << endl;
 	// clear the memory from the temp grid
 	cout << "Deallocating temporary grid" << endl;
-	deallocate_mesh_cpu(temp_msh);
-	deallocate_sounding_cpu(temp_snd);
+	//deallocate_mesh_cpu(temp_msh);
+	//deallocate_sounding_cpu(temp_snd);
 
-	// we want to add a buffer to our dimensions so that
-	// the parcels don't accidentally move outside of our
-	// requested data. If the buffer goes outside the 
-	// saved dimensions, set it to the saved dimensions.
-	// We also do this for our staggered grid calculations
-	min_i = gd->saved_X0 + min_i - 10;
-	max_i = gd->saved_X0 + max_i + 10;
-	min_j = gd->saved_Y0 + min_j - 10;
-	max_j = gd->saved_Y0 + max_j + 10;
-	min_k = gd->saved_Z0 + min_k - 10;
-	max_k = gd->saved_Z0 + max_k + 10;
-	cout << "Attempted Parcel Bounds In Grid" << endl;
-	cout << "X0: " << min_i << " X1: " << max_i << endl;
-	cout << "Y0: " << min_j << " Y1: " << max_j << endl;
-	cout << "Z0: " << min_k << " Z1: " << max_k << endl;
-
-	// keep the data in our saved bounds
-	if (min_i < gd->saved_X0) min_i = gd->saved_X0+1;
-	if (max_i > gd->saved_X1) max_i = gd->saved_X1-1;
-	if (min_j < gd->saved_Y0) min_j = gd->saved_Y0+1;
-	if (max_j > gd->saved_Y1) max_j = gd->saved_Y1-1;
-	if (min_k < gd->saved_Z0) min_k = gd->saved_Z0;
-	if (max_k > gd->saved_Z1) max_k = gd->saved_Z1-1;
-
-
-	cout << "Parcel Bounds In Grid" << endl;
-	cout << "X0: " << min_i << " X1: " << max_i << endl;
-	cout << "Y0: " << min_j << " Y1: " << max_j << endl;
-	cout << "Z0: " << min_k << " Z1: " << max_k << endl;
-	// We need to set our grid attributes to
-	// the new, smaller domain around the parcels
-	gd->X0 = min_i; gd->X1 = max_i;
-	gd->Y0 = min_j; gd->Y1 = max_j;
-	gd->Z0 = min_k; gd->Z1 = max_k;
-	// we do not need to re-set NX, NY, or NZ, 
-	// because lofs_get_grid will set those for us
-	// based on X0, X1, etc
-	cout << gd->X0 << " " << gd->X1 << endl;
-	cout << gd->Y0 << " " << gd->Y1 << endl;
-	cout << gd->Z0 << " " << gd->Z1 << endl;
-
-
-	// request our mesh subset now
-	cout << "REQUESTING METADATA & MESH" << endl;
-	// on rank zero, allocate our grid on both the
-	// CPU and GPU so that the GPU knows something
-	// about our data for future integration.
-	//if (rank == 0) {
-	//	req_msh = allocate_mesh_managed( hm, gd );
-	//}
-	// For the other MPI ranks, we only need to
-	// allocate the grids on the CPU for copying
-	// data to the MPI_Gather call
-	//else {
-	//	req_msh = allocate_mesh_cpu( hm, gd ); 
-	//}
+/*
+ *    // we want to add a buffer to our dimensions so that
+ *    // the parcels don't accidentally move outside of our
+ *    // requested data. If the buffer goes outside the 
+ *    // saved dimensions, set it to the saved dimensions.
+ *    // We also do this for our staggered grid calculations
+ *    min_i = gd->saved_X0 + min_i - 10;
+ *    max_i = gd->saved_X0 + max_i + 10;
+ *    min_j = gd->saved_Y0 + min_j - 10;
+ *    max_j = gd->saved_Y0 + max_j + 10;
+ *    min_k = gd->saved_Z0 + min_k - 10;
+ *    max_k = gd->saved_Z0 + max_k + 10;
+ *    cout << "Attempted Parcel Bounds In Grid" << endl;
+ *    cout << "X0: " << min_i << " X1: " << max_i << endl;
+ *    cout << "Y0: " << min_j << " Y1: " << max_j << endl;
+ *    cout << "Z0: " << min_k << " Z1: " << max_k << endl;
+ *
+ *    // keep the data in our saved bounds
+ *    if (min_i < gd->saved_X0) min_i = gd->saved_X0+1;
+ *    if (max_i > gd->saved_X1) max_i = gd->saved_X1-1;
+ *    if (min_j < gd->saved_Y0) min_j = gd->saved_Y0+1;
+ *    if (max_j > gd->saved_Y1) max_j = gd->saved_Y1-1;
+ *    if (min_k < gd->saved_Z0) min_k = gd->saved_Z0;
+ *    if (max_k > gd->saved_Z1) max_k = gd->saved_Z1-1;
+ *
+ *
+ *    cout << "Parcel Bounds In Grid" << endl;
+ *    cout << "X0: " << min_i << " X1: " << max_i << endl;
+ *    cout << "Y0: " << min_j << " Y1: " << max_j << endl;
+ *    cout << "Z0: " << min_k << " Z1: " << max_k << endl;
+ *    // We need to set our grid attributes to
+ *    // the new, smaller domain around the parcels
+ *    gd->X0 = min_i; gd->X1 = max_i;
+ *    gd->Y0 = min_j; gd->Y1 = max_j;
+ *    gd->Z0 = min_k; gd->Z1 = max_k;
+ *    // we do not need to re-set NX, NY, or NZ, 
+ *    // because lofs_get_grid will set those for us
+ *    // based on X0, X1, etc
+ *    cout << gd->X0 << " " << gd->X1 << endl;
+ *    cout << gd->Y0 << " " << gd->Y1 << endl;
+ *    cout << gd->Z0 << " " << gd->Z1 << endl;
+ *
+ *
+ *    // request our mesh subset now
+ *    cout << "REQUESTING METADATA & MESH" << endl;
+ *    // on rank zero, allocate our grid on both the
+ *    // CPU and GPU so that the GPU knows something
+ *    // about our data for future integration.
+ *    if (rank == 0) {
+ *        req_msh = allocate_mesh_managed( hm, gd );
+ *    }
+ *    // For the other MPI ranks, we only need to
+ *    // allocate the grids on the CPU for copying
+ *    // data to the MPI_Gather call
+ *    else {
+ *        req_msh = allocate_mesh_cpu( hm, gd ); 
+ *    }
+ *
+ *    //lofs_get_grid(dm, hm, gd, req_msh, snd);
+ *    cout << "MY DX IS " << req_msh->dx << endl;
+ *    cout << "MY DY IS " << req_msh->dy << endl;
+ *    cout << "MY DZ IS " << req_msh->dz << endl;
+ *    cout << "END METADATA & GRID REQUEST" << endl;
+ */
 	return req_msh;
-
-	//lofs_get_grid(dm, hm, gd, req_msh, snd);
-	//cout << "MY DX IS " << req_msh->dx << endl;
-	//cout << "MY DY IS " << req_msh->dy << endl;
-	//cout << "MY DZ IS " << req_msh->dz << endl;
-	//cout << "END METADATA & GRID REQUEST" << endl;
 }
 
 /* Read in the U, V, and W vector components plus the buoyancy and turbulence fields 
@@ -481,168 +485,169 @@ int main(int argc, char **argv ) {
         // arrays on both the CPU and GPU.
         
 		//loadMetadataAndGrid(base_dir, &dm, &hm, &gd, req_msh, snd, parcels, rank);
-		//req_msh = getMeshAndBounds(base_dir, &dm, &hm, &gd, parcels, rank);
-		/*
-		 *if (rank == 0) {
-		 *    snd = allocate_sounding_managed( gd.Z1 - gd.Z0 + 1);
-		 *}
-		 *else {
-		 *    snd = allocate_sounding_cpu( gd.Z1 - gd.Z0 + 1);
-		 *}
-		 */
+		req_msh = getMeshAndBounds(base_dir, dm, hm, gd, parcels, rank);
+		//if (rank == 0) {
+		//	snd = allocate_sounding_managed( gd->Z1 - gd->Z0 + 1);
+		//}
+		//else {
+		//	snd = allocate_sounding_cpu( gd->Z1 - gd->Z0 + 1);
+		//}
 
         // The number of grid points requested...
         // There's some awkwardness here I have to figure out a better way around,
         // but MPI Scatter/Gather behaves weird if I use the generic large buffer,
         // so I use N_scalar for the MPI calls to non staggered/scalar fields. 
-		N_stag = (gd->NX+2)*(gd->NY+2)*(gd->NZ+1);
-		N_scal = (gd->NX+2)*(gd->NY+2)*(gd->NZ+1);
+/*
+ *        N_stag = (gd->NX+2)*(gd->NY+2)*(gd->NZ+1);
+ *        N_scal = (gd->NX+2)*(gd->NY+2)*(gd->NZ+1);
+ *
+ *
+ *        // allocate space for U, V, and W arrays
+ *        // for all ranks, because this is what
+ *        // LOFS will return it's data subset to
+ *        float *ubuf, *vbuf, *wbuf, *pbuf, *tbuf, *thbuf, *rhobuf, *qvbuf, *qcbuf, *qibuf, *qsbuf, *qgbuf, *kmhbuf;
+ *
+ *        ubuf = new float[N_stag];
+ *        vbuf = new float[N_stag];
+ *        wbuf = new float[N_stag];
+ *        // khh and kmh are on the staggered W mesh
+ *        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh) kmhbuf = new float[N_stag];
+ *        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert) pbuf = new float[N_scal];
+ *        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thetapert) tbuf = new float[N_scal];
+ *        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhopert) thbuf = new float[N_scal];
+ *        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert) rhobuf = new float[N_scal];
+ *        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_qvpert) qvbuf = new float[N_scal];
+ *        if (io->output_qc) qcbuf = new float[N_scal];
+ *        if (io->output_qi) qibuf = new float[N_scal];
+ *        if (io->output_qs) qsbuf = new float[N_scal];
+ *        if (io->output_qg) qgbuf = new float[N_scal];
+ *
+ *
+ *        // construct a 4D contiguous array to store stuff in.
+ *        // bufsize is the size of the 3D component and size is
+ *        // the number of MPI ranks (which is also the number of times)
+ *        // read in
+ *        //
+ *        // declare the struct on all ranks, but only
+ *        // allocate space for it on Rank 0
+ *        model_data *data;
+ *        if (rank == 0) {
+ *            data = allocate_model_managed(io, N_stag*size);
+ *        }
+ *        else {
+ *            data = new model_data();
+ *        }
+ *
+ *
+ *        // we need to find the index of the nearest time to the user requested
+ *        // time. If the index isn't found, abort.
+ *        //int nearest_tidx = find_nearest_index(alltimes, time, ntottimes);
+ *        int nearest_tidx = 0;
+ *        if (nearest_tidx < 0) {
+ *            cout << "Invalid time index: " << nearest_tidx << " for time " << time << ". Abort." << endl;
+ *            return 0;
+ *        }
+ *        //double dt = fabs(alltimes[nearest_tidx + direct*(1+tChunk*size)] - alltimes[nearest_tidx + direct*(tChunk*size)]);
+ *        //double dt = fabs(alltimes[1] - alltimes[0]);
+ *        double dt = 0.16;
+ *        //printf("TIMESTEP %d/%d %d %f dt= %f\n", rank, size, rank + tChunk*size, alltimes[nearest_tidx + direct*( rank + tChunk*size)], dt);
+ *        //req_msh->dt = dt;
+ *        // load u, v, and w into memory
+ *        //loadDataFromDisk(io, gd, msh, ubuf, vbuf, wbuf, pbuf, tbuf, thbuf, \
+ *                         rhobuf, qvbuf, qcbuf, qibuf, qsbuf, qgbuf, kmhbuf, \
+ *                         alltimes[nearest_tidx + direct*(rank + tChunk*size)]);
+ *
+ *        // for MPI runs that load multiple time steps into memory,
+ *        // communicate the data you've read into our 4D array
+ *        
+ *        int senderr_u, senderr_v, senderr_w, senderr_kmh;
+ *        int senderr_p, senderr_t, senderr_th, senderr_rho;
+ *        int senderr_qv, senderr_qc, senderr_qi, senderr_qs, senderr_qg;
+ *
+ *        senderr_u = MPI_Gather(ubuf, N_stag, MPI_FLOAT, data->ustag, N_stag, MPI_FLOAT, 0, MPI_COMM_WORLD);
+ *        senderr_v = MPI_Gather(vbuf, N_stag, MPI_FLOAT, data->vstag, N_stag, MPI_FLOAT, 0, MPI_COMM_WORLD);
+ *        senderr_w = MPI_Gather(wbuf, N_stag, MPI_FLOAT, data->wstag, N_stag, MPI_FLOAT, 0, MPI_COMM_WORLD);
+ *        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh) {
+ *            senderr_kmh = MPI_Gather(kmhbuf, N_stag, MPI_FLOAT, data->kmh, N_stag, MPI_FLOAT, 0, MPI_COMM_WORLD);
+ *        }
+ *
+ *        // Use N_scalar here so that there aren't random zeroes throughout the middle of the array
+ *        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert) {
+ *            senderr_p = MPI_Gather(pbuf, N_scal, MPI_FLOAT, data->prespert, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
+ *        }
+ *        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thetapert) {
+ *            senderr_t = MPI_Gather(tbuf, N_scal, MPI_FLOAT, data->thetapert, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
+ *        }
+ *        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhopert) {
+ *            senderr_th = MPI_Gather(thbuf, N_scal, MPI_FLOAT, data->thrhopert, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
+ *        }
+ *        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert) {
+ *            senderr_rho = MPI_Gather(rhobuf, N_scal, MPI_FLOAT, data->rhopert, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
+ *        }
+ *        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_qvpert) {
+ *            senderr_qv = MPI_Gather(qvbuf, N_scal, MPI_FLOAT, data->qvpert, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
+ *        }
+ *        if (io->output_qc) senderr_qc = MPI_Gather(qcbuf, N_scal, MPI_FLOAT, data->qc, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
+ *        if (io->output_qi) senderr_qi = MPI_Gather(qibuf, N_scal, MPI_FLOAT, data->qi, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
+ *        if (io->output_qs) senderr_qs = MPI_Gather(qsbuf, N_scal, MPI_FLOAT, data->qs, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
+ *        if (io->output_qg) senderr_qg = MPI_Gather(qgbuf, N_scal, MPI_FLOAT, data->qg, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
+ *
+ *        // clean up temporary buffers
+ *        delete[] ubuf;
+ *        delete[] vbuf;
+ *        delete[] wbuf;
+ *        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert) {
+ *            delete[] pbuf;
+ *        }
+ *        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thetapert) {
+ *            delete[] tbuf;
+ *        }
+ *        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhopert) {
+ *            delete[] thbuf;
+ *        }
+ *        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert) {
+ *            delete[] rhobuf;
+ *        }
+ *        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh) {
+ *            delete[] kmhbuf;
+ *        }
+ *        if (io->output_momentum_budget || io->output_vorticity_budget || io->output_qvpert) {
+ *            delete[] qvbuf;
+ *        }
+ *        if (io->output_qc) delete[] qcbuf;
+ *        if (io->output_qi) delete[] qibuf;
+ *        if (io->output_qs) delete[] qsbuf;
+ *        if (io->output_qg) delete[] qgbuf;
+ */
 
-
-        // allocate space for U, V, and W arrays
-        // for all ranks, because this is what
-        // LOFS will return it's data subset to
-		float *ubuf, *vbuf, *wbuf, *pbuf, *tbuf, *thbuf, *rhobuf, *qvbuf, *qcbuf, *qibuf, *qsbuf, *qgbuf, *kmhbuf;
-
-		ubuf = new float[N_stag];
-		vbuf = new float[N_stag];
-		wbuf = new float[N_stag];
-		// khh and kmh are on the staggered W mesh
-		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh) kmhbuf = new float[N_stag];
-		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert) pbuf = new float[N_scal];
-		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thetapert) tbuf = new float[N_scal];
-		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhopert) thbuf = new float[N_scal];
-		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert) rhobuf = new float[N_scal];
-		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_qvpert) qvbuf = new float[N_scal];
-		if (io->output_qc) qcbuf = new float[N_scal];
-		if (io->output_qi) qibuf = new float[N_scal];
-		if (io->output_qs) qsbuf = new float[N_scal];
-		if (io->output_qg) qgbuf = new float[N_scal];
-
-
-		// construct a 4D contiguous array to store stuff in.
-		// bufsize is the size of the 3D component and size is
-		// the number of MPI ranks (which is also the number of times)
-		// read in
-		//
-		// declare the struct on all ranks, but only
-		// allocate space for it on Rank 0
-		model_data *data;
 		if (rank == 0) {
-			data = allocate_model_managed(io, N_stag*size);
-		}
-		else {
-			data = new model_data();
-		}
-
-
-		// we need to find the index of the nearest time to the user requested
-		// time. If the index isn't found, abort.
-		//int nearest_tidx = find_nearest_index(alltimes, time, ntottimes);
-		int nearest_tidx = 0;
-		if (nearest_tidx < 0) {
-			cout << "Invalid time index: " << nearest_tidx << " for time " << time << ". Abort." << endl;
-			return 0;
-		}
-        //double dt = fabs(alltimes[nearest_tidx + direct*(1+tChunk*size)] - alltimes[nearest_tidx + direct*(tChunk*size)]);
-        //double dt = fabs(alltimes[1] - alltimes[0]);
-		double dt = 0.16;
-		//printf("TIMESTEP %d/%d %d %f dt= %f\n", rank, size, rank + tChunk*size, alltimes[nearest_tidx + direct*( rank + tChunk*size)], dt);
-		//req_msh->dt = dt;
-		// load u, v, and w into memory
-		//loadDataFromDisk(io, gd, msh, ubuf, vbuf, wbuf, pbuf, tbuf, thbuf, \
-						 rhobuf, qvbuf, qcbuf, qibuf, qsbuf, qgbuf, kmhbuf, \
-						 alltimes[nearest_tidx + direct*(rank + tChunk*size)]);
-
-		// for MPI runs that load multiple time steps into memory,
-		// communicate the data you've read into our 4D array
-		
-		int senderr_u, senderr_v, senderr_w, senderr_kmh;
-		int senderr_p, senderr_t, senderr_th, senderr_rho;
-		int senderr_qv, senderr_qc, senderr_qi, senderr_qs, senderr_qg;
-
-		senderr_u = MPI_Gather(ubuf, N_stag, MPI_FLOAT, data->ustag, N_stag, MPI_FLOAT, 0, MPI_COMM_WORLD);
-		senderr_v = MPI_Gather(vbuf, N_stag, MPI_FLOAT, data->vstag, N_stag, MPI_FLOAT, 0, MPI_COMM_WORLD);
-		senderr_w = MPI_Gather(wbuf, N_stag, MPI_FLOAT, data->wstag, N_stag, MPI_FLOAT, 0, MPI_COMM_WORLD);
-		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh) {
-			senderr_kmh = MPI_Gather(kmhbuf, N_stag, MPI_FLOAT, data->kmh, N_stag, MPI_FLOAT, 0, MPI_COMM_WORLD);
-		}
-
-		// Use N_scalar here so that there aren't random zeroes throughout the middle of the array
-		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert) {
-			senderr_p = MPI_Gather(pbuf, N_scal, MPI_FLOAT, data->prespert, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
-		}
-		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thetapert) {
-			senderr_t = MPI_Gather(tbuf, N_scal, MPI_FLOAT, data->thetapert, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
-		}
-		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhopert) {
-			senderr_th = MPI_Gather(thbuf, N_scal, MPI_FLOAT, data->thrhopert, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
-		}
-		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert) {
-			senderr_rho = MPI_Gather(rhobuf, N_scal, MPI_FLOAT, data->rhopert, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
-		}
-		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_qvpert) {
-			senderr_qv = MPI_Gather(qvbuf, N_scal, MPI_FLOAT, data->qvpert, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
-		}
-		if (io->output_qc) senderr_qc = MPI_Gather(qcbuf, N_scal, MPI_FLOAT, data->qc, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
-		if (io->output_qi) senderr_qi = MPI_Gather(qibuf, N_scal, MPI_FLOAT, data->qi, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
-		if (io->output_qs) senderr_qs = MPI_Gather(qsbuf, N_scal, MPI_FLOAT, data->qs, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
-		if (io->output_qg) senderr_qg = MPI_Gather(qgbuf, N_scal, MPI_FLOAT, data->qg, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
-
-		// clean up temporary buffers
-		delete[] ubuf;
-		delete[] vbuf;
-		delete[] wbuf;
-		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert) {
-			delete[] pbuf;
-		}
-		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thetapert) {
-			delete[] tbuf;
-		}
-		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhopert) {
-			delete[] thbuf;
-		}
-		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert) {
-			delete[] rhobuf;
-		}
-		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh) {
-			delete[] kmhbuf;
-		}
-		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_qvpert) {
-			delete[] qvbuf;
-		}
-		if (io->output_qc) delete[] qcbuf;
-		if (io->output_qi) delete[] qibuf;
-		if (io->output_qs) delete[] qsbuf;
-		if (io->output_qg) delete[] qgbuf;
-
-        if (rank == 0) {
-            // send to the GPU!!
-			cout << "MPI Gather Error U: " << senderr_u << endl;
-			cout << "MPI Gather Error V: " << senderr_v << endl;
-			cout << "MPI Gather Error W: " << senderr_w << endl;
-			if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert) {
-				cout << "MPI Gather Error P: " << senderr_p << endl;
-			}
-			if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thetapert) {
-				cout << "MPI Gather Error T: " << senderr_t << endl;
-			}
-			if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhopert) {
-				cout << "MPI Gather Error TH: " << senderr_th << endl;
-			}
-			if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert) {
-				cout << "MPI Gather Error RHO: " << senderr_rho << endl;
-			}
-			if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh) {
-				cout << "MPI Gather Error KMH: " << senderr_kmh << endl;
-			}
-			if (io->output_momentum_budget || io->output_vorticity_budget || io->output_qvpert) {
-				cout << "MPI Gather Error QV: " << senderr_qv << endl;
-			}
-			if (io->output_qc) cout << "MPI Gather Error QC: " << senderr_qc << endl;
-			if (io->output_qi) cout << "MPI Gather Error QI: " << senderr_qi << endl;
-			if (io->output_qs) cout << "MPI Gather Error QS: " << senderr_qs << endl;
-			if (io->output_qs) cout << "MPI Gather Error QG: " << senderr_qg << endl;
+			/*
+			 *cout << "MPI Gather Error U: " << senderr_u << endl;
+			 *cout << "MPI Gather Error V: " << senderr_v << endl;
+			 *cout << "MPI Gather Error W: " << senderr_w << endl;
+			 *if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert) {
+			 *    cout << "MPI Gather Error P: " << senderr_p << endl;
+			 *}
+			 *if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thetapert) {
+			 *    cout << "MPI Gather Error T: " << senderr_t << endl;
+			 *}
+			 *if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhopert) {
+			 *    cout << "MPI Gather Error TH: " << senderr_th << endl;
+			 *}
+			 *if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert) {
+			 *    cout << "MPI Gather Error RHO: " << senderr_rho << endl;
+			 *}
+			 *if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh) {
+			 *    cout << "MPI Gather Error KMH: " << senderr_kmh << endl;
+			 *}
+			 *if (io->output_momentum_budget || io->output_vorticity_budget || io->output_qvpert) {
+			 *    cout << "MPI Gather Error QV: " << senderr_qv << endl;
+			 *}
+			 *if (io->output_qc) cout << "MPI Gather Error QC: " << senderr_qc << endl;
+			 *if (io->output_qi) cout << "MPI Gather Error QI: " << senderr_qi << endl;
+			 *if (io->output_qs) cout << "MPI Gather Error QS: " << senderr_qs << endl;
+			 *if (io->output_qs) cout << "MPI Gather Error QG: " << senderr_qg << endl;
+			 */
 
 			int nParcels = parcels->nParcels;
 			cout << "Beginning parcel integration! Heading over to the GPU to do GPU things..." << endl;
@@ -666,10 +671,10 @@ int main(int argc, char **argv ) {
 
             // memory management for root rank
 			/*
-             *deallocate_mesh_managed(req_msh);
-             *deallocate_sounding_managed(snd);
+			 *deallocate_mesh_managed(req_msh);
+			 *deallocate_sounding_managed(snd);
+             *deallocate_model_managed(io, data);
 			 */
-            //deallocate_model_managed(io, data);
         }
 
         // house keeping for the non-master
@@ -677,26 +682,28 @@ int main(int argc, char **argv ) {
         else {
             // memory management
 			/*
-             *deallocate_mesh_cpu(req_msh);
-             *deallocate_sounding_managed(snd);
+			 *deallocate_mesh_cpu(req_msh);
+			 *deallocate_sounding_managed(snd);
 			 */
         }
         // receive the updated parcel arrays
         // so that we can do proper subseting. This happens
         // after integration is complete from CUDA.
-		MPI_Status status;
-		MPI_Bcast(parcels->xpos, parcels->nParcels*nTotTimes, MPI_FLOAT, 0, MPI_COMM_WORLD);
-		MPI_Bcast(parcels->ypos, parcels->nParcels*nTotTimes, MPI_FLOAT, 0, MPI_COMM_WORLD);
-		MPI_Bcast(parcels->zpos, parcels->nParcels*nTotTimes, MPI_FLOAT, 0, MPI_COMM_WORLD);
+		/*
+		 *MPI_Status status;
+		 *MPI_Bcast(parcels->xpos, parcels->nParcels*nTotTimes, MPI_FLOAT, 0, MPI_COMM_WORLD);
+		 *MPI_Bcast(parcels->ypos, parcels->nParcels*nTotTimes, MPI_FLOAT, 0, MPI_COMM_WORLD);
+		 *MPI_Bcast(parcels->zpos, parcels->nParcels*nTotTimes, MPI_FLOAT, 0, MPI_COMM_WORLD);
+		 */
 
     }
 
     if (rank == 0) {
-		deallocate_parcels_managed(io, parcels);
+		//deallocate_parcels_managed(io, parcels);
         cout << "Finished!" << endl << endl;
     }
 	else {
-		deallocate_parcels_cpu(io, parcels);
+		//deallocate_parcels_cpu(io, parcels);
 	}
     MPI_Finalize();
 }

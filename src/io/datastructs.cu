@@ -33,11 +33,10 @@ mesh* allocate_mesh_managed( hdf_meta *hm, grid *gd ) {
     cudaMallocManaged(&(msh->xhout), (gd->NX)*sizeof(float));
 
     cudaMallocManaged(&(msh->yffull), (hm->ny+1)*sizeof(float));
-    cudaMallocManaged(&(msh->yffull), (hm->ny)*sizeof(float));
+    cudaMallocManaged(&(msh->yhfull), (hm->ny)*sizeof(float));
     cudaMallocManaged(&(msh->yfout), (gd->NY)*sizeof(float));
     cudaMallocManaged(&(msh->yhout), (gd->NY)*sizeof(float));
 
-    // +2 is +1 for stagger, +1 for potential bottom ghost zone
     cudaMallocManaged(&(msh->zf), (gd->NZ)*sizeof(float));
     cudaMallocManaged(&(msh->zh), (gd->NZ)*sizeof(float));
     cudaMallocManaged(&(msh->zfout), (gd->NZ)*sizeof(float));
@@ -140,24 +139,24 @@ void deallocate_mesh_managed(mesh *msh) {
 /* Deallocate all of the arrays in the
    struct only for the CPU */
 void deallocate_mesh_cpu(mesh *msh) {
-    delete[] msh->xffull;
-    delete[] msh->xhfull;
-    delete[] msh->xfout;
-    delete[] msh->xhout;
-    delete[] msh->yffull;
-    delete[] msh->yhfull;
-    delete[] msh->yfout;
-    delete[] msh->yhout;
-    delete[] msh->zfout;
-    delete[] msh->zhout;
-    delete[] msh->zf;
-    delete[] msh->zh;
-    delete[] msh->uf;
-    delete[] msh->uh;
-    delete[] msh->vf;
-    delete[] msh->vh;
-    delete[] msh->mf;
-    delete[] msh->mh;
+    //delete[] msh->xffull;
+    //delete[] msh->xhfull;
+    //delete[] msh->xfout;
+    //delete[] msh->xhout;
+    //delete[] msh->yffull;
+    //delete[] msh->yhfull;
+    //delete[] msh->yfout;
+    //delete[] msh->yhout;
+    //delete[] msh->zfout;
+    //delete[] msh->zhout;
+    //delete[] msh->zf;
+    //delete[] msh->zh;
+    //delete[] msh->uf;
+    //delete[] msh->uh;
+    //delete[] msh->vf;
+    //delete[] msh->vh;
+    //delete[] msh->mf;
+    //delete[] msh->mh;
 }
 
 void deallocate_sounding_managed(sounding *snd) {
@@ -170,12 +169,12 @@ void deallocate_sounding_managed(sounding *snd) {
 }
 
 void deallocate_sounding_cpu(sounding *snd) {
-    delete[] snd->u0;
-    delete[] snd->v0;
-    delete[] snd->rho0;
-    delete[] snd->th0;
-    delete[] snd->qv0;
-    delete[] snd->pres0;
+    //delete[] snd->u0;
+    //delete[] snd->v0;
+    //delete[] snd->rho0;
+    //delete[] snd->th0;
+    //delete[] snd->qv0;
+    //delete[] snd->pres0;
 }
 
 /* Allocate arrays for parcel info on both the CPU and GPU.
