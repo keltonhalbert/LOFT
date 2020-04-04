@@ -165,7 +165,7 @@ void parse_cfg(map<string, string> *usrCfg, iocfg *io, string *histpath, string 
  * When the next chunk of time is read in, check and see where the parcels
  * are currently and request a subset that is relevent to those parcels.   
  */
-void getMeshAndBounds(string base_dir, dir_meta *dm, hdf_meta *hm, grid *gd, parcel_pos *parcels, int rank) {
+void getMeshBounds(string base_dir, dir_meta *dm, hdf_meta *hm, grid *gd, parcel_pos *parcels, int rank) {
     cout << "Retrieving HDF Metadata" << endl;
 
 	// Create a temporary full grid that we will then subset. We will
@@ -267,47 +267,50 @@ void getMeshAndBounds(string base_dir, dir_meta *dm, hdf_meta *hm, grid *gd, par
  * from the disk, provided previously allocated memory buffers
  * and the time requested in the dataset. 
  */
-void loadDataFromDisk(iocfg *io, grid *gd, mesh *msh, float *ustag, float *vstag, float *wstag, \
+void loadDataFromDisk(iocfg *io, dir_meta *dm, hdf_meta *hm, cmdline *cmd, grid *gd, \
+						float *ustag, float *vstag, float *wstag, \
                         float *pbuffer, float *tbuffer, float *thbuffer, float *rhobuffer, \
                         float *qvbuffer, float *qcbuffer, float *qibuffer, float *qsbuffer, \
                         float *qgbuffer, float*kmhbuffer, double t0) {
-    // request 3D field!
-    // u,v, and w are on their
-    // respective staggered grids
+	requested_cube rc;
 
-    // we need the boolean variables to tell the code
-    // what type of array indexing we're using, and what
-    // grid bounds should be requested to accomodate the
-    // data. 
-    bool istag = true;
-    lofs_read_3dvar(gd, msh, ustag, (char *)"u", istag, t0);
-    lofs_read_3dvar(gd, msh, vstag, (char *)"v", istag, t0);
-    lofs_read_3dvar(gd, msh, wstag, (char *)"w", istag, t0);
+	/* We select extra data for doing spatial averaging */
+	/* By shrinking in saved_x0,saved_x1 etc by 1 point on either side (see set_span), this will not fail
+	 * if we do not specify X0, X1 etc.*/
+
+	rc.X0=gd->X0-1; rc.Y0=gd->Y0-1; rc.Z0=gd->Z0;
+	rc.X1=gd->X1+1; rc.Y1=gd->Y1+1; rc.Z1=gd->Z1+1;
+	rc.NX=gd->X1-gd->X0+1; rc.NY=gd->Y1-gd->Y0+1; rc.NZ=gd->Z1-gd->Z0+1;
+
+	// need to look at where the time request 
+	// is specified 
+	read_lofs_buffer(ustag,(char *)"u",*dm,*hm,rc,*cmd);
+	read_lofs_buffer(vstag,(char *)"v",*dm,*hm,rc,*cmd);
+	read_lofs_buffer(wstag,(char *)"w",*dm,*hm,rc,*cmd);
+
     if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh ) {
-        lofs_read_3dvar(gd, msh, kmhbuffer, (char *)"kmh", istag, t0);
+		read_lofs_buffer(kmhbuffer,(char *)"kmh",*dm,*hm,rc,*cmd);
     }
 
-    // request additional fields for calculations
-    istag = false;
     if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert ) {
-        lofs_read_3dvar(gd, msh, pbuffer, (char *)"prespert", istag, t0);
+		read_lofs_buffer(pbuffer,(char *)"prespert",*dm,*hm,rc,*cmd);
     }
     if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thetapert ) {
-        lofs_read_3dvar(gd, msh, tbuffer, (char *)"thpert", istag, t0);
+		read_lofs_buffer(tbuffer,(char *)"thpert",*dm,*hm,rc,*cmd);
     }
     if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhopert ) {
-        lofs_read_3dvar(gd, msh, thbuffer, (char *)"thrhopert", istag, t0);
+		read_lofs_buffer(thbuffer,(char *)"thrhopert",*dm,*hm,rc,*cmd);
     }
     if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert ) {
-        lofs_read_3dvar(gd, msh, rhobuffer, (char *)"rhopert", istag, t0);
+		read_lofs_buffer(rhobuffer,(char *)"rhopert",*dm,*hm,rc,*cmd);
     }
     if (io->output_momentum_budget || io->output_vorticity_budget || io->output_qvpert ) {
-        lofs_read_3dvar(gd, msh, qvbuffer, (char *)"qvpert", istag, t0);
+		read_lofs_buffer(qvbuffer,(char *)"qvpert",*dm,*hm,rc,*cmd);
     }
-    if (io->output_qc) lofs_read_3dvar(gd, msh, qcbuffer, (char *)"qc", istag, t0);
-    if (io->output_qs) lofs_read_3dvar(gd, msh, qsbuffer, (char *)"qs", istag, t0);
-    if (io->output_qi) lofs_read_3dvar(gd, msh, qibuffer, (char *)"qi", istag, t0);
-    if (io->output_qg) lofs_read_3dvar(gd, msh, qgbuffer, (char *)"qg", istag, t0);
+    if (io->output_qc) read_lofs_buffer(qcbuffer,(char *)"qc",*dm,*hm,rc,*cmd);
+    if (io->output_qs) read_lofs_buffer(qsbuffer,(char *)"qs",*dm,*hm,rc,*cmd);
+    if (io->output_qi) read_lofs_buffer(qibuffer,(char *)"qi",*dm,*hm,rc,*cmd);
+    if (io->output_qg) read_lofs_buffer(qgbuffer,(char *)"qg",*dm,*hm,rc,*cmd); 
 
 }
 
@@ -450,7 +453,7 @@ int main(int argc, char **argv ) {
         // steps, but only Rank 0 will allocate the grid
         // arrays on both the CPU and GPU.
         
-		getMeshAndBounds(base_dir, dm, hm, gd, parcels, rank);
+		getMeshBounds(base_dir, dm, hm, gd, parcels, rank);
 		cout << "REQUESTING METADATA & MESH" << endl;
 		// on rank zero, allocate our grid on both the
 		// CPU and GPU so that the GPU knows something
@@ -520,8 +523,7 @@ int main(int argc, char **argv ) {
 
 		// we need to find the index of the nearest time to the user requested
 		// time. If the index isn't found, abort.
-		//int nearest_tidx = find_nearest_index(alltimes, time, ntottimes);
-		int nearest_tidx = 0;
+		int nearest_tidx = find_nearest_index(dm->alltimes, time, dm->ntottimes);
 		if (nearest_tidx < 0) {
 			cout << "Invalid time index: " << nearest_tidx << " for time " << time << ". Abort." << endl;
 			return 0;
@@ -531,7 +533,7 @@ int main(int argc, char **argv ) {
 		req_msh->dt = dt;
 		printf("TIMESTEP %d/%d %d %f dt= %f\n", rank, size, rank + tChunk*size, dm->alltimes[nearest_tidx + direct*( rank + tChunk*size)], dt);
 		// load u, v, and w into memory
-		//loadDataFromDisk(io, gd, msh, ubuf, vbuf, wbuf, pbuf, tbuf, thbuf, \
+		//loadDataFromDisk(io, dm, hm, cmd, gd, msh, ubuf, vbuf, wbuf, pbuf, tbuf, thbuf, \
 						 rhobuf, qvbuf, qcbuf, qibuf, qsbuf, qgbuf, kmhbuf, \
 						 alltimes[nearest_tidx + direct*(rank + tChunk*size)]);
 
