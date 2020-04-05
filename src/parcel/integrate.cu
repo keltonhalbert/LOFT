@@ -576,65 +576,64 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
     //}
 //}
 
-//[>This function handles allocating memory on the GPU, transferring the CPU
-//arrays to GPU global memory, calling the integrate GPU kernel, and then
-//updating the position vectors with the new stuff*/
-//void cudaIntegrateParcels(datagrid *grid, model_data *data, parcel_pos *parcels, int nT, int totTime, int direct) {
+/* This function handles allocating memory on the GPU, transferring the CPU
+arrays to GPU global memory, calling the integrate GPU kernel, and then
+updating the position vectors with the new stuff */
+void cudaIntegrateParcels(grid *gd, mesh *msh, sounding *snd,  model_data *data, parcel_pos *parcels, int nT, int totTime, int direct) {
+	int tStart, tEnd;
+	tStart = 0;
+	tEnd = nT;
+	int NX, NY, NZ;
+	// set the NX, NY, NZ
+	// variables for calculations
+	NX = gd->NX;
+	NY = gd->NY;
+	NZ = gd->NZ;
+	iocfg *io = parcels->io;
 
-    //int tStart, tEnd;
-    //tStart = 0;
-    //tEnd = nT;
-    //int NX, NY, NZ;
-    //// set the NX, NY, NZ
-    //// variables for calculations
-    //NX = grid->NX;
-    //NY = grid->NY;
-    //NZ = grid->NZ;
-    //iocfg *io = parcels->io;
-
-    //cudaStream_t calStream;
-    //cudaStream_t intStream;
-    //cudaStreamCreate(&calStream);
-    //cudaStreamCreate(&intStream);
-
-
-    //// set the thread/block execution strategy for the kernels
-    //dim3 threadsPerBlock(256, 1, 1);
-    //dim3 numBlocks((int)ceil(NX+2/threadsPerBlock.x)+1, (int)ceil(NY+2/threadsPerBlock.y)+1, (int)ceil(NZ+1/threadsPerBlock.z)+1); 
-
-    //if (io->output_momentum_budget) doMomentumBud(grid, data, tStart, tEnd, numBlocks, threadsPerBlock, calStream);
-    //// Calculate the three compionents of vorticity
-    //// and do the necessary averaging. This is a wrapper that
-    //// calls the necessary kernels and assigns the pointers
-    //// appropriately such that the "user" only has to call this method.
-    //if (io->output_xvort || io->output_yvort || io->output_zvort || io->output_vorticity_budget) {
-        //doCalcVort(grid, data, tStart, tEnd, numBlocks, threadsPerBlock, calStream);
-    //}
-    
-
-    //// Calculate the vorticity forcing terms for each of the 3 components.
-    //// This is a wrapper that calls the necessary kernels to compute the
-    //// derivatives and average them back to the scalar grid where necessary. 
-    //if (io->output_vorticity_budget) doCalcVortTend(grid, data, tStart, tEnd, numBlocks, threadsPerBlock, calStream);
+	cudaStream_t calStream;
+	cudaStream_t intStream;
+	cudaStreamCreate(&calStream);
+	cudaStreamCreate(&intStream);
 
 
-    //// Before integrating the trajectories, George Bryan sets some below-grid/surface conditions 
-    //// that we need to consider. This handles applying those boundary conditions. 
-    ////applyMomentumBC<<<numBlocks, threadsPerBlock>>>(data->ustag, data->vstag, data->wstag, NX, NY, NZ, tStart, tEnd);
-    ////gpuErrchk(cudaDeviceSynchronize() );
-    ////gpuErrchk( cudaPeekAtLastError() );
+	// set the thread/block execution strategy for the kernels
+	dim3 threadsPerBlock(256, 1, 1);
+	dim3 numBlocks((int)ceil(NX+2/threadsPerBlock.x)+1, (int)ceil(NY+2/threadsPerBlock.y)+1, (int)ceil(NZ+1/threadsPerBlock.z)+1); 
 
-    //// integrate the parcels forward in time and interpolate
-    //// calculations to trajectories. 
-    //int nThreads = 256;
-    //int nPclBlocks = int(parcels->nParcels / nThreads) + 1;
-    //integrate<<<nPclBlocks, nThreads, 0, intStream>>>(grid, parcels, data, tStart, tEnd, totTime, direct);
-    //gpuErrchk(cudaDeviceSynchronize());
-    //gpuErrchk( cudaPeekAtLastError() );
+	//if (io->output_momentum_budget) doMomentumBud(grid, data, tStart, tEnd, numBlocks, threadsPerBlock, calStream);
+	// Calculate the three compionents of vorticity
+	// and do the necessary averaging. This is a wrapper that
+	// calls the necessary kernels and assigns the pointers
+	// appropriately such that the "user" only has to call this method.
+	//if (io->output_xvort || io->output_yvort || io->output_zvort || io->output_vorticity_budget) {
+	//	doCalcVort(grid, data, tStart, tEnd, numBlocks, threadsPerBlock, calStream);
+	//}
+	
 
-    //parcel_interp<<<nPclBlocks, nThreads, 0, intStream>>>(grid, parcels, data, tStart, tEnd, totTime, direct);
-    //gpuErrchk(cudaDeviceSynchronize());
-    //gpuErrchk( cudaPeekAtLastError() );
-//}
+	// Calculate the vorticity forcing terms for each of the 3 components.
+	// This is a wrapper that calls the necessary kernels to compute the
+	// derivatives and average them back to the scalar grid where necessary. 
+	//if (io->output_vorticity_budget) doCalcVortTend(grid, data, tStart, tEnd, numBlocks, threadsPerBlock, calStream);
+
+
+	// Before integrating the trajectories, George Bryan sets some below-grid/surface conditions 
+	// that we need to consider. This handles applying those boundary conditions. 
+	//applyMomentumBC<<<numBlocks, threadsPerBlock>>>(data->ustag, data->vstag, data->wstag, NX, NY, NZ, tStart, tEnd);
+	//gpuErrchk(cudaDeviceSynchronize() );
+	//gpuErrchk( cudaPeekAtLastError() );
+
+	// integrate the parcels forward in time and interpolate
+	// calculations to trajectories. 
+	int nThreads = 256;
+	int nPclBlocks = int(parcels->nParcels / nThreads) + 1;
+	//integrate<<<nPclBlocks, nThreads, 0, intStream>>>(grid, parcels, data, tStart, tEnd, totTime, direct);
+	//gpuErrchk(cudaDeviceSynchronize());
+	//gpuErrchk( cudaPeekAtLastError() );
+
+	//parcel_interp<<<nPclBlocks, nThreads, 0, intStream>>>(grid, parcels, data, tStart, tEnd, totTime, direct);
+	//gpuErrchk(cudaDeviceSynchronize());
+	//gpuErrchk( cudaPeekAtLastError() );
+}
 #endif
 

@@ -257,7 +257,9 @@ void getMeshBounds(string base_dir, dir_meta *dm, hdf_meta *hm, grid *gd, parcel
 	cout << "Y0: " << min_j << " Y1: " << max_j << endl;
 	cout << "Z0: " << min_k << " Z1: " << max_k << endl;
 	// We need to set our grid attributes to
-	// the new, smaller domain around the parcels
+	// the new, smaller domain around the parcels.
+	// We offset by 1 in each direaction to help with 
+	// the staggered grid operations
 	gd->X0 = min_i; gd->X1 = max_i;
 	gd->Y0 = min_j; gd->Y1 = max_j;
 	gd->Z0 = min_k; gd->Z1 = max_k;
@@ -629,7 +631,7 @@ int main(int argc, char **argv ) {
 
 			int nParcels = parcels->nParcels;
 			cout << "Beginning parcel integration! Heading over to the GPU to do GPU things..." << endl;
-			//cudaIntegrateParcels(gd, msh, data, parcels, size, nTotTimes, direct); 
+			cudaIntegrateParcels(gd, req_msh, snd, data, parcels, size, nTotTimes, direct); 
 			cout << "Finished integrating parcels!" << endl;
 			// write out our information to disk
 			cout << "Beginning to write to disk..." << endl;
