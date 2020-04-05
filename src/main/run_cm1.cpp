@@ -271,7 +271,7 @@ void loadDataFromDisk(iocfg *io, dir_meta *dm, hdf_meta *hm, cmdline *cmd, grid 
 						float *ustag, float *vstag, float *wstag, \
                         float *pbuffer, float *tbuffer, float *thbuffer, float *rhobuffer, \
                         float *qvbuffer, float *qcbuffer, float *qibuffer, float *qsbuffer, \
-                        float *qgbuffer, float*kmhbuffer, double t0) {
+                        float *qgbuffer, float*kmhbuffer) {
 	requested_cube rc;
 
 	/* We select extra data for doing spatial averaging */
@@ -531,11 +531,12 @@ int main(int argc, char **argv ) {
 		//double dt = fabs(alltimes[nearest_tidx + direct*(1+tChunk*size)] - alltimes[nearest_tidx + direct*(tChunk*size)]);
 		double dt = fabs(dm->alltimes[1] - dm->alltimes[0]);
 		req_msh->dt = dt;
+		// set the time value for LOFS
+		cmd->time = dm->alltimes[nearest_tidx + direct*(rank + tChunk*size)];
 		printf("TIMESTEP %d/%d %d %f dt= %f\n", rank, size, rank + tChunk*size, dm->alltimes[nearest_tidx + direct*( rank + tChunk*size)], dt);
 		// load u, v, and w into memory
-		//loadDataFromDisk(io, dm, hm, cmd, gd, msh, ubuf, vbuf, wbuf, pbuf, tbuf, thbuf, \
-						 rhobuf, qvbuf, qcbuf, qibuf, qsbuf, qgbuf, kmhbuf, \
-						 alltimes[nearest_tidx + direct*(rank + tChunk*size)]);
+		loadDataFromDisk(io, dm, hm, cmd, gd, ubuf, vbuf, wbuf, pbuf, tbuf, thbuf, \
+						 rhobuf, qvbuf, qcbuf, qibuf, qsbuf, qgbuf, kmhbuf);
 
 		// for MPI runs that load multiple time steps into memory,
 		// communicate the data you've read into our 4D array
