@@ -282,118 +282,118 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 
 //}
 
-//__global__ void integrate(datagrid *grid, parcel_pos *parcels, model_data *data, \
-                          //int tStart, int tEnd, int totTime, int direct) {
+__global__ void integrate(grid *gd, mesh *msh, sounding *snd, parcel_pos *parcels, model_data *data, \
+						  int tStart, int tEnd, int totTime, int direct) {
 
-	////int parcel_id = blockIdx.x;
-    //int parcel_id = blockIdx.x * blockDim.x + threadIdx.x;
+	//int parcel_id = blockIdx.x;
+	int parcel_id = blockIdx.x * blockDim.x + threadIdx.x;
 
-    //// safety check to make sure our thread index doesn't
-    //// go out of our array bounds
-    //if (parcel_id < parcels->nParcels) {
-        //bool is_ugrd = false;
-        //bool is_vgrd = false;
-        //bool is_wgrd = false;
+	// safety check to make sure our thread index doesn't
+	// go out of our array bounds
+	if (parcel_id < parcels->nParcels) {
+		bool is_ugrd = false;
+		bool is_vgrd = false;
+		bool is_wgrd = false;
 
-        //float pcl_x, pcl_y, pcl_z;
-        //float pcl_u, pcl_v, pcl_w;
-        //float uu1, vv1, ww1;
-        //float point[3];
+		float pcl_x, pcl_y, pcl_z;
+		float pcl_u, pcl_v, pcl_w;
+		float uu1, vv1, ww1;
+		float point[3];
 
-        //// loop over the number of time steps we are
-        //// integrating over
-        //float dt = grid->dt; 
-        //float dt2 = dt / 2.;
-        //for (int tidx = tStart; tidx < tEnd; ++tidx) {
+		// loop over the number of time steps we are
+		// integrating over
+		float dt = msh->dt; 
+		float dt2 = dt / 2.;
+		for (int tidx = tStart; tidx < tEnd; ++tidx) {
 
-            //// get the current values of various fields interpolated
-            //// to the parcel before we integrate using the RK2 step
-            //point[0] = parcels->xpos[PCL(tidx, parcel_id, totTime)];
-            //point[1] = parcels->ypos[PCL(tidx, parcel_id, totTime)];
-            //point[2] = parcels->zpos[PCL(tidx, parcel_id, totTime)];
-            //pcl_x = point[0];
-            //pcl_y = point[1];
-            //pcl_z = point[2];
-            //if (( pcl_x > xf(grid->NX-4) ) || ( pcl_y > yf(grid->NY-4) ) || ( pcl_z > zf(grid->NZ-4) ) \
-             //|| ( pcl_x < xf(0) )        || ( pcl_y < yf(0) )        || ( pcl_z < 0. ) ) {
-                //break;
-            //}
+			// get the current values of various fields interpolated
+			// to the parcel before we integrate using the RK2 step
+			point[0] = parcels->xpos[PCL(tidx, parcel_id, totTime)];
+			point[1] = parcels->ypos[PCL(tidx, parcel_id, totTime)];
+			point[2] = parcels->zpos[PCL(tidx, parcel_id, totTime)];
+			pcl_x = point[0];
+			pcl_y = point[1];
+			pcl_z = point[2];
+			if (( pcl_x > xf(gd->NX-4) ) || ( pcl_y > yf(gd->NY-4) ) || ( pcl_z > zf(gd->NZ-4) ) \
+			 || ( pcl_x < xf(0) )        || ( pcl_y < yf(0) )        || ( pcl_z < 0. ) ) {
+				break;
+			}
 
 
-            //is_ugrd = true;
-            //is_vgrd = false;
-            //is_wgrd = false;
-            //pcl_u = interp3D(gd, msh, data->ustag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+			is_ugrd = true;
+			is_vgrd = false;
+			is_wgrd = false;
+			pcl_u = interp3D(gd, msh, data->ustag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
 
-            //is_ugrd = false;
-            //is_vgrd = true;
-            //is_wgrd = false;
-            //pcl_v = interp3D(gd, msh, data->vstag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+			is_ugrd = false;
+			is_vgrd = true;
+			is_wgrd = false;
+			pcl_v = interp3D(gd, msh, data->vstag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
 
-            //is_ugrd = false;
-            //is_vgrd = false;
-            //is_wgrd = true;
-            //pcl_w = interp3D(gd, msh, data->wstag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-            //parcels->pclu[PCL(tidx,   parcel_id, totTime)] = pcl_u;
-            //parcels->pclv[PCL(tidx,   parcel_id, totTime)] = pcl_v;
-            //parcels->pclw[PCL(tidx,   parcel_id, totTime)] = pcl_w;
+			is_ugrd = false;
+			is_vgrd = false;
+			is_wgrd = true;
+			pcl_w = interp3D(gd, msh, data->wstag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+			parcels->pclu[PCL(tidx,   parcel_id, totTime)] = pcl_u;
+			parcels->pclv[PCL(tidx,   parcel_id, totTime)] = pcl_v;
+			parcels->pclw[PCL(tidx,   parcel_id, totTime)] = pcl_w;
 
-            //// Now we use an RK2 scheme to integrate forward
-            //// in time. Values are interpolated to the parcel 
-            //// at the beginning of the next data time step. 
-            //for (int nkrp = 1; nkrp <= 2; ++nkrp) {        
-                //if (nkrp == 1) {
-                    //// integrate X position forward by the U wind
-                    //point[0] = pcl_x + pcl_u * dt * direct;
-                    //// integrate Y position forward by the V wind
-                    //point[1] = pcl_y + pcl_v * dt * direct;
-                    //// integrate Z position forward by the W wind
-                    //point[2] = pcl_z + pcl_w * dt * direct;
-                    //if ((pcl_u == -999.0) || (pcl_v == -999.0) || (pcl_w == -999.0)) {
-                        //printf("Warning: missing values detected at x: %f y:%f z:%f with ground bounds X0: %f Y0: %f Z0: %f X1: %f Y1: %f Z1: %f\n", \
-                            //point[0], point[1], point[2], xh(0), yh(0), zh(0), xh(grid->NX-1), yh(grid->NY-1), zh(grid->NZ-1));
-                        //return;
-                    //}
-                    //uu1 = pcl_u;
-                    //vv1 = pcl_v;
-                    //ww1 = pcl_w;
-                //}
-                //else {
-                    //is_ugrd = true;
-                    //is_vgrd = false;
-                    //is_wgrd = false;
-                    //pcl_u = interp3D(gd, msh, data->ustag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+			// Now we use an RK2 scheme to integrate forward
+			// in time. Values are interpolated to the parcel 
+			// at the beginning of the next data time step. 
+			for (int nkrp = 1; nkrp <= 2; ++nkrp) {        
+				if (nkrp == 1) {
+					// integrate X position forward by the U wind
+					point[0] = pcl_x + pcl_u * dt * direct;
+					// integrate Y position forward by the V wind
+					point[1] = pcl_y + pcl_v * dt * direct;
+					// integrate Z position forward by the W wind
+					point[2] = pcl_z + pcl_w * dt * direct;
+					if ((pcl_u == -999.0) || (pcl_v == -999.0) || (pcl_w == -999.0)) {
+						printf("Warning: missing values detected at x: %f y:%f z:%f with ground bounds X0: %f Y0: %f Z0: %f X1: %f Y1: %f Z1: %f\n", \
+							point[0], point[1], point[2], xh(0), yh(0), zh(0), xh(gd->NX-1), yh(gd->NY-1), zh(gd->NZ-1));
+						return;
+					}
+					uu1 = pcl_u;
+					vv1 = pcl_v;
+					ww1 = pcl_w;
+				}
+				else {
+					is_ugrd = true;
+					is_vgrd = false;
+					is_wgrd = false;
+					pcl_u = interp3D(gd, msh, data->ustag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
 
-                    //is_ugrd = false;
-                    //is_vgrd = true;
-                    //is_wgrd = false;
-                    //pcl_v = interp3D(gd, msh, data->vstag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+					is_ugrd = false;
+					is_vgrd = true;
+					is_wgrd = false;
+					pcl_v = interp3D(gd, msh, data->vstag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
 
-                    //is_ugrd = false;
-                    //is_vgrd = false;
-                    //is_wgrd = true;
-                    //pcl_w = interp3D(gd, msh, data->wstag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+					is_ugrd = false;
+					is_vgrd = false;
+					is_wgrd = true;
+					pcl_w = interp3D(gd, msh, data->wstag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
 
-                    //// integrate X position forward by the U wind
-                    //point[0] = pcl_x + (pcl_u + uu1) * dt2 * direct;
-                    //// integrate Y position forward by the V wind
-                    //point[1] = pcl_y + (pcl_v + vv1) * dt2 * direct;
-                    //// integrate Z position forward by the W wind
-                    //point[2] = pcl_z + (pcl_w + ww1) * dt2 * direct;
-                    //if ((pcl_u == -999.0) || (pcl_v == -999.0) || (pcl_w == -999.0)) {
-                        //printf("Warning: missing values detected at x: %f y:%f z:%f with ground bounds X0: %f Y0: %f Z0: %f X1: %f Y1: %f Z1: %f\n", \
-                            //point[0], point[1], point[2], xh(0), yh(0), zh(0), xh(grid->NX-1), yh(grid->NY-1), zh(grid->NZ-1));
-                        //return;
-                    //}
-                //}
-            //} // end RK loop
+					// integrate X position forward by the U wind
+					point[0] = pcl_x + (pcl_u + uu1) * dt2 * direct;
+					// integrate Y position forward by the V wind
+					point[1] = pcl_y + (pcl_v + vv1) * dt2 * direct;
+					// integrate Z position forward by the W wind
+					point[2] = pcl_z + (pcl_w + ww1) * dt2 * direct;
+					if ((pcl_u == -999.0) || (pcl_v == -999.0) || (pcl_w == -999.0)) {
+						printf("Warning: missing values detected at x: %f y:%f z:%f with ground bounds X0: %f Y0: %f Z0: %f X1: %f Y1: %f Z1: %f\n", \
+							point[0], point[1], point[2], xh(0), yh(0), zh(0), xh(gd->NX-1), yh(gd->NY-1), zh(gd->NZ-1));
+						return;
+					}
+				}
+			} // end RK loop
 
-            //parcels->xpos[PCL(tidx+1, parcel_id, totTime)] = point[0]; 
-            //parcels->ypos[PCL(tidx+1, parcel_id, totTime)] = point[1];
-            //parcels->zpos[PCL(tidx+1, parcel_id, totTime)] = point[2];
-        //} // end time loop
-    //} // end index check
-//}
+			parcels->xpos[PCL(tidx+1, parcel_id, totTime)] = point[0]; 
+			parcels->ypos[PCL(tidx+1, parcel_id, totTime)] = point[1];
+			parcels->zpos[PCL(tidx+1, parcel_id, totTime)] = point[2];
+		} // end time loop
+	} // end index check
+}
 
 __global__ void parcel_interp(grid *gd, mesh *msh, sounding *snd, parcel_pos *parcels, model_data *data, \
 						  int tStart, int tEnd, int totTime, int direct) {
@@ -634,9 +634,9 @@ void cudaIntegrateParcels(grid *gd_cpu, mesh *msh, sounding *snd,  model_data *d
 	// calculations to trajectories. 
 	int nThreads = 256;
 	int nPclBlocks = int(parcels->nParcels / nThreads) + 1;
-	//integrate<<<nPclBlocks, nThreads, 0, intStream>>>(grid, parcels, data, tStart, tEnd, totTime, direct);
-	//gpuErrchk(cudaDeviceSynchronize());
-	//gpuErrchk( cudaPeekAtLastError() );
+	integrate<<<nPclBlocks, nThreads, 0, intStream>>>(gd, msh, snd, parcels, data, tStart, tEnd, totTime, direct);
+	gpuErrchk(cudaDeviceSynchronize());
+	gpuErrchk( cudaPeekAtLastError() );
 
 	parcel_interp<<<nPclBlocks, nThreads, 0, intStream>>>(gd, msh, snd, parcels, data, tStart, tEnd, totTime, direct);
 	gpuErrchk(cudaDeviceSynchronize());

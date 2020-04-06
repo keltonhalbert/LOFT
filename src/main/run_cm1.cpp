@@ -70,7 +70,7 @@ void nearest_grid_idx(grid *gd, mesh *msh, float *point, int *idx_4D) {
 	}
 
 	// loop over the Z grid
-    int k = 1;
+    int k = 0;
     while (pt_z >= zf(k+1)) {
         k = k + 1;
     }
@@ -214,7 +214,7 @@ void getMeshBounds(string base_dir, dir_meta *dm, hdf_meta *hm, grid *gd, parcel
 		if (idx_4D[0] > max_i) max_i = idx_4D[0]; 
 		if (idx_4D[1] < min_j) min_j = idx_4D[1]; 
 		if (idx_4D[1] > max_j) max_j = idx_4D[1]; 
-		if (idx_4D[2] < min_k) min_k = idx_4D[2]; 
+		if (idx_4D[2] < min_k) min_k = idx_4D[2];
 		if (idx_4D[2] > max_k) max_k = idx_4D[2]; 
 	}
 	cout << "Finished searching parcel bounds" << endl;
@@ -396,7 +396,7 @@ int main(int argc, char **argv ) {
     string outfilename = string(base) + ".nc";
 	dir_meta *dm = new dir_meta();
 	hdf_meta *hm = new hdf_meta();
-	grid *gd = new grid();
+	grid *gd = new grid(); 
 	cmdline *cmd = new cmdline();
 	ncstruct *nc = new ncstruct();
 	mesh *req_msh;
@@ -412,16 +412,17 @@ int main(int argc, char **argv ) {
     // plus the very last integration end time
     int nTotTimes = size+1;
     
-    // Query our dataset structure.
-    // If this has been done before, it reads
-    // the information from cache files in the 
-    // runtime directory. If it hasn't been run,
-    // this step can take fair amount of time.
-	lofs_get_dataset_structure(base_dir, dm, hm, gd, cmd, nc, rh);
 
     // This is the main loop that does the data reading and eventually
     // calls the CUDA code to integrate forward.
     for (int tChunk = 0; tChunk < nTimeChunks; ++tChunk) {
+		// Query our dataset structure.
+		// If this has been done before, it reads
+		// the information from cache files in the 
+		// runtime directory. If it hasn't been run,
+		// this step can take fair amount of time.
+		lofs_get_dataset_structure(base_dir, dm, hm, gd, cmd, nc, rh);
+
         // if this is the first chunk of time, seed the
         // parcel start locations
         if (tChunk == 0) {
@@ -635,7 +636,7 @@ int main(int argc, char **argv ) {
 				parcels->ypos[PCL(0, pcl, parcels->nTimes)] = parcels->ypos[PCL(size, pcl, parcels->nTimes)];
 				parcels->zpos[PCL(0, pcl, parcels->nTimes)] = parcels->zpos[PCL(size, pcl, parcels->nTimes)];
 			}
-            cout << "Parcel position arrays reset." << endl;
+			cout << "Parcel position arrays reset." << endl;
 
             // memory management for root rank
 			deallocate_mesh_managed(req_msh);
