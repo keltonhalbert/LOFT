@@ -323,17 +323,17 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
             //is_ugrd = true;
             //is_vgrd = false;
             //is_wgrd = false;
-            //pcl_u = interp3D(grid, data->ustag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            //pcl_u = interp3D(gd, msh, data->ustag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
 
             //is_ugrd = false;
             //is_vgrd = true;
             //is_wgrd = false;
-            //pcl_v = interp3D(grid, data->vstag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            //pcl_v = interp3D(gd, msh, data->vstag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
 
             //is_ugrd = false;
             //is_vgrd = false;
             //is_wgrd = true;
-            //pcl_w = interp3D(grid, data->wstag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+            //pcl_w = interp3D(gd, msh, data->wstag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
             //parcels->pclu[PCL(tidx,   parcel_id, totTime)] = pcl_u;
             //parcels->pclv[PCL(tidx,   parcel_id, totTime)] = pcl_v;
             //parcels->pclw[PCL(tidx,   parcel_id, totTime)] = pcl_w;
@@ -362,17 +362,17 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
                     //is_ugrd = true;
                     //is_vgrd = false;
                     //is_wgrd = false;
-                    //pcl_u = interp3D(grid, data->ustag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+                    //pcl_u = interp3D(gd, msh, data->ustag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
 
                     //is_ugrd = false;
                     //is_vgrd = true;
                     //is_wgrd = false;
-                    //pcl_v = interp3D(grid, data->vstag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+                    //pcl_v = interp3D(gd, msh, data->vstag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
 
                     //is_ugrd = false;
                     //is_vgrd = false;
                     //is_wgrd = true;
-                    //pcl_w = interp3D(grid, data->wstag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+                    //pcl_w = interp3D(gd, msh, data->wstag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
 
                     //// integrate X position forward by the U wind
                     //point[0] = pcl_x + (pcl_u + uu1) * dt2 * direct;
@@ -395,197 +395,204 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
     //} // end index check
 //}
 
-//__global__ void parcel_interp(datagrid *grid, parcel_pos *parcels, model_data *data, \
-                          //int tStart, int tEnd, int totTime, int direct) {
+__global__ void parcel_interp(grid *gd, mesh *msh, sounding *snd, parcel_pos *parcels, model_data *data, \
+						  int tStart, int tEnd, int totTime, int direct) {
 
-	////int parcel_id = blockIdx.x;
-    //int parcel_id = blockIdx.x * blockDim.x + threadIdx.x;
-    //// get the io config from the user namelist
-    //iocfg *io = parcels->io;
+	//int parcel_id = blockIdx.x;
+	int parcel_id = blockIdx.x * blockDim.x + threadIdx.x;
+	// get the io config from the user namelist
+	iocfg *io = parcels->io;
 
-    //// safety check to make sure our thread index doesn't
-    //// go out of our array bounds
-    //if (parcel_id < parcels->nParcels) {
-        //bool is_ugrd = false;
-        //bool is_vgrd = false;
-        //bool is_wgrd = false;
+	// safety check to make sure our thread index doesn't
+	// go out of our array bounds
+	if (parcel_id < parcels->nParcels) {
+		bool is_ugrd = false;
+		bool is_vgrd = false;
+		bool is_wgrd = false;
 
-        //float point[3];
+		float point[3];
 
-        //// loop over the number of time steps we are
-        //// integrating over
-        //for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            //point[0] = parcels->xpos[PCL(tidx, parcel_id, totTime)];
-            //point[1] = parcels->ypos[PCL(tidx, parcel_id, totTime)];
-            //point[2] = parcels->zpos[PCL(tidx, parcel_id, totTime)];
-            //if (io->output_kmh) {
-                //is_ugrd = false;
-                //is_vgrd = false;
-                //is_wgrd = true;
-                //float pclkmh = interp3D(grid, data->kmh, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //parcels->pclkmh[PCL(tidx, parcel_id, totTime)] = pclkmh;
-            //}
+		// loop over the number of time steps we are
+		// integrating over
+		for (int tidx = tStart; tidx < tEnd; ++tidx) {
+			point[0] = parcels->xpos[PCL(tidx, parcel_id, totTime)];
+			point[1] = parcels->ypos[PCL(tidx, parcel_id, totTime)];
+			point[2] = parcels->zpos[PCL(tidx, parcel_id, totTime)];
+			if (io->output_kmh) {
+				is_ugrd = false;
+				is_vgrd = false;
+				is_wgrd = true;
+				float pclkmh = interp3D(gd, msh, data->kmh, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				parcels->pclkmh[PCL(tidx, parcel_id, totTime)] = pclkmh;
+			}
 
-            //if (io->output_momentum_budget) {
-                //is_ugrd = true;
-                //is_vgrd = false;
-                //is_wgrd = false;
-                //float pclupgrad = interp3D(grid, data->pgradu, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //float pcluturb = interp3D(grid, data->turbu, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //float pcludiff = interp3D(grid, data->diffu, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //is_ugrd = false;
-                //is_vgrd = true;
-                //is_wgrd = false;
-                //float pclvpgrad = interp3D(grid, data->pgradv, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //float pclvturb = interp3D(grid, data->turbv, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //float pclvdiff = interp3D(grid, data->diffv, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //is_ugrd = false;
-                //is_vgrd = false;
-                //is_wgrd = true;
-                //float pclwpgrad = interp3D(grid, data->pgradw, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //float pclwturb = interp3D(grid, data->turbw, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //float pclwdiff = interp3D(grid, data->diffw, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //float pclbuoy = interp3D(grid, data->buoy, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //parcels->pclupgrad[PCL(tidx,   parcel_id, totTime)] = pclupgrad;
-                //parcels->pclvpgrad[PCL(tidx,   parcel_id, totTime)] = pclvpgrad;
-                //parcels->pclwpgrad[PCL(tidx,   parcel_id, totTime)] = pclwpgrad;
-                //parcels->pcluturb[PCL(tidx,   parcel_id, totTime)] = pcluturb;
-                //parcels->pclvturb[PCL(tidx,   parcel_id, totTime)] = pclvturb;
-                //parcels->pclwturb[PCL(tidx,   parcel_id, totTime)] = pclwturb;
-                //parcels->pcludiff[PCL(tidx,   parcel_id, totTime)] = pcludiff;
-                //parcels->pclvdiff[PCL(tidx,   parcel_id, totTime)] = pclvdiff;
-                //parcels->pclwdiff[PCL(tidx,   parcel_id, totTime)] = pclwdiff;
-                //parcels->pclbuoy[PCL(tidx,   parcel_id, totTime)] = pclbuoy;
-            //}
+			if (io->output_momentum_budget) {
+				is_ugrd = true;
+				is_vgrd = false;
+				is_wgrd = false;
+				float pclupgrad = interp3D(gd, msh, data->pgradu, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				float pcluturb = interp3D(gd, msh, data->turbu, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				float pcludiff = interp3D(gd, msh, data->diffu, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				is_ugrd = false;
+				is_vgrd = true;
+				is_wgrd = false;
+				float pclvpgrad = interp3D(gd, msh, data->pgradv, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				float pclvturb = interp3D(gd, msh, data->turbv, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				float pclvdiff = interp3D(gd, msh, data->diffv, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				is_ugrd = false;
+				is_vgrd = false;
+				is_wgrd = true;
+				float pclwpgrad = interp3D(gd, msh, data->pgradw, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				float pclwturb = interp3D(gd, msh, data->turbw, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				float pclwdiff = interp3D(gd, msh, data->diffw, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				float pclbuoy = interp3D(gd, msh, data->buoy, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				parcels->pclupgrad[PCL(tidx,   parcel_id, totTime)] = pclupgrad;
+				parcels->pclvpgrad[PCL(tidx,   parcel_id, totTime)] = pclvpgrad;
+				parcels->pclwpgrad[PCL(tidx,   parcel_id, totTime)] = pclwpgrad;
+				parcels->pcluturb[PCL(tidx,   parcel_id, totTime)] = pcluturb;
+				parcels->pclvturb[PCL(tidx,   parcel_id, totTime)] = pclvturb;
+				parcels->pclwturb[PCL(tidx,   parcel_id, totTime)] = pclwturb;
+				parcels->pcludiff[PCL(tidx,   parcel_id, totTime)] = pcludiff;
+				parcels->pclvdiff[PCL(tidx,   parcel_id, totTime)] = pclvdiff;
+				parcels->pclwdiff[PCL(tidx,   parcel_id, totTime)] = pclwdiff;
+				parcels->pclbuoy[PCL(tidx,   parcel_id, totTime)] = pclbuoy;
+			}
 
 
-            //// interpolate scalar values to the parcel point
-            //is_ugrd = false;
-            //is_vgrd = false;
-            //is_wgrd = false;
-            //if (io->output_vorticity_budget || io->output_xvort) {
-                //float pclxvort = interp3D(grid, data->xvort, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //parcels->pclxvort[PCL(tidx, parcel_id, totTime)] = pclxvort;
-            //}
-            //if (io->output_vorticity_budget || io->output_yvort) {
-                //float pclyvort = interp3D(grid, data->yvort, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //parcels->pclyvort[PCL(tidx, parcel_id, totTime)] = pclyvort;
-            //}
-            //if (io->output_vorticity_budget || io->output_zvort) {
-                //float pclzvort = interp3D(grid, data->zvort, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //parcels->pclzvort[PCL(tidx, parcel_id, totTime)] = pclzvort;
-            //}
-            //if (io->output_vorticity_budget) {
-                //float pclxvorttilt = interp3D(grid, data->xvtilt, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //float pclyvorttilt = interp3D(grid, data->yvtilt, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //float pclzvorttilt = interp3D(grid, data->zvtilt, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //float pclxvortstretch = interp3D(grid, data->xvstretch, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //float pclyvortstretch = interp3D(grid, data->yvstretch, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //float pclzvortstretch = interp3D(grid, data->zvstretch, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //float pclxvortturb = interp3D(grid, data->turbxvort, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //float pclyvortturb = interp3D(grid, data->turbyvort, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //float pclzvortturb = interp3D(grid, data->turbzvort, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //float pclxvortdiff = interp3D(grid, data->diffxvort, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //float pclyvortdiff = interp3D(grid, data->diffyvort, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //float pclzvortdiff = interp3D(grid, data->diffzvort, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //float pclxvortbaro = interp3D(grid, data->xvort_baro, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //float pclyvortbaro = interp3D(grid, data->yvort_baro, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //float pclxvortsolenoid = interp3D(grid, data->xvort_solenoid, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //float pclyvortsolenoid = interp3D(grid, data->yvort_solenoid, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //float pclzvortsolenoid = interp3D(grid, data->zvort_solenoid, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //// Store the vorticity in the parcel
-                //parcels->pclxvorttilt[PCL(tidx, parcel_id, totTime)] = pclxvorttilt;
-                //parcels->pclyvorttilt[PCL(tidx, parcel_id, totTime)] = pclyvorttilt;
-                //parcels->pclzvorttilt[PCL(tidx, parcel_id, totTime)] = pclzvorttilt;
-                //parcels->pclxvortstretch[PCL(tidx, parcel_id, totTime)] = pclxvortstretch;
-                //parcels->pclyvortstretch[PCL(tidx, parcel_id, totTime)] = pclyvortstretch;
-                //parcels->pclzvortstretch[PCL(tidx, parcel_id, totTime)] = pclzvortstretch;
-                //parcels->pclxvortturb[PCL(tidx, parcel_id, totTime)] = pclxvortturb;
-                //parcels->pclyvortturb[PCL(tidx, parcel_id, totTime)] = pclyvortturb;
-                //parcels->pclzvortturb[PCL(tidx, parcel_id, totTime)] = pclzvortturb;
-                //parcels->pclxvortdiff[PCL(tidx, parcel_id, totTime)] = pclxvortdiff;
-                //parcels->pclyvortdiff[PCL(tidx, parcel_id, totTime)] = pclyvortdiff;
-                //parcels->pclzvortdiff[PCL(tidx, parcel_id, totTime)] = pclzvortdiff;
-                //parcels->pclxvortbaro[PCL(tidx, parcel_id, totTime)] = pclxvortbaro;
-                //parcels->pclyvortbaro[PCL(tidx, parcel_id, totTime)] = pclyvortbaro;
-                //parcels->pclxvortsolenoid[PCL(tidx, parcel_id, totTime)] = pclxvortsolenoid;
-                //parcels->pclyvortsolenoid[PCL(tidx, parcel_id, totTime)] = pclyvortsolenoid;
-                //parcels->pclzvortsolenoid[PCL(tidx, parcel_id, totTime)] = pclzvortsolenoid;
-            //}
+			// interpolate scalar values to the parcel point
+			is_ugrd = false;
+			is_vgrd = false;
+			is_wgrd = false;
+			if (io->output_vorticity_budget || io->output_xvort) {
+				float pclxvort = interp3D(gd, msh, data->xvort, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				parcels->pclxvort[PCL(tidx, parcel_id, totTime)] = pclxvort;
+			}
+			if (io->output_vorticity_budget || io->output_yvort) {
+				float pclyvort = interp3D(gd, msh, data->yvort, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				parcels->pclyvort[PCL(tidx, parcel_id, totTime)] = pclyvort;
+			}
+			if (io->output_vorticity_budget || io->output_zvort) {
+				float pclzvort = interp3D(gd, msh, data->zvort, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				parcels->pclzvort[PCL(tidx, parcel_id, totTime)] = pclzvort;
+			}
+			if (io->output_vorticity_budget) {
+				float pclxvorttilt = interp3D(gd, msh, data->xvtilt, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				float pclyvorttilt = interp3D(gd, msh, data->yvtilt, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				float pclzvorttilt = interp3D(gd, msh, data->zvtilt, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				float pclxvortstretch = interp3D(gd, msh, data->xvstretch, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				float pclyvortstretch = interp3D(gd, msh, data->yvstretch, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				float pclzvortstretch = interp3D(gd, msh, data->zvstretch, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				float pclxvortturb = interp3D(gd, msh, data->turbxvort, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				float pclyvortturb = interp3D(gd, msh, data->turbyvort, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				float pclzvortturb = interp3D(gd, msh, data->turbzvort, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				float pclxvortdiff = interp3D(gd, msh, data->diffxvort, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				float pclyvortdiff = interp3D(gd, msh, data->diffyvort, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				float pclzvortdiff = interp3D(gd, msh, data->diffzvort, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				float pclxvortbaro = interp3D(gd, msh, data->xvort_baro, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				float pclyvortbaro = interp3D(gd, msh, data->yvort_baro, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				float pclxvortsolenoid = interp3D(gd, msh, data->xvort_solenoid, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				float pclyvortsolenoid = interp3D(gd, msh, data->yvort_solenoid, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				float pclzvortsolenoid = interp3D(gd, msh, data->zvort_solenoid, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				// Store the vorticity in the parcel
+				parcels->pclxvorttilt[PCL(tidx, parcel_id, totTime)] = pclxvorttilt;
+				parcels->pclyvorttilt[PCL(tidx, parcel_id, totTime)] = pclyvorttilt;
+				parcels->pclzvorttilt[PCL(tidx, parcel_id, totTime)] = pclzvorttilt;
+				parcels->pclxvortstretch[PCL(tidx, parcel_id, totTime)] = pclxvortstretch;
+				parcels->pclyvortstretch[PCL(tidx, parcel_id, totTime)] = pclyvortstretch;
+				parcels->pclzvortstretch[PCL(tidx, parcel_id, totTime)] = pclzvortstretch;
+				parcels->pclxvortturb[PCL(tidx, parcel_id, totTime)] = pclxvortturb;
+				parcels->pclyvortturb[PCL(tidx, parcel_id, totTime)] = pclyvortturb;
+				parcels->pclzvortturb[PCL(tidx, parcel_id, totTime)] = pclzvortturb;
+				parcels->pclxvortdiff[PCL(tidx, parcel_id, totTime)] = pclxvortdiff;
+				parcels->pclyvortdiff[PCL(tidx, parcel_id, totTime)] = pclyvortdiff;
+				parcels->pclzvortdiff[PCL(tidx, parcel_id, totTime)] = pclzvortdiff;
+				parcels->pclxvortbaro[PCL(tidx, parcel_id, totTime)] = pclxvortbaro;
+				parcels->pclyvortbaro[PCL(tidx, parcel_id, totTime)] = pclyvortbaro;
+				parcels->pclxvortsolenoid[PCL(tidx, parcel_id, totTime)] = pclxvortsolenoid;
+				parcels->pclyvortsolenoid[PCL(tidx, parcel_id, totTime)] = pclyvortsolenoid;
+				parcels->pclzvortsolenoid[PCL(tidx, parcel_id, totTime)] = pclzvortsolenoid;
+			}
 
-            //// Now do the scalars
-            //if (io->output_ppert) {
-                //float pclppert = interp3D(grid, data->prespert, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //parcels->pclppert[PCL(tidx, parcel_id, totTime)] = pclppert;
-            //}
-            //if (io->output_qvpert) {
-                //float pclqvpert = interp3D(grid, data->qvpert, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //parcels->pclqvpert[PCL(tidx, parcel_id, totTime)] = pclqvpert;
-            //}
-            //if (io->output_rhopert) {
-                //float pclrhopert = interp3D(grid, data->rhopert, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //parcels->pclrhopert[PCL(tidx, parcel_id, totTime)] = pclrhopert;
-            //}
-            //if (io->output_thetapert) {
-                //float pclthetapert = interp3D(grid, data->thetapert, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //parcels->pclthetapert[PCL(tidx, parcel_id, totTime)] = pclthetapert;
-            //}
-            //if (io->output_thrhopert) {
-                //float pclthrhopert = interp3D(grid, data->thrhopert, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //parcels->pclthrhopert[PCL(tidx, parcel_id, totTime)] = pclthrhopert;
-            //}
+			// Now do the scalars
+			if (io->output_ppert) {
+				float pclppert = interp3D(gd, msh, data->prespert, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				parcels->pclppert[PCL(tidx, parcel_id, totTime)] = pclppert;
+			}
+			if (io->output_qvpert) {
+				float pclqvpert = interp3D(gd, msh, data->qvpert, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				parcels->pclqvpert[PCL(tidx, parcel_id, totTime)] = pclqvpert;
+			}
+			if (io->output_rhopert) {
+				float pclrhopert = interp3D(gd, msh, data->rhopert, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				parcels->pclrhopert[PCL(tidx, parcel_id, totTime)] = pclrhopert;
+			}
+			if (io->output_thetapert) {
+				float pclthetapert = interp3D(gd, msh, data->thetapert, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				parcels->pclthetapert[PCL(tidx, parcel_id, totTime)] = pclthetapert;
+			}
+			if (io->output_thrhopert) {
+				float pclthrhopert = interp3D(gd, msh, data->thrhopert, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				parcels->pclthrhopert[PCL(tidx, parcel_id, totTime)] = pclthrhopert;
+			}
 
-            //if (io->output_pbar) {
-                //float pclpbar = interp1D(grid, grid->p0, point[2], is_wgrd, tidx);
-                //parcels->pclpbar[PCL(tidx, parcel_id, totTime)] = pclpbar;
-            //}
-            //if (io->output_qvbar) {
-                //float pclqvbar = interp1D(grid, grid->qv0, point[2], is_wgrd, tidx);
-                //parcels->pclqvbar[PCL(tidx, parcel_id, totTime)] = pclqvbar;
-            //}
-            //if (io->output_rhobar) {
-                //float pclrhobar = interp1D(grid, grid->rho0, point[2], is_wgrd, tidx);
-                //parcels->pclrhobar[PCL(tidx, parcel_id, totTime)] = pclrhobar;
-            //}
-            //if (io->output_thetabar) {
-                //float pclthetabar = interp1D(grid, grid->th0, point[2], is_wgrd, tidx);
-                //parcels->pclthetabar[PCL(tidx, parcel_id, totTime)] = pclthetabar;
-            //}
-            //if (io->output_rhobar) {
-                //float pclthrhobar = interp1D(grid, grid->th0, point[2], is_wgrd, tidx);
-                //parcels->pclthrhobar[PCL(tidx, parcel_id, totTime)] = pclthrhobar;
-            //}
+			if (io->output_pbar) {
+				float pclpbar = interp1D(gd, msh, snd->pres0, point[2], is_wgrd, tidx);
+				parcels->pclpbar[PCL(tidx, parcel_id, totTime)] = pclpbar;
+			}
+			if (io->output_qvbar) {
+				float pclqvbar = interp1D(gd, msh, snd->qv0, point[2], is_wgrd, tidx);
+				parcels->pclqvbar[PCL(tidx, parcel_id, totTime)] = pclqvbar;
+			}
+			if (io->output_rhobar) {
+				float pclrhobar = interp1D(gd, msh, snd->rho0, point[2], is_wgrd, tidx);
+				parcels->pclrhobar[PCL(tidx, parcel_id, totTime)] = pclrhobar;
+			}
+			if (io->output_thetabar) {
+				float pclthetabar = interp1D(gd, msh, snd->th0, point[2], is_wgrd, tidx);
+				parcels->pclthetabar[PCL(tidx, parcel_id, totTime)] = pclthetabar;
+			}
+			if (io->output_rhobar) {
+				float pclthrhobar = interp1D(gd, msh, snd->th0, point[2], is_wgrd, tidx);
+				parcels->pclthrhobar[PCL(tidx, parcel_id, totTime)] = pclthrhobar;
+			}
 
-            //if (io->output_qc) {
-                //float pclqc = interp3D(grid, data->qc, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //parcels->pclqc[PCL(tidx, parcel_id, totTime)] = pclqc;
-            //}
-            //if (io->output_qi) {
-                //float pclqi = interp3D(grid, data->qi, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //parcels->pclqi[PCL(tidx, parcel_id, totTime)] = pclqi;
-            //}
-            //if (io->output_qs) {
-                //float pclqs = interp3D(grid, data->qs, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //parcels->pclqs[PCL(tidx, parcel_id, totTime)] = pclqs;
-            //}
-            //if (io->output_qg) {
-                //float pclqg = interp3D(grid, data->qg, point, is_ugrd, is_vgrd, is_wgrd, tidx);
-                //parcels->pclqg[PCL(tidx, parcel_id, totTime)] = pclqg;
-            //}
-        //}
-    //}
-//}
+			if (io->output_qc) {
+				float pclqc = interp3D(gd, msh, data->qc, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				parcels->pclqc[PCL(tidx, parcel_id, totTime)] = pclqc;
+			}
+			if (io->output_qi) {
+				float pclqi = interp3D(gd, msh, data->qi, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				parcels->pclqi[PCL(tidx, parcel_id, totTime)] = pclqi;
+			}
+			if (io->output_qs) {
+				float pclqs = interp3D(gd, msh, data->qs, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				parcels->pclqs[PCL(tidx, parcel_id, totTime)] = pclqs;
+			}
+			if (io->output_qg) {
+				float pclqg = interp3D(gd, msh, data->qg, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				parcels->pclqg[PCL(tidx, parcel_id, totTime)] = pclqg;
+			}
+		}
+	}
+}
 
 /* This function handles allocating memory on the GPU, transferring the CPU
 arrays to GPU global memory, calling the integrate GPU kernel, and then
 updating the position vectors with the new stuff */
-void cudaIntegrateParcels(grid *gd, mesh *msh, sounding *snd,  model_data *data, parcel_pos *parcels, int nT, int totTime, int direct) {
+void cudaIntegrateParcels(grid *gd_cpu, mesh *msh, sounding *snd,  model_data *data, parcel_pos *parcels, int nT, int totTime, int direct) {
 	int tStart, tEnd;
 	tStart = 0;
 	tEnd = nT;
 	int NX, NY, NZ;
-	// set the NX, NY, NZ
-	// variables for calculations
+
+	// we need to create a grid struct
+	// on the GPU
+	grid *gd;
+    cudaMallocManaged(&gd, sizeof(grid));
+	gd->X0 = gd_cpu->X0; gd->X1 = gd_cpu->X1;
+	gd->Y0 = gd_cpu->Y0; gd->Y1 = gd_cpu->Y1;
+	gd->Z0 = gd_cpu->Z0; gd->Z1 = gd_cpu->Z1;
+	gd->NX = gd_cpu->NX; gd->NY = gd_cpu->NY; gd->NZ = gd_cpu->NZ;
 	NX = gd->NX;
 	NY = gd->NY;
 	NZ = gd->NZ;
@@ -631,9 +638,11 @@ void cudaIntegrateParcels(grid *gd, mesh *msh, sounding *snd,  model_data *data,
 	//gpuErrchk(cudaDeviceSynchronize());
 	//gpuErrchk( cudaPeekAtLastError() );
 
-	//parcel_interp<<<nPclBlocks, nThreads, 0, intStream>>>(grid, parcels, data, tStart, tEnd, totTime, direct);
-	//gpuErrchk(cudaDeviceSynchronize());
-	//gpuErrchk( cudaPeekAtLastError() );
+	parcel_interp<<<nPclBlocks, nThreads, 0, intStream>>>(gd, msh, snd, parcels, data, tStart, tEnd, totTime, direct);
+	gpuErrchk(cudaDeviceSynchronize());
+	gpuErrchk( cudaPeekAtLastError() );
+
+	gpuErrchk( cudaFree(gd) );
 }
 #endif
 
