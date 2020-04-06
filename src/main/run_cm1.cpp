@@ -173,10 +173,6 @@ void getMeshBounds(string base_dir, dir_meta *dm, hdf_meta *hm, grid *gd, parcel
 	mesh *temp_msh;	
 	sounding *temp_snd;
 
-	// load the saved grid dimmensions into 
-	// the temporary grid, then we will find
-	// a smaller subset to load into memory.
-	//  nz comes from readlofs
 	cout << "Allocating temporary mesh" << endl;
 	temp_msh = allocate_mesh_cpu(hm, gd);
 	temp_snd = allocate_sounding_cpu(gd->NZ);
@@ -243,13 +239,13 @@ void getMeshBounds(string base_dir, dir_meta *dm, hdf_meta *hm, grid *gd, parcel
 	cout << "Y0: " << min_j << " Y1: " << max_j << endl;
 	cout << "Z0: " << min_k << " Z1: " << max_k << endl;
 
-	// keep the data in our saved bounds
-	if (min_i < gd->saved_X0) min_i = gd->saved_X0+1;
-	if (max_i > gd->saved_X1) max_i = gd->saved_X1-1;
-	if (min_j < gd->saved_Y0) min_j = gd->saved_Y0+1;
-	if (max_j > gd->saved_Y1) max_j = gd->saved_Y1-1;
+	// keep the data in our saved bounds. 
+	if (min_i < gd->saved_X0) min_i = gd->saved_X0;
+	if (max_i > gd->saved_X1) max_i = gd->saved_X1;
+	if (min_j < gd->saved_Y0) min_j = gd->saved_Y0;
+	if (max_j > gd->saved_Y1) max_j = gd->saved_Y1;
 	if (min_k < gd->saved_Z0) min_k = gd->saved_Z0;
-	if (max_k > gd->saved_Z1) max_k = gd->saved_Z1-1;
+	if (max_k > gd->saved_Z1) max_k = gd->saved_Z1;
 
 
 	cout << "Parcel Bounds In Grid" << endl;
@@ -258,11 +254,13 @@ void getMeshBounds(string base_dir, dir_meta *dm, hdf_meta *hm, grid *gd, parcel
 	cout << "Z0: " << min_k << " Z1: " << max_k << endl;
 	// We need to set our grid attributes to
 	// the new, smaller domain around the parcels.
-	// We offset by 1 in each direaction to help with 
-	// the staggered grid operations
 	gd->X0 = min_i; gd->X1 = max_i;
 	gd->Y0 = min_j; gd->Y1 = max_j;
 	gd->Z0 = min_k; gd->Z1 = max_k;
+	// We need to reset NX, NY, and NZ now
+	gd->NX = gd->X1 - gd->X0 + 1; 
+	gd->NY = gd->Y1 - gd->Y0 + 1;
+	gd->NZ = gd->Z1 - gd->Z0 + 1;
 }
 
 /* Read in the U, V, and W vector components plus the buoyancy and turbulence fields 
@@ -280,12 +278,11 @@ void loadDataFromDisk(iocfg *io, dir_meta *dm, hdf_meta *hm, cmdline *cmd, grid 
 	/* By shrinking in saved_x0,saved_x1 etc by 1 point on either side (see set_span), this will not fail
 	 * if we do not specify X0, X1 etc.*/
 
-	rc.X0=gd->X0-1; rc.Y0=gd->Y0-1; rc.Z0=gd->Z0;
-	rc.X1=gd->X1+1; rc.Y1=gd->Y1+1; rc.Z1=gd->Z1+1;
-	rc.NX=gd->X1-gd->X0+1; rc.NY=gd->Y1-gd->Y0+1; rc.NZ=gd->Z1-gd->Z0+1;
+	rc.X0=gd->X0; rc.Y0=gd->Y0; rc.Z0=gd->Z0;
+	rc.X1=gd->X1; rc.Y1=gd->Y1; rc.Z1=gd->Z1;
 
-	// need to look at where the time request 
-	// is specified 
+	rc.NX=rc.X1-rc.X0+1; rc.NY=rc.Y1-rc.Y0+1; rc.NZ=rc.Z1-rc.Z0;
+
 	read_lofs_buffer(ustag,(char *)"u",*dm,*hm,rc,*cmd);
 	read_lofs_buffer(vstag,(char *)"v",*dm,*hm,rc,*cmd);
 	read_lofs_buffer(wstag,(char *)"w",*dm,*hm,rc,*cmd);
@@ -407,7 +404,7 @@ int main(int argc, char **argv ) {
 	readahead *rh = new readahead();
 
 
-    int nTimeChunks = (int) (nTimeSteps / size); // this is a temporary hack
+    int nTimeChunks = (int) (nTimeSteps / size); 
     if (nTimeSteps % size > 0) nTimeChunks += 1;
 
     // the number of time steps we have is 
@@ -439,16 +436,12 @@ int main(int argc, char **argv ) {
                 parcels = allocate_parcels_cpu(io, pNX, pNY, pNZ, nTotTimes);
             }
             
-            // seed the parcel starting positions based on the command line
-            // arguments provided by the user. I don't think any sanity checking is done
-            // here for out of bounds positions so we probably need to be careful
-            // of this and consider fixing that
             seed_parcels(parcels, pX0, pY0, pZ0, pNX, pNY, pNZ, pDX, pDY, pDZ, nTotTimes);
             // we also initialize the output netcdf file here
             if (rank == 0) init_nc(outfilename, parcels);
         }
 
-        // Read in the metadata and request a grid subset 
+        // Read in the metadata and request a mesh subset 
         // that is dynamically based on where our parcels
         // are in the simulation. This is done for all MPI
         // ranks so that they can request different time
@@ -473,28 +466,19 @@ int main(int argc, char **argv ) {
 		}
 
 		lofs_get_grid(dm, hm, gd, req_msh, snd);
-		cout << "MY DX IS " << req_msh->dx << endl;
-		cout << "MY DY IS " << req_msh->dy << endl;
-		cout << "MY DZ IS " << req_msh->dz << endl;
-		cout << "END METADATA & GRID REQUEST" << endl;
+		cout << "END METADATA & MESH REQUEST" << endl;
 
         // The number of grid points requested...
-        // There's some awkwardness here I have to figure out a better way around,
-        // but MPI Scatter/Gather behaves weird if I use the generic large buffer,
-        // so I use N_scalar for the MPI calls to non staggered/scalar fields. 
-		N_stag = (gd->NX+2)*(gd->NY+2)*(gd->NZ+1);
-		N_scal = (gd->NX+2)*(gd->NY+2)*(gd->NZ+1);
+		N_stag = (gd->NX)*(gd->NY)*(gd->NZ);
+		N_scal = (gd->NX)*(gd->NY)*(gd->NZ);
 
 
-		// allocate space for U, V, and W arrays
-		// for all ranks, because this is what
-		// LOFS will return it's data subset to
 		float *ubuf, *vbuf, *wbuf, *pbuf, *tbuf, *thbuf, *rhobuf, *qvbuf, *qcbuf, *qibuf, *qsbuf, *qgbuf, *kmhbuf;
 
+		// allocate space for U, V, and W arrays
 		ubuf = new float[N_stag];
 		vbuf = new float[N_stag];
 		wbuf = new float[N_stag];
-		// khh and kmh are on the staggered W mesh
 		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh) kmhbuf = new float[N_stag];
 		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert) pbuf = new float[N_scal];
 		if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thetapert) tbuf = new float[N_scal];
@@ -507,11 +491,6 @@ int main(int argc, char **argv ) {
 		if (io->output_qg) qgbuf = new float[N_scal];
 
 
-		// construct a 4D contiguous array to store stuff in.
-		// bufsize is the size of the 3D component and size is
-		// the number of MPI ranks (which is also the number of times)
-		// read in
-		//
 		// declare the struct on all ranks, but only
 		// allocate space for it on Rank 0
 		model_data *data;
@@ -631,6 +610,15 @@ int main(int argc, char **argv ) {
 
 			int nParcels = parcels->nParcels;
 			cout << "Beginning parcel integration! Heading over to the GPU to do GPU things..." << endl;
+
+			// BEFORE WE INTEGRATE THE PARCELS!!!
+			// Up to this point, our array buffers of data (eg U, V, W) 
+			// and our mesh dimensions are the same size. In the calculation
+			// routines, we use special macros that make working with the staggered
+			// data a little more convenient. We are goind to reduce NX/NY/NZ appripriately
+			// such that these macros don't access outside of memory bounds.
+			gd->NX -= 2; gd->NY -= 2; gd->NZ -= 1;
+
 			cudaIntegrateParcels(gd, req_msh, snd, data, parcels, size, nTotTimes, direct); 
 			cout << "Finished integrating parcels!" << endl;
 			// write out our information to disk

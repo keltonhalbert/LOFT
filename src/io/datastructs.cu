@@ -139,24 +139,24 @@ void deallocate_mesh_managed(mesh *msh) {
 /* Deallocate all of the arrays in the
    struct only for the CPU */
 void deallocate_mesh_cpu(mesh *msh) {
-    //delete[] msh->xffull;
-    //delete[] msh->xhfull;
-    //delete[] msh->xfout;
-    //delete[] msh->xhout;
-    //delete[] msh->yffull;
-    //delete[] msh->yhfull;
-    //delete[] msh->yfout;
-    //delete[] msh->yhout;
-    //delete[] msh->zfout;
-    //delete[] msh->zhout;
-    //delete[] msh->zf;
-    //delete[] msh->zh;
-    //delete[] msh->uf;
-    //delete[] msh->uh;
-    //delete[] msh->vf;
-    //delete[] msh->vh;
-    //delete[] msh->mf;
-    //delete[] msh->mh;
+	delete[] msh->xffull;
+	delete[] msh->xhfull;
+	delete[] msh->xfout;
+	delete[] msh->xhout;
+	delete[] msh->yffull;
+	delete[] msh->yhfull;
+	delete[] msh->yfout;
+	delete[] msh->yhout;
+	delete[] msh->zfout;
+	delete[] msh->zhout;
+	delete[] msh->zf;
+	delete[] msh->zh;
+	delete[] msh->uf;
+	delete[] msh->uh;
+	delete[] msh->vf;
+	delete[] msh->vh;
+	delete[] msh->mf;
+	delete[] msh->mh;
 }
 
 void deallocate_sounding_managed(sounding *snd) {
@@ -169,12 +169,12 @@ void deallocate_sounding_managed(sounding *snd) {
 }
 
 void deallocate_sounding_cpu(sounding *snd) {
-    //delete[] snd->u0;
-    //delete[] snd->v0;
-    //delete[] snd->rho0;
-    //delete[] snd->th0;
-    //delete[] snd->qv0;
-    //delete[] snd->pres0;
+	delete[] snd->u0;
+	delete[] snd->v0;
+	delete[] snd->rho0;
+	delete[] snd->th0;
+	delete[] snd->qv0;
+	delete[] snd->pres0;
 }
 
 /* Allocate arrays for parcel info on both the CPU and GPU.
