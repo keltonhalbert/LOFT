@@ -38,7 +38,7 @@ void lofs_get_dataset_structure(std::string base_dir, dir_meta *dm, hdf_meta *hm
 
 	strcpy(cmd->histpath, base_dir.c_str());
 	cmd->debug = 0;
-	cmd->verbose = 1;
+	cmd->verbose = 0;
 	cmd->nvar_cmdline = 0;
 	dm->regenerate_cache=0;
 
@@ -71,7 +71,7 @@ void lofs_get_dataset_structure(std::string base_dir, dir_meta *dm, hdf_meta *hm
 
 	get_saved_base(dm->timedir[0],dm->saved_base);
 
-	printf("Simulation identifier (saved_base) = %s\n",dm->saved_base);
+	//printf("Simulation identifier (saved_base) = %s\n",dm->saved_base);
 
 	get_all_available_times(dm,gd,*cmd); //Gets all times in one double precision array
 
@@ -98,7 +98,7 @@ void lofs_get_dataset_structure(std::string base_dir, dir_meta *dm, hdf_meta *hm
 	gd->NX = gd->X1 - gd->X0 + 1;
 	gd->NY = gd->Y1 - gd->Y0 + 1;
 	gd->NZ = gd->Z1 - gd->Z0 + 1;
-	printf("X0: %d Y0: %d Z0: %d X1: %d Y1: %d Z1: %d\n", gd->X0, gd->Y0, gd->Z0, gd->X1, gd->Y1, gd->Z1);
+	//printf("X0: %d Y0: %d Z0: %d X1: %d Y1: %d Z1: %d\n", gd->X0, gd->Y0, gd->Z0, gd->X1, gd->Y1, gd->Z1);
 	H5Fclose(hdf_file_id);
 }
 
@@ -107,7 +107,6 @@ void lofs_get_dataset_structure(std::string base_dir, dir_meta *dm, hdf_meta *hm
 // grid we are interested in
 void lofs_get_grid( dir_meta *dm, hdf_meta *hm, grid *gd, mesh *msh, sounding *snd ) {
 	
-	cout << dm->firstfilename << endl;
 	hid_t hdf_file_id;
 	if ((hdf_file_id = H5Fopen (dm->firstfilename, H5F_ACC_RDONLY,H5P_DEFAULT)) < 0)
 	{

@@ -37,8 +37,8 @@ mesh* allocate_mesh_managed( hdf_meta *hm, grid *gd ) {
     cudaMallocManaged(&(msh->yfout), (gd->NY)*sizeof(float));
     cudaMallocManaged(&(msh->yhout), (gd->NY)*sizeof(float));
 
-    cudaMallocManaged(&(msh->zf), (gd->NZ)*sizeof(float));
-    cudaMallocManaged(&(msh->zh), (gd->NZ)*sizeof(float));
+    cudaMallocManaged(&(msh->zf), (hm->nz+1)*sizeof(float));
+    cudaMallocManaged(&(msh->zh), (hm->nz)*sizeof(float));
     cudaMallocManaged(&(msh->zfout), (gd->NZ)*sizeof(float));
     cudaMallocManaged(&(msh->zhout), (gd->NZ)*sizeof(float));
 
@@ -72,8 +72,8 @@ mesh* allocate_mesh_cpu( hdf_meta *hm, grid *gd ) {
 
     msh->zfout = new float[gd->NZ];
     msh->zhout = new float[gd->NZ];
-    msh->zf = new float[gd->NZ];
-    msh->zh = new float[gd->NZ];
+    msh->zf = new float[hm->nz];
+    msh->zh = new float[hm->nz+1];
 
     msh->uf = new float[gd->NX+2];
     msh->uh = new float[gd->NX+2];

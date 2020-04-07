@@ -357,7 +357,6 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
         qgVar.putVar(startp,countp,parcels->pclqg);
     }
 
-    cout << "*** SUCCESS writing file " << filename << "!" << endl;
     return;
 }
 
