@@ -314,6 +314,10 @@ __global__ void integrate(grid *gd, mesh *msh, sounding *snd, parcel_pos *parcel
 			pcl_x = point[0];
 			pcl_y = point[1];
 			pcl_z = point[2];
+			if (( pcl_x > xf(gd->NX-1) ) || ( pcl_y > yf(gd->NY-1) ) || ( pcl_z > zf(gd->NZ-1) ) \
+             || ( pcl_x < xf(0) )        || ( pcl_y < yf(0) )        || ( pcl_z < 0. ) ) {
+                break;
+            }
 
 			is_ugrd = true;
 			is_vgrd = false;
