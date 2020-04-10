@@ -37,7 +37,7 @@ mesh* allocate_mesh_managed( hdf_meta *hm, grid *gd ) {
     cudaMallocManaged(&(msh->yfout), (gd->NY)*sizeof(float));
     cudaMallocManaged(&(msh->yhout), (gd->NY)*sizeof(float));
 
-    cudaMallocManaged(&(msh->zf), (hm->nz+1)*sizeof(float));
+    cudaMallocManaged(&(msh->zf), (hm->nz)*sizeof(float));
     cudaMallocManaged(&(msh->zh), (hm->nz)*sizeof(float));
     cudaMallocManaged(&(msh->zfout), (gd->NZ)*sizeof(float));
     cudaMallocManaged(&(msh->zhout), (gd->NZ)*sizeof(float));
@@ -48,8 +48,8 @@ mesh* allocate_mesh_managed( hdf_meta *hm, grid *gd ) {
     cudaMallocManaged(&(msh->vf), (gd->NY+2)*sizeof(float));
     cudaMallocManaged(&(msh->vh), (gd->NY+2)*sizeof(float));
 
-    cudaMallocManaged(&(msh->mf), (gd->NZ+2)*sizeof(float));
-    cudaMallocManaged(&(msh->mh), (gd->NZ+2)*sizeof(float));
+    cudaMallocManaged(&(msh->mf), (gd->NZ+1)*sizeof(float));
+    cudaMallocManaged(&(msh->mh), (gd->NZ)*sizeof(float));
     return msh;
 }
 
@@ -73,7 +73,7 @@ mesh* allocate_mesh_cpu( hdf_meta *hm, grid *gd ) {
     msh->zfout = new float[gd->NZ];
     msh->zhout = new float[gd->NZ];
     msh->zf = new float[hm->nz];
-    msh->zh = new float[hm->nz+1];
+    msh->zh = new float[hm->nz];
 
     msh->uf = new float[gd->NX+2];
     msh->uh = new float[gd->NX+2];
@@ -81,8 +81,8 @@ mesh* allocate_mesh_cpu( hdf_meta *hm, grid *gd ) {
     msh->vf = new float[gd->NY+2];
     msh->vh = new float[gd->NY+2];
 
-    msh->mf = new float[gd->NZ+2];
-    msh->mh = new float[gd->NZ+2];
+    msh->mf = new float[gd->NZ+1];
+    msh->mh = new float[gd->NZ];
 	return msh;
 }
 
@@ -134,6 +134,7 @@ void deallocate_mesh_managed(mesh *msh) {
     cudaFree(msh->vh);
     cudaFree(msh->mf);
     cudaFree(msh->mh);
+	cudaFree(msh);
 }
 
 /* Deallocate all of the arrays in the
@@ -157,6 +158,7 @@ void deallocate_mesh_cpu(mesh *msh) {
 	delete[] msh->vh;
 	delete[] msh->mf;
 	delete[] msh->mh;
+	delete msh;
 }
 
 void deallocate_sounding_managed(sounding *snd) {
@@ -166,6 +168,7 @@ void deallocate_sounding_managed(sounding *snd) {
     cudaFree(snd->th0);
     cudaFree(snd->qv0);
     cudaFree(snd->pres0);
+	cudaFree(snd);
 }
 
 void deallocate_sounding_cpu(sounding *snd) {
@@ -175,6 +178,7 @@ void deallocate_sounding_cpu(sounding *snd) {
 	delete[] snd->th0;
 	delete[] snd->qv0;
 	delete[] snd->pres0;
+	delete snd;
 }
 
 /* Allocate arrays for parcel info on both the CPU and GPU.

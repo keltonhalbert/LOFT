@@ -43,6 +43,10 @@ void init_nc(string filename, parcel_pos *parcels) {
     xVar.putAtt("units", "meters");
     yVar.putAtt("units", "meters");
     zVar.putAtt("units", "meters");
+	xVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
+	yVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
+	zVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
+
 
     NcVar uVar = output.addVar("u", ncFloat, gridDimVector);
     NcVar vVar = output.addVar("v", ncFloat, gridDimVector);
@@ -50,6 +54,9 @@ void init_nc(string filename, parcel_pos *parcels) {
     uVar.putAtt("units", "meters / second");
     vVar.putAtt("units", "meters / second");
     wVar.putAtt("units", "meters / second");
+	uVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
+	vVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
+	wVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
 
     if (io->output_momentum_budget) {
         NcVar wbuoyVar = output.addVar("wbuoy", ncFloat, gridDimVector);

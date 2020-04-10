@@ -283,7 +283,7 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 //}
 
 __global__ void integrate(grid *gd, mesh *msh, sounding *snd, parcel_pos *parcels, model_data *data, \
-						  int tStart, int tEnd, int totTime, int direct) {
+						  float fill, int tStart, int tEnd, int totTime, int direct) {
 
 	//int parcel_id = blockIdx.x;
 	int parcel_id = blockIdx.x * blockDim.x + threadIdx.x;
@@ -305,7 +305,6 @@ __global__ void integrate(grid *gd, mesh *msh, sounding *snd, parcel_pos *parcel
 		float dt = msh->dt; 
 		float dt2 = dt / 2.;
 		for (int tidx = tStart; tidx < tEnd; ++tidx) {
-
 			// get the current values of various fields interpolated
 			// to the parcel before we integrate using the RK2 step
 			point[0] = parcels->xpos[PCL(tidx, parcel_id, totTime)];
@@ -314,10 +313,22 @@ __global__ void integrate(grid *gd, mesh *msh, sounding *snd, parcel_pos *parcel
 			pcl_x = point[0];
 			pcl_y = point[1];
 			pcl_z = point[2];
-			if (( pcl_x > xf(gd->NX-1) ) || ( pcl_y > yf(gd->NY-1) ) || ( pcl_z > zf(gd->NZ-1) ) \
-             || ( pcl_x < xf(0) )        || ( pcl_y < yf(0) )        || ( pcl_z < 0. ) ) {
-                break;
-            }
+			if ((point[2] > zf(gd->NZ)) || (point[2] == fill)) {
+				point[0] = fill; 
+				point[1] = fill; 
+				point[2] = fill; 
+				pcl_u = fill;
+				pcl_v = fill;
+				pcl_w = fill;
+
+				parcels->xpos[PCL(tidx+1, parcel_id, totTime)] = point[0]; 
+				parcels->ypos[PCL(tidx+1, parcel_id, totTime)] = point[1];
+				parcels->zpos[PCL(tidx+1, parcel_id, totTime)] = point[2];
+				parcels->pclu[PCL(tidx,   parcel_id, totTime)] = pcl_u;
+				parcels->pclv[PCL(tidx,   parcel_id, totTime)] = pcl_v;
+				parcels->pclw[PCL(tidx,   parcel_id, totTime)] = pcl_w;
+				continue;
+			}
 
 			is_ugrd = true;
 			is_vgrd = false;
@@ -333,59 +344,57 @@ __global__ void integrate(grid *gd, mesh *msh, sounding *snd, parcel_pos *parcel
 			is_vgrd = false;
 			is_wgrd = true;
 			pcl_w = interp3D(gd, msh, data->wstag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+
 			parcels->pclu[PCL(tidx,   parcel_id, totTime)] = pcl_u;
 			parcels->pclv[PCL(tidx,   parcel_id, totTime)] = pcl_v;
 			parcels->pclw[PCL(tidx,   parcel_id, totTime)] = pcl_w;
 
-			// Now we use an RK2 scheme to integrate forward
-			// in time. Values are interpolated to the parcel 
-			// at the beginning of the next data time step. 
-			for (int nkrp = 1; nkrp <= 2; ++nkrp) {        
-				if (nkrp == 1) {
-					// integrate X position forward by the U wind
-					point[0] = pcl_x + pcl_u * dt * direct;
-					// integrate Y position forward by the V wind
-					point[1] = pcl_y + pcl_v * dt * direct;
-					// integrate Z position forward by the W wind
-					point[2] = pcl_z + pcl_w * dt * direct;
-					if ((pcl_u == -999.0) || (pcl_v == -999.0) || (pcl_w == -999.0)) {
-						printf("Warning: missing values detected at x: %f y:%f z:%f with ground bounds X0: %f Y0: %f Z0: %f X1: %f Y1: %f Z1: %f\n", \
-							point[0], point[1], point[2], xh(0), yh(0), zh(0), xh(gd->NX-1), yh(gd->NY-1), zh(gd->NZ-1));
-						return;
-					}
-					uu1 = pcl_u;
-					vv1 = pcl_v;
-					ww1 = pcl_w;
-				}
-				else {
-					is_ugrd = true;
-					is_vgrd = false;
-					is_wgrd = false;
-					pcl_u = interp3D(gd, msh, data->ustag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+			// First RK step here. Since this is RK2,
+			// I see no real reason to have loop contropl flow
+			// here. I think its causing more headaches than its worth.
 
-					is_ugrd = false;
-					is_vgrd = true;
-					is_wgrd = false;
-					pcl_v = interp3D(gd, msh, data->vstag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+			// integrate X position forward by the U wind
+			point[0] = pcl_x + pcl_u * dt * direct;
+			// integrate Y position forward by the V wind
+			point[1] = pcl_y + pcl_v * dt * direct;
+			// integrate Z position forward by the W wind
+			point[2] = pcl_z + pcl_w * dt * direct;
 
-					is_ugrd = false;
-					is_vgrd = false;
-					is_wgrd = true;
-					pcl_w = interp3D(gd, msh, data->wstag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+			if (point[2] > zf(gd->NZ)) {
+				point[0] = fill;
+				point[1] = fill;
+				point[2] = fill;
+				parcels->xpos[PCL(tidx+1, parcel_id, totTime)] = point[0]; 
+				parcels->ypos[PCL(tidx+1, parcel_id, totTime)] = point[1];
+				parcels->zpos[PCL(tidx+1, parcel_id, totTime)] = point[2];
+				continue;
+			}
 
-					// integrate X position forward by the U wind
-					point[0] = pcl_x + (pcl_u + uu1) * dt2 * direct;
-					// integrate Y position forward by the V wind
-					point[1] = pcl_y + (pcl_v + vv1) * dt2 * direct;
-					// integrate Z position forward by the W wind
-					point[2] = pcl_z + (pcl_w + ww1) * dt2 * direct;
-					if ((pcl_u == -999.0) || (pcl_v == -999.0) || (pcl_w == -999.0)) {
-						printf("Warning: missing values detected at x: %f y:%f z:%f with ground bounds X0: %f Y0: %f Z0: %f X1: %f Y1: %f Z1: %f\n", \
-							point[0], point[1], point[2], xh(0), yh(0), zh(0), xh(gd->NX-1), yh(gd->NY-1), zh(gd->NZ-1));
-						return;
-					}
-				}
-			} // end RK loop
+			uu1 = pcl_u;
+			vv1 = pcl_v;
+			ww1 = pcl_w;
+
+			is_ugrd = true;
+			is_vgrd = false;
+			is_wgrd = false;
+			pcl_u = interp3D(gd, msh, data->ustag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+
+			is_ugrd = false;
+			is_vgrd = true;
+			is_wgrd = false;
+			pcl_v = interp3D(gd, msh, data->vstag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+
+			is_ugrd = false;
+			is_vgrd = false;
+			is_wgrd = true;
+			pcl_w = interp3D(gd, msh, data->wstag, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+
+			// integrate X position forward by the U wind
+			point[0] = pcl_x + (pcl_u + uu1) * dt2 * direct;
+			// integrate Y position forward by the V wind
+			point[1] = pcl_y + (pcl_v + vv1) * dt2 * direct;
+			// integrate Z position forward by the W wind
+			point[2] = pcl_z + (pcl_w + ww1) * dt2 * direct;
 
 			parcels->xpos[PCL(tidx+1, parcel_id, totTime)] = point[0]; 
 			parcels->ypos[PCL(tidx+1, parcel_id, totTime)] = point[1];
@@ -395,7 +404,7 @@ __global__ void integrate(grid *gd, mesh *msh, sounding *snd, parcel_pos *parcel
 }
 
 __global__ void parcel_interp(grid *gd, mesh *msh, sounding *snd, parcel_pos *parcels, model_data *data, \
-						  int tStart, int tEnd, int totTime, int direct) {
+						  float fill_val, int tStart, int tEnd, int totTime, int direct) {
 
 	//int parcel_id = blockIdx.x;
 	int parcel_id = blockIdx.x * blockDim.x + threadIdx.x;
@@ -417,6 +426,10 @@ __global__ void parcel_interp(grid *gd, mesh *msh, sounding *snd, parcel_pos *pa
 			point[0] = parcels->xpos[PCL(tidx, parcel_id, totTime)];
 			point[1] = parcels->ypos[PCL(tidx, parcel_id, totTime)];
 			point[2] = parcels->zpos[PCL(tidx, parcel_id, totTime)];
+			if (( point[0] == fill_val) || ( point[1] == fill_val ) || ( point[2] == fill_val) ) {
+				break;
+			}
+
 			if (io->output_kmh) {
 				is_ugrd = false;
 				is_vgrd = false;
@@ -578,7 +591,7 @@ __global__ void parcel_interp(grid *gd, mesh *msh, sounding *snd, parcel_pos *pa
 /* This function handles allocating memory on the GPU, transferring the CPU
 arrays to GPU global memory, calling the integrate GPU kernel, and then
 updating the position vectors with the new stuff */
-void cudaIntegrateParcels(grid *gd_cpu, mesh *msh, sounding *snd,  model_data *data, parcel_pos *parcels, int nT, int totTime, int direct) {
+void cudaIntegrateParcels(grid *gd_cpu, mesh *msh, sounding *snd,  model_data *data, parcel_pos *parcels, float fill, int nT, int totTime, int direct) {
 	int tStart, tEnd;
 	tStart = 0;
 	tEnd = nT;
@@ -633,13 +646,15 @@ void cudaIntegrateParcels(grid *gd_cpu, mesh *msh, sounding *snd,  model_data *d
 	// calculations to trajectories. 
 	int nThreads = 256;
 	int nPclBlocks = int(parcels->nParcels / nThreads) + 1;
-	integrate<<<nPclBlocks, nThreads, 0, intStream>>>(gd, msh, snd, parcels, data, tStart, tEnd, totTime, direct);
+	integrate<<<nPclBlocks, nThreads, 0, intStream>>>(gd, msh, snd, parcels, data, fill, tStart, tEnd, totTime, direct);
 	gpuErrchk(cudaDeviceSynchronize());
 	gpuErrchk( cudaPeekAtLastError() );
 
-	parcel_interp<<<nPclBlocks, nThreads, 0, intStream>>>(gd, msh, snd, parcels, data, tStart, tEnd, totTime, direct);
-	gpuErrchk(cudaDeviceSynchronize());
-	gpuErrchk( cudaPeekAtLastError() );
+	/*
+	 *parcel_interp<<<nPclBlocks, nThreads, 0, intStream>>>(gd, msh, snd, parcels, data, fill, tStart, tEnd, totTime, direct);
+	 *gpuErrchk(cudaDeviceSynchronize());
+	 *gpuErrchk( cudaPeekAtLastError() );
+	 */
 
 	gpuErrchk( cudaFree(gd) );
 }

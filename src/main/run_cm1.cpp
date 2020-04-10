@@ -58,23 +58,22 @@ void nearest_grid_idx(grid *gd, mesh *msh, float *point, int *idx_4D) {
 
 
 	// loop over the X grid
-	for ( int i = 0; i < gd->NX; i++ ) {
+	for ( int i = -1; i < gd->NX-1; i++ ) {
 		// find the nearest grid point index at X
 		if ( ( pt_x >= xf(i) ) && ( pt_x <= xf(i+1) ) ) { near_i = i; } 
 	}
 
 	// loop over the Y grid
-	for ( int j = 0; j < gd->NY; j++ ) {
+	for ( int j = -1; j < gd->NY-1; j++ ) {
 		// find the nearest grid point index in the Y
 		if ( ( pt_y >= yf(j) ) && ( pt_y <= yf(j+1) ) ) { near_j = j; } 
 	}
 
 	// loop over the Z grid
-    int k = 0;
-    while (pt_z >= zf(k+1)) {
-        k = k + 1;
-    }
-    near_k = k;
+	for ( int k = 0; k < gd->NZ; k++ ) {
+		// find the nearest grid point index in the Y
+		if ( ( pt_z >= zf(k) ) && ( pt_z <= zf(k+1) ) ) { near_k = k; } 
+	}
 
 	// if a nearest index was not found, set all indices to -1 to flag
 	// that the point is not in the domain
@@ -165,22 +164,22 @@ void parse_cfg(map<string, string> *usrCfg, iocfg *io, string *histpath, string 
  * When the next chunk of time is read in, check and see where the parcels
  * are currently and request a subset that is relevent to those parcels.   
  */
-void getMeshBounds(string base_dir, dir_meta *dm, hdf_meta *hm, grid *gd, parcel_pos *parcels, int rank) {
-    //cout << "Retrieving HDF Metadata" << endl;
+int getMeshBounds(string base_dir, dir_meta *dm, hdf_meta *hm, grid *gd, parcel_pos *parcels, int rank) {
+    cout << "Retrieving HDF Metadata" << endl;
 
 	// Create a temporary full grid that we will then subset. We will
 	// only do this in CPU memory because this will get deleted
 	mesh *temp_msh;	
 	sounding *temp_snd;
 
-	//cout << "Allocating temporary mesh" << endl;
+	cout << "Allocating temporary mesh" << endl;
 	temp_msh = allocate_mesh_cpu(hm, gd);
 	temp_snd = allocate_sounding_cpu(gd->NZ);
 
 	// request the full grid so that we can find the indices
 	// of where our parcels are, and then request a smaller
 	// subset from there.
-	//cout << "Calling LOFS on temporary grid" << endl;
+	cout << "Calling LOFS on temporary grid" << endl;
 	lofs_get_grid(dm, hm, gd, temp_msh, temp_snd);
 
 	// find the min/max index bounds of 
@@ -193,13 +192,17 @@ void getMeshBounds(string base_dir, dir_meta *dm, hdf_meta *hm, grid *gd, parcel
 	int max_i = -1;
 	int max_j = -1;
 	int max_k = -1;
-	//cout << "Searching the parcel bounds" << endl;
+	long invalid_pcls = 0;
+	cout << "Searching the parcel bounds" << endl;
 	for (int pcl = 0; pcl < parcels->nParcels; ++pcl) {
 		point[0] = parcels->xpos[PCL(0, pcl, parcels->nTimes)];
 		point[1] = parcels->ypos[PCL(0, pcl, parcels->nTimes)];
 		point[2] = parcels->zpos[PCL(0, pcl, parcels->nTimes)];
 		// find the nearest grid point!
-		if ((point[0] == NC_FILL_FLOAT) || (point[1] == NC_FILL_FLOAT) || (point[2] == NC_FILL_FLOAT)) continue;
+		if ((point[0] == NC_FILL_FLOAT) || (point[1] == NC_FILL_FLOAT) || (point[2] == NC_FILL_FLOAT)) {
+			++invalid_pcls;
+			continue;
+		}
 		nearest_grid_idx(gd, temp_msh, point, idx_4D);
 		if ( (idx_4D[0] == -1) || (idx_4D[1] == -1) || (idx_4D[2] == -1) ) {
 			cout << "INVALID POINT X " << point[0] << " Y " << point[1] << " Z " << point[2] << endl;
@@ -217,11 +220,17 @@ void getMeshBounds(string base_dir, dir_meta *dm, hdf_meta *hm, grid *gd, parcel
 		if (idx_4D[2] < min_k) min_k = idx_4D[2];
 		if (idx_4D[2] > max_k) max_k = idx_4D[2]; 
 	}
-	//cout << "Finished searching parcel bounds" << endl;
+	cout << "Finished searching parcel bounds" << endl;
 	// clear the memory from the temp grid
-	//cout << "Deallocating temporary grid" << endl;
+	cout << "Deallocating temporary grid" << endl;
 	deallocate_mesh_cpu(temp_msh);
 	deallocate_sounding_cpu(temp_snd);
+	// If all of our parcels have left the domain, then the
+	// invalid parcel counter will tell us. This will prevent
+	// us from carrying on unecessarily. 
+	if (invalid_pcls == parcels->nParcels) {
+		return 0;
+	}
 
 	// we want to add a buffer to our dimensions so that
 	// the parcels don't accidentally move outside of our
@@ -233,13 +242,11 @@ void getMeshBounds(string base_dir, dir_meta *dm, hdf_meta *hm, grid *gd, parcel
 	min_j = gd->saved_Y0 + min_j - 10;
 	max_j = gd->saved_Y0 + max_j + 10;
 	min_k = gd->saved_Z0 + min_k - 10;
-	max_k = gd->saved_Z0 + max_k + 20;
-	//cout << "Attempted Parcel Bounds In Grid" << endl;
-	/*
-	 *cout << "X0: " << min_i << " X1: " << max_i << endl;
-	 *cout << "Y0: " << min_j << " Y1: " << max_j << endl;
-	 *cout << "Z0: " << min_k << " Z1: " << max_k << endl;
-	 */
+	max_k = gd->saved_Z0 + max_k + 10;
+	cout << "Attempted Parcel Bounds In Grid" << endl;
+	cout << "X0: " << min_i << " X1: " << max_i << endl;
+	cout << "Y0: " << min_j << " Y1: " << max_j << endl;
+	cout << "Z0: " << min_k << " Z1: " << max_k << endl;
 
 	// keep the data in our saved bounds. 
 	if (min_i < gd->saved_X0) min_i = gd->saved_X0;
@@ -250,12 +257,10 @@ void getMeshBounds(string base_dir, dir_meta *dm, hdf_meta *hm, grid *gd, parcel
 	if (max_k > gd->saved_Z1) max_k = gd->saved_Z1;
 
 
-	//cout << "Parcel Bounds In Grid" << endl;
-	/*
-	 *cout << "X0: " << min_i << " X1: " << max_i << endl;
-	 *cout << "Y0: " << min_j << " Y1: " << max_j << endl;
-	 *cout << "Z0: " << min_k << " Z1: " << max_k << endl;
-	 */
+	cout << "Parcel Bounds In Grid" << endl;
+	cout << "X0: " << min_i << " X1: " << max_i << endl;
+	cout << "Y0: " << min_j << " Y1: " << max_j << endl;
+	cout << "Z0: " << min_k << " Z1: " << max_k << endl;
 	// We need to set our grid attributes to
 	// the new, smaller domain around the parcels.
 	gd->X0 = min_i; gd->X1 = max_i;
@@ -265,6 +270,7 @@ void getMeshBounds(string base_dir, dir_meta *dm, hdf_meta *hm, grid *gd, parcel
 	gd->NX = gd->X1 - gd->X0 + 1; 
 	gd->NY = gd->Y1 - gd->Y0 + 1;
 	gd->NZ = gd->Z1 - gd->Z0 + 1;
+	return 1;
 }
 
 /* Read in the U, V, and W vector components plus the buoyancy and turbulence fields 
@@ -348,7 +354,7 @@ void seed_parcels(parcel_pos *parcels, float X0, float Y0, float Z0, int NX, int
             parcels->zpos[PCL(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
         }
     }
-    //cout << "END PARCEL SEED" << endl;
+	cout << "END PARCEL SEED" << endl;
 }
 
 
@@ -380,6 +386,7 @@ int main(int argc, char **argv ) {
     // amount, and spacing
     float pX0, pDX, pY0, pDY, pZ0, pDZ;
     int pNX, pNY, pNZ;
+	bool parcelsAreInDomain;
     // what is our integration start point in the simulation?
     double time;
     int nTimeSteps;
@@ -416,21 +423,21 @@ int main(int argc, char **argv ) {
     // plus the very last integration end time
     int nTotTimes = size+1;
     
+	// Query our dataset structure.
+	// If this has been done before, it reads
+	// the information from cache files in the 
+	// runtime directory. If it hasn't been run,
+	// this step can take fair amount of time.
+	lofs_get_dataset_structure(base_dir, dm, hm, gd, cmd, nc, rh);
 
     // This is the main loop that does the data reading and eventually
     // calls the CUDA code to integrate forward.
     for (int tChunk = 0; tChunk < nTimeChunks; ++tChunk) {
-		// Query our dataset structure.
-		// If this has been done before, it reads
-		// the information from cache files in the 
-		// runtime directory. If it hasn't been run,
-		// this step can take fair amount of time.
-		lofs_get_dataset_structure(base_dir, dm, hm, gd, cmd, nc, rh);
 
         // if this is the first chunk of time, seed the
         // parcel start locations
         if (tChunk == 0) {
-            //cout << "SEEDING PARCELS" << endl;
+            cout << "SEEDING PARCELS" << endl;
             if (rank == 0) {
                 // allocate parcels on both CPU and GPU
                 parcels = allocate_parcels_managed(io, pNX, pNY, pNZ, nTotTimes);
@@ -452,9 +459,13 @@ int main(int argc, char **argv ) {
         // ranks so that they can request different time
         // steps, but only Rank 0 will allocate the grid
         // arrays on both the CPU and GPU.
+		cout << "REQUESTING METADATA & MESH" << endl;
         
-		getMeshBounds(base_dir, dm, hm, gd, parcels, rank);
-		//cout << "REQUESTING METADATA & MESH" << endl;
+		parcelsAreInDomain = getMeshBounds(base_dir, dm, hm, gd, parcels, rank);
+		if (!parcelsAreInDomain) {
+			cout << "All parcels have exited the domain, or were not in the domain to begin with. Exiting the program." << endl;
+			return 0;
+		}
 		// on rank zero, allocate our grid on both the
 		// CPU and GPU so that the GPU knows something
 		// about our data for future integration.
@@ -471,7 +482,7 @@ int main(int argc, char **argv ) {
 		}
 
 		lofs_get_grid(dm, hm, gd, req_msh, snd);
-		//cout << "END METADATA & MESH REQUEST" << endl;
+		cout << "END METADATA & MESH REQUEST" << endl;
 
         // The number of grid points requested...
 		N_stag = (gd->NX)*(gd->NY)*(gd->NZ);
@@ -587,36 +598,34 @@ int main(int argc, char **argv ) {
 		if (io->output_qg) delete[] qgbuf;
 
 		if (rank == 0) {
-			/*
-			 *cout << "MPI Gather Error U: " << senderr_u << endl;
-			 *cout << "MPI Gather Error V: " << senderr_v << endl;
-			 *cout << "MPI Gather Error W: " << senderr_w << endl;
-			 *if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert) {
-			 *    cout << "MPI Gather Error P: " << senderr_p << endl;
-			 *}
-			 *if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thetapert) {
-			 *    cout << "MPI Gather Error T: " << senderr_t << endl;
-			 *}
-			 *if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhopert) {
-			 *    cout << "MPI Gather Error TH: " << senderr_th << endl;
-			 *}
-			 *if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert) {
-			 *    cout << "MPI Gather Error RHO: " << senderr_rho << endl;
-			 *}
-			 *if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh) {
-			 *    cout << "MPI Gather Error KMH: " << senderr_kmh << endl;
-			 *}
-			 *if (io->output_momentum_budget || io->output_vorticity_budget || io->output_qvpert) {
-			 *    cout << "MPI Gather Error QV: " << senderr_qv << endl;
-			 *}
-			 *if (io->output_qc) cout << "MPI Gather Error QC: " << senderr_qc << endl;
-			 *if (io->output_qi) cout << "MPI Gather Error QI: " << senderr_qi << endl;
-			 *if (io->output_qs) cout << "MPI Gather Error QS: " << senderr_qs << endl;
-			 *if (io->output_qs) cout << "MPI Gather Error QG: " << senderr_qg << endl;
-			 */
+			cout << "MPI Gather Error U: " << senderr_u << endl;
+			cout << "MPI Gather Error V: " << senderr_v << endl;
+			cout << "MPI Gather Error W: " << senderr_w << endl;
+			if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert) {
+				cout << "MPI Gather Error P: " << senderr_p << endl;
+			}
+			if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thetapert) {
+				cout << "MPI Gather Error T: " << senderr_t << endl;
+			}
+			if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhopert) {
+				cout << "MPI Gather Error TH: " << senderr_th << endl;
+			}
+			if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert) {
+				cout << "MPI Gather Error RHO: " << senderr_rho << endl;
+			}
+			if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh) {
+				cout << "MPI Gather Error KMH: " << senderr_kmh << endl;
+			}
+			if (io->output_momentum_budget || io->output_vorticity_budget || io->output_qvpert) {
+				cout << "MPI Gather Error QV: " << senderr_qv << endl;
+			}
+			if (io->output_qc) cout << "MPI Gather Error QC: " << senderr_qc << endl;
+			if (io->output_qi) cout << "MPI Gather Error QI: " << senderr_qi << endl;
+			if (io->output_qs) cout << "MPI Gather Error QS: " << senderr_qs << endl;
+			if (io->output_qs) cout << "MPI Gather Error QG: " << senderr_qg << endl;
 
 			int nParcels = parcels->nParcels;
-			//cout << "Beginning parcel integration! Heading over to the GPU to do GPU things..." << endl;
+			cout << "Beginning parcel integration! Heading over to the GPU to do GPU things..." << endl;
 
 			// BEFORE WE INTEGRATE THE PARCELS!!!
 			// Up to this point, our array buffers of data (eg U, V, W) 
@@ -626,23 +635,23 @@ int main(int argc, char **argv ) {
 			// such that these macros don't access outside of memory bounds.
 			gd->NX -= 2; gd->NY -= 2; gd->NZ -= 1;
 
-			cudaIntegrateParcels(gd, req_msh, snd, data, parcels, size, nTotTimes, direct); 
-			//cout << "Finished integrating parcels!" << endl;
+			cudaIntegrateParcels(gd, req_msh, snd, data, parcels, NC_FILL_FLOAT, size, nTotTimes, direct); 
+			cout << "Finished integrating parcels!" << endl;
 			// write out our information to disk
-			//cout << "Beginning to write to disk..." << endl;
+			cout << "Beginning to write to disk..." << endl;
 			write_parcels(outfilename, parcels, tChunk);
 
 			// Now that we've integrated forward and written to disk, before we can go again
 			// we have to set the current end position of the parcel to the beginning for 
 			// the next leg of integration. Do that, and then reset all the other values
 			// to missing.
-			//cout << "Setting final parcel position to beginning of array for next integration cycle..." << endl;
+			cout << "Setting final parcel position to beginning of array for next integration cycle..." << endl;
 			for (int pcl = 0; pcl < parcels->nParcels; ++pcl) {
-				parcels->xpos[PCL(0, pcl, parcels->nTimes)] = parcels->xpos[PCL(size, pcl, parcels->nTimes)];
-				parcels->ypos[PCL(0, pcl, parcels->nTimes)] = parcels->ypos[PCL(size, pcl, parcels->nTimes)];
-				parcels->zpos[PCL(0, pcl, parcels->nTimes)] = parcels->zpos[PCL(size, pcl, parcels->nTimes)];
+				parcels->xpos[PCL(0, pcl, parcels->nTimes)] = parcels->xpos[PCL(parcels->nTimes-1, pcl, parcels->nTimes)];
+				parcels->ypos[PCL(0, pcl, parcels->nTimes)] = parcels->ypos[PCL(parcels->nTimes-1, pcl, parcels->nTimes)];
+				parcels->zpos[PCL(0, pcl, parcels->nTimes)] = parcels->zpos[PCL(parcels->nTimes-1, pcl, parcels->nTimes)];
 			}
-			//cout << "Parcel position arrays reset." << endl;
+			cout << "Parcel position arrays reset." << endl;
 
             // memory management for root rank
 			deallocate_mesh_managed(req_msh);
@@ -657,6 +666,12 @@ int main(int argc, char **argv ) {
 			deallocate_mesh_cpu(req_msh);
 			deallocate_sounding_managed(snd);
         }
+
+		gd->X0 = gd->saved_X0; gd->Y0 = gd->saved_Y0; gd->Z0 = gd->saved_Z0;
+		gd->X1 = gd->saved_X1; gd->Y1 = gd->saved_Y1; gd->Z1 = gd->saved_Z1;
+		gd->NX = gd->X1 - gd->X0 + 1;
+		gd->NY = gd->Y1 - gd->Y0 + 1;
+		gd->NZ = gd->Z1 - gd->Z0 + 1;
         // receive the updated parcel arrays
         // so that we can do proper subseting. This happens
         // after integration is complete from CUDA.
@@ -669,7 +684,7 @@ int main(int argc, char **argv ) {
 
     if (rank == 0) {
 		deallocate_parcels_managed(io, parcels);
-        //cout << "Finished!" << endl << endl;
+        cout << "Finished!" << endl << endl;
     }
 	else {
 		deallocate_parcels_cpu(io, parcels);

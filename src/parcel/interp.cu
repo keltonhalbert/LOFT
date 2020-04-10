@@ -37,23 +37,22 @@ __device__ __host__ void _nearest_grid_idx(grid *gd, mesh *msh, float *point, in
 
 
 	// loop over the X grid
-	for ( int i = -1; i < gd->NX+1; i++ ) {
+	for ( int i = -1; i <= gd->NX; i++ ) {
 		// find the nearest grid point index at X
 		if ( ( pt_x >= xf(i) ) && ( pt_x <= xf(i+1) ) ) { near_i = i; } 
 	}
 
 	// loop over the Y grid
-	for ( int j = -1; j < gd->NY+1; j++ ) {
+	for ( int j = -1; j <= gd->NY; j++ ) {
 		// find the nearest grid point index in the Y
 		if ( ( pt_y >= yf(j) ) && ( pt_y <= yf(j+1) ) ) { near_j = j; } 
 	}
 
 	// loop over the Z grid
-    int k = 0;
-    while (pt_z >= zf(k+1)) {
-        k = k + 1;
-    }
-    near_k = k;
+	for ( int k = 0; k <= gd->NZ; k++ ) {
+		// find the nearest grid point index in the Y
+		if ( ( pt_z >= zf(k) ) && ( pt_z <= zf(k+1) ) ) { near_k = k; } 
+	}
 
 	// if a nearest index was not found, set all indices to -1 to flag
 	// that the point is not in the domain
