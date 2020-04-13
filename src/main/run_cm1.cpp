@@ -627,14 +627,6 @@ int main(int argc, char **argv ) {
 			int nParcels = parcels->nParcels;
 			cout << "Beginning parcel integration! Heading over to the GPU to do GPU things..." << endl;
 
-			// BEFORE WE INTEGRATE THE PARCELS!!!
-			// Up to this point, our array buffers of data (eg U, V, W) 
-			// and our mesh dimensions are the same size. In the calculation
-			// routines, we use special macros that make working with the staggered
-			// data a little more convenient. We are goind to reduce NX/NY/NZ appripriately
-			// such that these macros don't access outside of memory bounds.
-			gd->NX -= 2; gd->NY -= 2; gd->NZ -= 1;
-
 			cudaIntegrateParcels(gd, req_msh, snd, data, parcels, NC_FILL_FLOAT, size, nTotTimes, direct); 
 			cout << "Finished integrating parcels!" << endl;
 			// write out our information to disk

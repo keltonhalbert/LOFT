@@ -71,33 +71,47 @@ void init_nc(string filename, parcel_pos *parcels) {
         NcVar wdiffVar = output.addVar("wdiff", ncFloat, gridDimVector);
 
         wbuoyVar.putAtt("units", "meters / second^2");
+		wbuoyVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
         upgradVar.putAtt("units", "meters / second^2");
+		upgradVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
         vpgradVar.putAtt("units", "meters / second^2");
+		vpgradVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
         wpgradVar.putAtt("units", "meters / second^2");
+		wpgradVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
         uturbVar.putAtt("units", "meters / second^2");
+		uturbVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
         vturbVar.putAtt("units", "meters / second^2");
+		vturbVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
         wturbVar.putAtt("units", "meters / second^2");
+		wturbVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
         udiffVar.putAtt("units", "meters / second^2");
+		udiffVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
         vdiffVar.putAtt("units", "meters / second^2");
+		vdiffVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
         wdiffVar.putAtt("units", "meters / second^2");
+		wdiffVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
     }
 
     if (io->output_kmh) {
         NcVar kmhVar = output.addVar("kmh", ncFloat, gridDimVector);
         kmhVar.putAtt("units", "Unknown");
+		kmhVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
     }
 
     if (io->output_vorticity_budget || io->output_xvort) {
         NcVar xvortVar = output.addVar("xvort", ncFloat, gridDimVector);
         xvortVar.putAtt("units", "s^-1");
+		xvortVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
     }
     if (io->output_vorticity_budget || io->output_yvort) {
         NcVar yvortVar = output.addVar("yvort", ncFloat, gridDimVector);
         yvortVar.putAtt("units", "s^-1");
+		yvortVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
     }
     if (io->output_vorticity_budget || io->output_zvort) {
         NcVar zvortVar = output.addVar("zvort", ncFloat, gridDimVector);
         zvortVar.putAtt("units", "s^-1");
+		zvortVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
     }
     if (io->output_vorticity_budget) {
         NcVar xvorttiltVar = output.addVar("xvorttilt", ncFloat, gridDimVector);
@@ -119,81 +133,112 @@ void init_nc(string filename, parcel_pos *parcels) {
         NcVar yvortbaroVar = output.addVar("yvortbaro", ncFloat, gridDimVector);
 
         xvorttiltVar.putAtt("units", "s^-2");
+		xvorttiltVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
         yvorttiltVar.putAtt("units", "s^-2");
+		yvorttiltVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
         zvorttiltVar.putAtt("units", "s^-2");
+		zvorttiltVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
         xvortstretchVar.putAtt("units", "s^-2");
+		xvortstretchVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
         yvortstretchVar.putAtt("units", "s^-2");
+		yvortstretchVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
         zvortstretchVar.putAtt("units", "s^-2");
+		zvortstretchVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
         xvortsolenoidVar.putAtt("units", "s^-2");
+		xvortsolenoidVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
         yvortsolenoidVar.putAtt("units", "s^-2");
+		yvortsolenoidVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
         zvortsolenoidVar.putAtt("units", "s^-2");
+		zvortsolenoidVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
         xvortturbVar.putAtt("units", "s^-2");
+		xvortturbVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
         yvortturbVar.putAtt("units", "s^-2");
+		yvortturbVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
         zvortturbVar.putAtt("units", "s^-2");
+		zvortturbVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
         xvortdiffVar.putAtt("units", "s^-2");
+		xvortdiffVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
         yvortdiffVar.putAtt("units", "s^-2");
+		yvortdiffVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
         zvortdiffVar.putAtt("units", "s^-2");
+		zvortdiffVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
         xvortbaroVar.putAtt("units", "s^-2");
+		xvortbaroVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
         yvortbaroVar.putAtt("units", "s^-2");
+		yvortbaroVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
     }
 
     if (io->output_ppert) {
         NcVar ppertVar = output.addVar("prespert", ncFloat, gridDimVector);
         ppertVar.putAtt("units", "Pa");
+		ppertVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
     }
     if (io->output_qvpert) {
         NcVar qvpertVar = output.addVar("qvpert", ncFloat, gridDimVector);
         qvpertVar.putAtt("units", "g kg^-1");
+		qvpertVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
     }
     if (io->output_rhopert) {
         NcVar rhopertVar = output.addVar("rhopert", ncFloat, gridDimVector);
         rhopertVar.putAtt("units", "kg m^-3");
+		rhopertVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
     }
     if (io->output_thetapert) {
         NcVar thetapertVar = output.addVar("thetapert", ncFloat, gridDimVector);
         thetapertVar.putAtt("units", "K");
+		thetapertVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
     }
     if (io->output_thrhopert) {
         NcVar thrhopertVar = output.addVar("thrhopert", ncFloat, gridDimVector);
         thrhopertVar.putAtt("units", "K");
+		thrhopertVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
     }
 
     if (io->output_pbar) {
         NcVar pbarVar = output.addVar("presbar", ncFloat, gridDimVector);
         pbarVar.putAtt("units", "Pa");
+		pbarVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
     }
     if (io->output_qvbar) {
         NcVar qvbarVar = output.addVar("qvbar", ncFloat, gridDimVector);
         qvbarVar.putAtt("units", "g kg^-1");
+		qvbarVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
     }
     if (io->output_rhobar) {
         NcVar rhobarVar = output.addVar("rhobar", ncFloat, gridDimVector);
         rhobarVar.putAtt("units", "kg m^-3");
+		rhobarVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
     }
     if (io->output_thetabar) {
         NcVar thetabarVar = output.addVar("thetabar", ncFloat, gridDimVector);
         thetabarVar.putAtt("units", "K");
+		thetabarVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
     }
     if (io->output_thrhobar) {
         NcVar thrhobarVar = output.addVar("thrhobar", ncFloat, gridDimVector);
         thrhobarVar.putAtt("units", "K");
+		thrhobarVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
     }
 
     if (io->output_qc) {
         NcVar qcVar = output.addVar("qc", ncFloat, gridDimVector);
         qcVar.putAtt("units", "g kg^-1");
+		qcVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
     }
     if (io->output_qi) {
         NcVar qiVar = output.addVar("qi", ncFloat, gridDimVector);
         qiVar.putAtt("units", "g kg^-1");
+		qiVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
     }
     if (io->output_qs) {
         NcVar qsVar = output.addVar("qs", ncFloat, gridDimVector);
         qsVar.putAtt("units", "g kg^-1");
+		qsVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
     }
     if (io->output_qg) {
         NcVar qgVar = output.addVar("qg", ncFloat, gridDimVector);
         qgVar.putAtt("units", "g kg^-1");
+		qgVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
     }
 }
  

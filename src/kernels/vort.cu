@@ -150,7 +150,7 @@ __global__ void cuCalcZvortStretch(grid *gd, mesh *msh, float *ustag, float *vst
     }
 }
 
-__global__ void cuPreXvortTilt(grid *gd, mesh *msh, sounding *snd, float *ustag, float *dudy, float *dudz) {
+__global__ void cuPreXvortTilt(grid *gd, mesh *msh, float *ustag, float *dudy, float *dudz) {
     // get our 3D index based on our blocks/threads
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
