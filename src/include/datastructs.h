@@ -1,5 +1,8 @@
 // header file for reading CUDA compiled
 // stuffs
+
+#include <lofs-dirstruct.h>
+#include <lofs-hdf2nc.h>
 #ifndef DATASTRUCTS_H
 #define DATASTRUCTS_H
 /*
@@ -40,61 +43,6 @@ struct iocfg {
 
     int output_vorticity_budget = 0;
     int output_momentum_budget = 0;
-};
-
-// this struct helps manage all the different
-// attributes a grid or grid subset may have,
-// including the staggered arrays, number of 
-// points in eachd dimension, and the indices
-// of the subset from the larger grid
-//
-// I'm also going to store base state grid
-// variables in here since they are also 
-// time independent, much like the other
-// grid variables
-struct datagrid {
-
-    // 1D grid arrays
-    float *xf;
-    float *xh;
-    float *yf;
-    float *yh;
-    float *zf;
-    float *zh;
-
-    float *u0;
-    float *v0;
-    float *qv0;
-    float *th0;
-    float *rho0;
-    float *p0;
-    
-    float *uh;
-    float *uf;
-    float *vh;
-    float *vf;
-    float *mh;
-    float *mf;
-
-    int isValid;
-
-    // dimensions for
-    // the arrays
-    long NX;
-    long NY;
-    long NZ;
-
-    float dx;
-    float dy;
-    float dz;
-    float dt;
-
-    // the subset points of the grid
-    // that this grid is a part of
-    long X0; long Y0;
-    long X1; long Y1;
-    long Z0; long Z1;
-
 };
 
 struct parcel_pos {
@@ -233,15 +181,19 @@ struct model_data {
 // These functions should only be compiled if 
 // we're actually using a GPU... otherwise
 // only expose the CPU functions
-datagrid* allocate_grid_managed( int X0, int X1, int Y0, int Y1, int Z0, int Z1 );
-void deallocate_grid_managed(datagrid *grid);
+mesh* allocate_mesh_managed( hdf_meta *hm, grid *gd );
+void deallocate_mesh_managed(mesh *msh);
+sounding* allocate_sounding_managed(int NZ);
+void deallocate_sounding_managed(sounding *snd);
 parcel_pos* allocate_parcels_managed(iocfg *io, int NX, int NY, int NZ, int nTotTimes);
 void deallocate_parcels_managed(iocfg* io, parcel_pos *parcels);
 model_data* allocate_model_managed(iocfg* io, long bufsize);
 void deallocate_model_managed(iocfg* io, model_data *data);
 
-datagrid* allocate_grid_cpu( int X0, int X1, int Y0, int Y1, int Z0, int Z1 );
-void deallocate_grid_cpu(datagrid *grid);
+mesh* allocate_mesh_cpu( hdf_meta *hm, grid *gd );
+void deallocate_mesh_cpu(mesh *msh);
+sounding* allocate_sounding_cpu(int NZ);
+void deallocate_sounding_cpu(sounding *snd);
 parcel_pos* allocate_parcels_cpu(iocfg *io, int NX, int NY, int NZ, int nTotTimes);
 void deallocate_parcels_cpu(iocfg *io, parcel_pos *parcels);
 

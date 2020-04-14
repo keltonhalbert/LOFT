@@ -1,8 +1,14 @@
 #include <iostream>
 #include <stdio.h>
+extern "C" {
+#include <lofs-read.h>
+#include <lofs-dirstruct.h>
+#include <lofs-hdf2nc.h>
+#include <lofs-limits.h>
+#include <lofs-macros.h>
+}
 #include "../include/datastructs.h"
 #include "../include/constants.h"
-#include "../include/macros.h"
 #ifndef MOMENTUM_CALC
 #define MOMENTUM_CALC
 /*
@@ -16,7 +22,7 @@
 /* Compute the pressure gradient forcing for
    the W momentum equation */
 __host__ __device__ void calc_pgrad_u(float *pipert, float *thrhopert, float *qv0, float *th0, float *pgradu, \
-		                              float dx, int i, int j, int k, int NX, int NY) {
+		                              float dx, int i, int j, int k, int nx, int ny) {
     // get dpi/dz
     float *buf0 = pipert;
     float dpidx = (BUF(i, j, k) - BUF(i-1, j, k)) / dx;
@@ -38,7 +44,7 @@ __host__ __device__ void calc_pgrad_u(float *pipert, float *thrhopert, float *qv
 /* Compute the pressure gradient forcing for
    the V momentum equation */
 __host__ __device__ void calc_pgrad_v(float *pipert, float *thrhopert, float *qv0, float *th0, float *pgradv, \
-		                              float dy, int i, int j, int k, int NX, int NY) {
+		                              float dy, int i, int j, int k, int nx, int ny) {
     // get dpi/dz
     float *buf0 = pipert;
     float dpidy = (BUF(i, j, k) - BUF(i, j-1, k)) / dy;
@@ -59,7 +65,7 @@ __host__ __device__ void calc_pgrad_v(float *pipert, float *thrhopert, float *qv
 /* Compute the pressure gradient forcing for
    the W momentum equation */
 __host__ __device__ void calc_pgrad_w(float *pipert, float *thrhopert, float *qv0, float *th0, float *pgradw, \
-		                              float dz, int i, int j, int k, int NX, int NY) {
+		                              float dz, int i, int j, int k, int nx, int ny) {
     // get dpi/dz
     float *buf0 = pipert;
     float dpidz = (BUF(i, j, k) - BUF(i, j, k-1)) / dz;
@@ -83,7 +89,7 @@ __host__ __device__ void calc_pgrad_w(float *pipert, float *thrhopert, float *qv
 
 /* Compute the buoyancy forcing
    the W momentum equation */
-__device__ void calc_buoyancy(float *thrhopert, float *th0, float *buoy, int i, int j, int k, int NX, int NY) {
+__device__ void calc_buoyancy(float *thrhopert, float *th0, float *buoy, int i, int j, int k, int nx, int ny) {
     float *buf0 = thrhopert;
     // we need to get this all on staggered W grid
     // in CM1, geroge uses base state theta for buoyancy

@@ -1,7 +1,13 @@
 #include <iostream>
 #include <stdio.h>
+extern "C" {
+#include <lofs-read.h>
+#include <lofs-dirstruct.h>
+#include <lofs-hdf2nc.h>
+#include <lofs-limits.h>
+#include <lofs-macros.h>
+}
 #include "../include/datastructs.h"
-#include "../include/macros.h"
 #ifndef TURB_CALC
 #define TURB_CALC
 /*
@@ -12,7 +18,7 @@
  * Email: kthalbert@wisc.edu
 */
 
-__device__ void calcrf(float *rhopert, float *rho0, float *rhof, int i, int j, int k, int NX, int NY) {
+__device__ void calcrf(float *rhopert, float *rho0, float *rhof, int i, int j, int k, int nx, int ny) {
     // use the w staggered grid
     float *wstag = rhof;
     float *buf0 = rhopert;
@@ -33,7 +39,7 @@ __device__ void calcrf(float *rhopert, float *rho0, float *rhof, int i, int j, i
 // conditions are set in gettau. 
 __device__ void calcstrain1(float *ustag, float *vstag, float *wstag, float *rhopert, float *rho0, \
 		                float *s11, float *s12, float *s22, float *s33, float dx, float dy, float dz, \
-						int i, int j, int k, int NX, int NY) {
+						int i, int j, int k, int nx, int ny) {
 	float *buf0 = rhopert;
 	float rho1 = BUF(i, j, k) + rho0[k];
 	float rho2 = BUF(i-1, j-1, k) + rho0[k];
@@ -64,7 +70,7 @@ __device__ void calcstrain1(float *ustag, float *vstag, float *wstag, float *rho
 // be combined into a single kernel call. Breaking them up into individual kernels for each stress
 // tensor would likely not give enough work per thread either. 
 __device__ void calcstrain2(float *ustag, float *vstag, float *wstag, float *rhof, float *s13, float *s23, \
-		                 float dx, float dy, float dz, int i, int j, int k, int NX, int NY) {
+		                 float dx, float dy, float dz, int i, int j, int k, int nx, int ny) {
 	float *buf0 = rhof;
 	float rf1 = BUF(i, j, k);
 	float rf2 = BUF(i-1, j, k);
@@ -85,7 +91,7 @@ __device__ void calcstrain2(float *ustag, float *vstag, float *wstag, float *rho
 // Similar to the strain kernels, we need two of these for computing some of the vertical components due to the 
 // way the vertical stencils work with boundary conditions. This kernel also probably doesn't know whether z(k==0) 
 // is the actual surface or the lowest level of an array defined above the surface.
-__device__ void gettau1(float *km, float *t11, float *t12, float *t22, float *t33, int i, int j, int k, int NX, int NY) {
+__device__ void gettau1(float *km, float *t11, float *t12, float *t22, float *t33, int i, int j, int k, int nx, int ny) {
 	float *buf0 = km;
 	// KM is defined on W points - get on scalar vertical points
 	float kmval = 0.5*(BUF(i, j, k) + BUF(i, j, k+1));
@@ -107,7 +113,7 @@ __device__ void gettau1(float *km, float *t11, float *t12, float *t22, float *t3
 	BUF(i, j, k) = 2.0 * kmval * BUF(i, j, k);
 }
 
-__device__ void gettau2(float *km, float *t13, float *t23, int i, int j, int k, int NX, int NY) {
+__device__ void gettau2(float *km, float *t13, float *t23, int i, int j, int k, int nx, int ny) {
 	float *buf0 = km;
 	float kmval1 = 0.5 * (BUF(i, j, k) + BUF(i-1, j, k)); // km on u points
 	float kmval2 = 0.5 * (BUF(i, j, k) + BUF(i, j-1, k)); // km on v points
@@ -120,7 +126,7 @@ __device__ void gettau2(float *km, float *t13, float *t23, int i, int j, int k, 
 }
 
 __device__ void calc_turbu(float *t11, float *t12, float *t13, float *rhopert, float *rho0, float *turbu, \
-		                   float dx, float dy, float dz, int i, int j, int k, int NX, int NY) {
+		                   float dx, float dy, float dz, int i, int j, int k, int nx, int ny) {
     float *ustag, *buf0, *dum0;
 
     // tau 11
@@ -143,7 +149,7 @@ __device__ void calc_turbu(float *t11, float *t12, float *t13, float *rhopert, f
 }
 
 __device__ void calc_turbv(float *t12, float *t22, float *t23, float *rhopert, float *rho0, float *turbv, \
-		                   float dx, float dy, float dz, int i, int j, int k, int NX, int NY) {
+		                   float dx, float dy, float dz, int i, int j, int k, int nx, int ny) {
     float *vstag, *buf0, *dum0;
 
     // tau 12
@@ -166,7 +172,7 @@ __device__ void calc_turbv(float *t12, float *t22, float *t23, float *rhopert, f
 }
 
 __device__ void calc_turbw(float *t13, float *t23, float *t33, float *rhof, float *turbw, \
-		                   float dx, float dy, float dz, int i, int j, int k, int NX, int NY) {
+		                   float dx, float dy, float dz, int i, int j, int k, int nx, int ny) {
     float *wstag, *buf0, *dum0;
 
     // tau 13
