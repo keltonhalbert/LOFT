@@ -92,6 +92,7 @@ sounding* allocate_sounding_managed( int NZ ) {
     // allocate base state arrays
     cudaMallocManaged(&(snd->u0),   (NZ)*sizeof(float));
     cudaMallocManaged(&(snd->v0),   (NZ)*sizeof(float));
+    cudaMallocManaged(&(snd->pi0),  (NZ)*sizeof(float));
     cudaMallocManaged(&(snd->qv0),  (NZ)*sizeof(float));
     cudaMallocManaged(&(snd->th0),  (NZ)*sizeof(float));
     cudaMallocManaged(&(snd->rho0), (NZ)*sizeof(float));
@@ -105,6 +106,7 @@ sounding* allocate_sounding_cpu( int NZ ) {
     // allocate base state arrays
     snd->u0 = new float[NZ];
     snd->v0 = new float[NZ];
+    snd->pi0 = new float[NZ];
     snd->qv0 = new float[NZ];
     snd->th0 = new float[NZ];
     snd->rho0 = new float[NZ];
@@ -164,9 +166,10 @@ void deallocate_mesh_cpu(mesh *msh) {
 void deallocate_sounding_managed(sounding *snd) {
     cudaFree(snd->u0);
     cudaFree(snd->v0);
-    cudaFree(snd->rho0);
+    cudaFree(snd->pi0);
     cudaFree(snd->th0);
     cudaFree(snd->qv0);
+    cudaFree(snd->rho0);
     cudaFree(snd->pres0);
 	cudaFree(snd);
 }
@@ -174,9 +177,10 @@ void deallocate_sounding_managed(sounding *snd) {
 void deallocate_sounding_cpu(sounding *snd) {
 	delete[] snd->u0;
 	delete[] snd->v0;
-	delete[] snd->rho0;
+	delete[] snd->pi0;
 	delete[] snd->th0;
 	delete[] snd->qv0;
+	delete[] snd->rho0;
 	delete[] snd->pres0;
 	delete snd;
 }
