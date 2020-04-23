@@ -21,11 +21,11 @@ ZFP_DIR=/home1/06818/khalbert/installs/zfp
 #H5ZZFP_DIR=/home1/06618/orf/H5Z-ZFP-install
 
 ## These flags are passed to the C++ compiler of the main program
-INCLPATHS =  -I$(HDF%_DIR)/include -I$(ZFP_DIR)/include -I$(H5ZZFP_DIR)/include -I$(NETCDF_DIR)/include -I$(LOFS_DIR)/include
+INCLPATHS =  -I$(HDF5_DIR)/include -I$(ZFP_DIR)/include -I$(H5ZZFP_DIR)/include -I$(NETCDF_DIR)/include -I$(LOFS_DIR)/include
 LIBPATHS = -L$(HDF5_DIR)/lib -L$(ZFP_DIR)/lib -L$(H5ZZFP_DIR)/lib -L$(NETCDF_DIR)/lib -L$(LOFS_DIR)/lib -L$(CUDA)/lib64 
 
 CFLAGS = -g -O3 -std=c++11 $(INCLPATHS)
-LINKOPTS = $(LIBPATHS) -lh5zzfp -lzfp -lhdf5_hl -lhdf5 -lnetcdf -lnetcdf_c++4 -llofs -lcudart -lm -fopenmp
+LINKOPTS = $(LIBPATHS) -lh5zzfp -lzfp -lhdf5_hl -lhdf5 -lnetcdf -lnetcdf_c++4 -llofs -lcudart -lm -qopenmp
 
 ## These flags are passed to the CUDA compiler
 NVFLAGS = --default-stream per-thread -gencode=arch=compute_61,code=compute_61 --prec-div=true --ftz=true --fmad=true --std=c++11
