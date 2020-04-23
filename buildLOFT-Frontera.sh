@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+module load cuda
 module load hdf5
 module load netcdf
 
