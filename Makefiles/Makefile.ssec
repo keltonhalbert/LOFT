@@ -7,11 +7,11 @@ CUDA=/usr/local/cuda
 LOFSDIR=${HOME}/installs/LOFS
 
 ## These flags are passed to the C++ compiler of the main program
-CFLAGS = -g -O3 -std=c++11 -I$(LOFSDIR)/include
+CFLAGS = -O3 -std=c++11 -I$(LOFSDIR)/include
 LINKOPTS = -L$(LOFSDIR)/lib -L$(CUDA)/lib64 -lh5zzfp -lzfp -lhdf5_hl -lhdf5 -lnetcdf -lnetcdf_c++4 -llofs -lcudart -lm -fopenmp
 
 ## These flags are passed to the CUDA compiler
-NVFLAGS = --default-stream per-thread -gencode=arch=compute_61,code=compute_61 --prec-div=true --ftz=true --fmad=true --std=c++11
+NVFLAGS = -O3 --default-stream per-thread -gencode=arch=compute_61,code=compute_61 --prec-div=true --ftz=true --fmad=true --std=c++11
 
 
 SOURCEDIR := src
