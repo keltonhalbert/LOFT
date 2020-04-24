@@ -1,6 +1,5 @@
 // header file for reading CUDA compiled
 // stuffs
-
 #include <lofs-dirstruct.h>
 #include <lofs-hdf2nc.h>
 #ifndef DATASTRUCTS_H

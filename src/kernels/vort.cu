@@ -361,7 +361,7 @@ __global__ void cuCalcZvortSolenoid(grid *gd, mesh *msh, float *pipert, float *t
 }
 
 /* Zero out the temporary arrays */
-__global__ void zeroTemArrays(grid *gd, model_data *data, int tStart, int tEnd) {
+__global__ void zeroTemArray(grid *gd, float *temarr, int tStart, int tEnd) {
     int i = blockIdx.x*blockDim.x + threadIdx.x;
     int j = blockIdx.y*blockDim.y + threadIdx.y;
     int k = blockIdx.z*blockDim.z + threadIdx.z;
@@ -369,31 +369,11 @@ __global__ void zeroTemArrays(grid *gd, model_data *data, int tStart, int tEnd) 
     int nx = gd->NX;
     int ny = gd->NY;
     int nz = gd->NZ;
-    float *dum0;
-    if (( i < nx+1) && ( j < ny+1) && ( k < nz+1)) {
-        dum0 = data->tem1;
+	long idx;
+    if (( i < nx+2) && ( j < ny+2) && ( k < nz+1)) {
         for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            dum0[P4(i, j, k, tidx, nx+2, ny+2, nz+1)] = 0.0;
-        }
-        dum0 = data->tem2;
-        for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            dum0[P4(i, j, k, tidx, nx+2, ny+2, nz+1)] = 0.0;
-        }
-        dum0 = data->tem3;
-        for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            dum0[P4(i, j, k, tidx, nx+2, ny+2, nz+1)] = 0.0;
-        }
-        dum0 = data->tem4;
-        for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            dum0[P4(i, j, k, tidx, nx+2, ny+2, nz+1)] = 0.0;
-        }
-        dum0 = data->tem5;
-        for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            dum0[P4(i, j, k, tidx, nx+2, ny+2, nz+1)] = 0.0;
-        }
-        dum0 = data->tem6;
-        for (int tidx = tStart; tidx < tEnd; ++tidx) {
-            dum0[P4(i, j, k, tidx, nx+2, ny+2, nz+1)] = 0.0;
+			idx = P4(i, j, k, tidx, nx+2, ny+2, nz+1);
+            temarr[idx] = 0.0;
         }
     }
 }

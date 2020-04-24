@@ -545,23 +545,13 @@ model_data* allocate_model_managed(iocfg *io, long bufsize) {
     cudaMallocManaged(&(data->ustag), bufsize*sizeof(float));
     cudaMallocManaged(&(data->vstag), bufsize*sizeof(float));
     cudaMallocManaged(&(data->wstag), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->tem1), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->tem2), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->tem3), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->tem4), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->tem5), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->tem6), bufsize*sizeof(float));
-    
+
     // Arrays that are optional depending on if they need to be tracked along
     // a parcel, or are part of a calculation/budget. 
     if (io->output_qc) cudaMallocManaged(&(data->qc), bufsize*sizeof(float));
     if (io->output_qi) cudaMallocManaged(&(data->qi), bufsize*sizeof(float));
     if (io->output_qs) cudaMallocManaged(&(data->qs), bufsize*sizeof(float));
     if (io->output_qg) cudaMallocManaged(&(data->qg), bufsize*sizeof(float));
-
-    if (io->output_vorticity_budget || io->output_xvort) cudaMallocManaged(&(data->xvort), bufsize*sizeof(float));
-    if (io->output_vorticity_budget || io->output_yvort) cudaMallocManaged(&(data->yvort), bufsize*sizeof(float));
-    if (io->output_vorticity_budget || io->output_zvort) cudaMallocManaged(&(data->zvort), bufsize*sizeof(float));
 
     if (io->output_vorticity_budget || io->output_momentum_budget || io->output_ppert) cudaMallocManaged(&(data->pipert), bufsize*sizeof(float));
     if (io->output_vorticity_budget || io->output_momentum_budget || io->output_ppert) cudaMallocManaged(&(data->prespert), bufsize*sizeof(float));
@@ -570,6 +560,18 @@ model_data* allocate_model_managed(iocfg *io, long bufsize) {
     if (io->output_vorticity_budget || io->output_momentum_budget || io->output_rhopert) cudaMallocManaged(&(data->rhopert), bufsize*sizeof(float));
     if (io->output_vorticity_budget || io->output_momentum_budget || io->output_kmh) cudaMallocManaged(&(data->kmh), bufsize*sizeof(float));
     if (io->output_vorticity_budget || io->output_momentum_budget || io->output_qvpert) cudaMallocManaged(&(data->qvpert), bufsize*sizeof(float));
+
+    if (io->output_vorticity_budget || io->output_xvort) cudaMallocManaged(&(data->xvort), bufsize*sizeof(float));
+    if (io->output_vorticity_budget || io->output_yvort) cudaMallocManaged(&(data->yvort), bufsize*sizeof(float));
+    if (io->output_vorticity_budget || io->output_zvort) cudaMallocManaged(&(data->zvort), bufsize*sizeof(float));
+
+    cudaMallocManaged(&(data->tem1), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->tem2), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->tem3), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->tem4), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->tem5), bufsize*sizeof(float));
+    cudaMallocManaged(&(data->tem6), bufsize*sizeof(float));
+    
     if (io->output_vorticity_budget || io->output_momentum_budget) {
         cudaMallocManaged(&(data->rhof), bufsize*sizeof(float));
         cudaMallocManaged(&(data->buoy), bufsize*sizeof(float));
