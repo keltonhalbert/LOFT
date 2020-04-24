@@ -565,44 +565,44 @@ model_data* allocate_model_managed(iocfg *io, long bufsize) {
     if (io->output_vorticity_budget || io->output_yvort) cudaMallocManaged(&(data->yvort), bufsize*sizeof(float));
     if (io->output_vorticity_budget || io->output_zvort) cudaMallocManaged(&(data->zvort), bufsize*sizeof(float));
 
-    cudaMallocManaged(&(data->tem1), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->tem2), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->tem3), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->tem4), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->tem5), bufsize*sizeof(float));
-    cudaMallocManaged(&(data->tem6), bufsize*sizeof(float));
+    cudaMalloc(&(data->tem1), bufsize*sizeof(float));
+    cudaMalloc(&(data->tem2), bufsize*sizeof(float));
+    cudaMalloc(&(data->tem3), bufsize*sizeof(float));
+    cudaMalloc(&(data->tem4), bufsize*sizeof(float));
+    cudaMalloc(&(data->tem5), bufsize*sizeof(float));
+    cudaMalloc(&(data->tem6), bufsize*sizeof(float));
     
     if (io->output_vorticity_budget || io->output_momentum_budget) {
-        cudaMallocManaged(&(data->rhof), bufsize*sizeof(float));
-        cudaMallocManaged(&(data->buoy), bufsize*sizeof(float));
-        cudaMallocManaged(&(data->pgradu), bufsize*sizeof(float));
-        cudaMallocManaged(&(data->pgradv), bufsize*sizeof(float));
-        cudaMallocManaged(&(data->pgradw), bufsize*sizeof(float));
-        cudaMallocManaged(&(data->turbu), bufsize*sizeof(float));
-        cudaMallocManaged(&(data->turbv), bufsize*sizeof(float));
-        cudaMallocManaged(&(data->turbw), bufsize*sizeof(float));
-        cudaMallocManaged(&(data->diffu), bufsize*sizeof(float));
-        cudaMallocManaged(&(data->diffv), bufsize*sizeof(float));
-        cudaMallocManaged(&(data->diffw), bufsize*sizeof(float));
+        cudaMalloc(&(data->rhof), bufsize*sizeof(float));
+        cudaMalloc(&(data->buoy), bufsize*sizeof(float));
+        cudaMalloc(&(data->pgradu), bufsize*sizeof(float));
+        cudaMalloc(&(data->pgradv), bufsize*sizeof(float));
+        cudaMalloc(&(data->pgradw), bufsize*sizeof(float));
+        cudaMalloc(&(data->turbu), bufsize*sizeof(float));
+        cudaMalloc(&(data->turbv), bufsize*sizeof(float));
+        cudaMalloc(&(data->turbw), bufsize*sizeof(float));
+        cudaMalloc(&(data->diffu), bufsize*sizeof(float));
+        cudaMalloc(&(data->diffv), bufsize*sizeof(float));
+        cudaMalloc(&(data->diffw), bufsize*sizeof(float));
     }
     if (io->output_vorticity_budget) {
-        cudaMallocManaged(&(data->xvtilt), bufsize*sizeof(float));
-        cudaMallocManaged(&(data->yvtilt), bufsize*sizeof(float));
-        cudaMallocManaged(&(data->zvtilt), bufsize*sizeof(float));
-        cudaMallocManaged(&(data->xvstretch), bufsize*sizeof(float));
-        cudaMallocManaged(&(data->yvstretch), bufsize*sizeof(float));
-        cudaMallocManaged(&(data->zvstretch), bufsize*sizeof(float));
-        cudaMallocManaged(&(data->turbxvort), bufsize*sizeof(float));
-        cudaMallocManaged(&(data->turbyvort), bufsize*sizeof(float));
-        cudaMallocManaged(&(data->turbzvort), bufsize*sizeof(float));
-        cudaMallocManaged(&(data->diffxvort), bufsize*sizeof(float));
-        cudaMallocManaged(&(data->diffyvort), bufsize*sizeof(float));
-        cudaMallocManaged(&(data->diffzvort), bufsize*sizeof(float));
-        cudaMallocManaged(&(data->xvort_baro), bufsize*sizeof(float)); 
-        cudaMallocManaged(&(data->yvort_baro), bufsize*sizeof(float)); 
-        cudaMallocManaged(&(data->xvort_solenoid), bufsize*sizeof(float)); 
-        cudaMallocManaged(&(data->yvort_solenoid), bufsize*sizeof(float)); 
-        cudaMallocManaged(&(data->zvort_solenoid), bufsize*sizeof(float)); 
+        cudaMalloc(&(data->xvtilt), bufsize*sizeof(float));
+        cudaMalloc(&(data->yvtilt), bufsize*sizeof(float));
+        cudaMalloc(&(data->zvtilt), bufsize*sizeof(float));
+        cudaMalloc(&(data->xvstretch), bufsize*sizeof(float));
+        cudaMalloc(&(data->yvstretch), bufsize*sizeof(float));
+        cudaMalloc(&(data->zvstretch), bufsize*sizeof(float));
+        cudaMalloc(&(data->turbxvort), bufsize*sizeof(float));
+        cudaMalloc(&(data->turbyvort), bufsize*sizeof(float));
+        cudaMalloc(&(data->turbzvort), bufsize*sizeof(float));
+        cudaMalloc(&(data->diffxvort), bufsize*sizeof(float));
+        cudaMalloc(&(data->diffyvort), bufsize*sizeof(float));
+        cudaMalloc(&(data->diffzvort), bufsize*sizeof(float));
+        cudaMalloc(&(data->xvort_baro), bufsize*sizeof(float)); 
+        cudaMalloc(&(data->yvort_baro), bufsize*sizeof(float)); 
+        cudaMalloc(&(data->xvort_solenoid), bufsize*sizeof(float)); 
+        cudaMalloc(&(data->yvort_solenoid), bufsize*sizeof(float)); 
+        cudaMalloc(&(data->zvort_solenoid), bufsize*sizeof(float)); 
     }
 
     return data;
