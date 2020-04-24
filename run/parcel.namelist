@@ -9,6 +9,8 @@
 histpath = ./3D
 ## The name of the output NetCDF file
 basename = 24May2011-ElRe-SVC
+verbose = 0
+debug = 0
 
 
 

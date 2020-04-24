@@ -109,10 +109,12 @@ map<string, string> readCfg(string filename) {
 }
 
 /* Parse the user configuration and fill the variables with the necessary values */
-void parse_cfg(map<string, string> *usrCfg, iocfg *io, string *histpath, string *base, double *time, int *nTimes, \
+void parse_cfg(map<string, string> *usrCfg, iocfg *io, string *histpath, string *base, int *verbose, int *debug, double *time, int *nTimes, \
             int *direction, float *X0, float *Y0, float *Z0, int *NX, int *NY, int *NZ, float *DX, float *DY, float *DZ) {
     *histpath = ((*usrCfg)["histpath"]);
     *base = ((*usrCfg)["basename"]);
+	*verbose = stoi((*usrCfg)["verbose"]);
+	*debug = stoi((*usrCfg)["debug"]);
     *X0 = stof((*usrCfg)["x0"]);
     *Y0 = stof((*usrCfg)["y0"]);
     *Z0 = stof((*usrCfg)["z0"]);
@@ -164,22 +166,22 @@ void parse_cfg(map<string, string> *usrCfg, iocfg *io, string *histpath, string 
  * When the next chunk of time is read in, check and see where the parcels
  * are currently and request a subset that is relevent to those parcels.   
  */
-int getMeshBounds(string base_dir, dir_meta *dm, hdf_meta *hm, grid *gd, parcel_pos *parcels, int rank) {
-    cout << "Retrieving HDF Metadata" << endl;
+int getMeshBounds(string base_dir, dir_meta *dm, hdf_meta *hm, grid *gd, parcel_pos *parcels, int verbose, int rank) {
+    if (verbose) cout << "Retrieving HDF Metadata" << endl;
 
 	// Create a temporary full grid that we will then subset. We will
 	// only do this in CPU memory because this will get deleted
 	mesh *temp_msh;	
 	sounding *temp_snd;
 
-	cout << "Allocating temporary mesh" << endl;
+	if (verbose) cout << "Allocating temporary mesh" << endl;
 	temp_msh = allocate_mesh_cpu(hm, gd);
 	temp_snd = allocate_sounding_cpu(gd->NZ);
 
 	// request the full grid so that we can find the indices
 	// of where our parcels are, and then request a smaller
 	// subset from there.
-	cout << "Calling LOFS on temporary grid" << endl;
+	if (verbose) cout << "Calling LOFS on temporary grid" << endl;
 	lofs_get_grid(dm, hm, gd, temp_msh, temp_snd);
 
 	// find the min/max index bounds of 
@@ -193,7 +195,7 @@ int getMeshBounds(string base_dir, dir_meta *dm, hdf_meta *hm, grid *gd, parcel_
 	int max_j = -1;
 	int max_k = -1;
 	long invalid_pcls = 0;
-	cout << "Searching the parcel bounds" << endl;
+	if (verbose) cout << "Searching the parcel bounds" << endl;
 	for (int pcl = 0; pcl < parcels->nParcels; ++pcl) {
 		point[0] = parcels->xpos[PCL(0, pcl, parcels->nTimes)];
 		point[1] = parcels->ypos[PCL(0, pcl, parcels->nTimes)];
@@ -220,9 +222,9 @@ int getMeshBounds(string base_dir, dir_meta *dm, hdf_meta *hm, grid *gd, parcel_
 		if (idx_4D[2] < min_k) min_k = idx_4D[2];
 		if (idx_4D[2] > max_k) max_k = idx_4D[2]; 
 	}
-	cout << "Finished searching parcel bounds" << endl;
+	if (verbose) cout << "Finished searching parcel bounds" << endl;
 	// clear the memory from the temp grid
-	cout << "Deallocating temporary grid" << endl;
+	if (verbose) cout << "Deallocating temporary grid" << endl;
 	deallocate_mesh_cpu(temp_msh);
 	deallocate_sounding_cpu(temp_snd);
 	// If all of our parcels have left the domain, then the
@@ -243,10 +245,12 @@ int getMeshBounds(string base_dir, dir_meta *dm, hdf_meta *hm, grid *gd, parcel_
 	max_j = gd->saved_Y0 + max_j + 10;
 	min_k = gd->saved_Z0 + min_k - 10;
 	max_k = gd->saved_Z0 + max_k + 10;
-	cout << "Attempted Parcel Bounds In Grid" << endl;
-	cout << "X0: " << min_i << " X1: " << max_i << endl;
-	cout << "Y0: " << min_j << " Y1: " << max_j << endl;
-	cout << "Z0: " << min_k << " Z1: " << max_k << endl;
+	if (verbose) {
+		cout << "Attempted Parcel Bounds In Grid" << endl;
+		cout << "X0: " << min_i << " X1: " << max_i << endl;
+		cout << "Y0: " << min_j << " Y1: " << max_j << endl;
+		cout << "Z0: " << min_k << " Z1: " << max_k << endl;
+	}
 
 	// keep the data in our saved bounds. 
 	if (min_i < gd->saved_X0) min_i = gd->saved_X0;
@@ -256,11 +260,12 @@ int getMeshBounds(string base_dir, dir_meta *dm, hdf_meta *hm, grid *gd, parcel_
 	if (min_k < gd->saved_Z0) min_k = gd->saved_Z0;
 	if (max_k > gd->saved_Z1) max_k = gd->saved_Z1;
 
-
-	cout << "Parcel Bounds In Grid" << endl;
-	cout << "X0: " << min_i << " X1: " << max_i << endl;
-	cout << "Y0: " << min_j << " Y1: " << max_j << endl;
-	cout << "Z0: " << min_k << " Z1: " << max_k << endl;
+	if (verbose) {
+		cout << "Parcel Bounds In Grid" << endl;
+		cout << "X0: " << min_i << " X1: " << max_i << endl;
+		cout << "Y0: " << min_j << " Y1: " << max_j << endl;
+		cout << "Z0: " << min_k << " Z1: " << max_k << endl;
+	}
 	// We need to set our grid attributes to
 	// the new, smaller domain around the parcels.
 	gd->X0 = min_i; gd->X1 = max_i;
@@ -354,7 +359,6 @@ void seed_parcels(parcel_pos *parcels, float X0, float Y0, float Z0, int NX, int
             parcels->zpos[PCL(t, p, parcels->nTimes)] = NC_FILL_FLOAT;
         }
     }
-	cout << "END PARCEL SEED" << endl;
 }
 
 
@@ -370,7 +374,7 @@ int main(int argc, char **argv ) {
     // Rank tells you which process
     // you are and size tells y ou how
     // many processes there are total
-    int rank, size;
+    int rank, size, debug, verbose;
     long N_stag, N_scal, MX, MY, MZ;
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -400,7 +404,7 @@ int main(int argc, char **argv ) {
     
     // parse the namelist options into the appropriate variables
     map<string, string> usrCfg = readCfg("parcel.namelist");
-    parse_cfg(&usrCfg, io, &histpath, &base, &time, &nTimeSteps, &direct, \
+    parse_cfg(&usrCfg, io, &histpath, &base, &verbose, &debug, &time, &nTimeSteps, &direct, \
               &pX0, &pY0, &pZ0, &pNX, &pNY, &pNZ, &pDX, &pDY, &pDZ );
 
     string base_dir = histpath;
@@ -413,6 +417,10 @@ int main(int argc, char **argv ) {
 	mesh *req_msh;
 	sounding *snd;
 	readahead *rh = new readahead();
+	init_structs(cmd,dm,gd,nc,rh);
+
+	cmd->verbose = verbose;
+	cmd->debug = debug;
 
 
     int nTimeChunks = (int) (nTimeSteps / size); 
@@ -437,7 +445,7 @@ int main(int argc, char **argv ) {
         // if this is the first chunk of time, seed the
         // parcel start locations
         if (tChunk == 0) {
-            cout << "SEEDING PARCELS" << endl;
+            if (verbose) cout << "SEEDING PARCELS" << endl;
             if (rank == 0) {
                 // allocate parcels on both CPU and GPU
                 parcels = allocate_parcels_managed(io, pNX, pNY, pNZ, nTotTimes);
@@ -449,6 +457,7 @@ int main(int argc, char **argv ) {
             }
             
             seed_parcels(parcels, pX0, pY0, pZ0, pNX, pNY, pNZ, pDX, pDY, pDZ, nTotTimes);
+			if (verbose) cout << "FINISHED SEEDING PARCELS" << endl;
             // we also initialize the output netcdf file here
             if (rank == 0) init_nc(outfilename, parcels);
         }
@@ -459,9 +468,9 @@ int main(int argc, char **argv ) {
         // ranks so that they can request different time
         // steps, but only Rank 0 will allocate the grid
         // arrays on both the CPU and GPU.
-		cout << "REQUESTING METADATA & MESH" << endl;
+		if (verbose) cout << "REQUESTING METADATA & MESH" << endl;
         
-		parcelsAreInDomain = getMeshBounds(base_dir, dm, hm, gd, parcels, rank);
+		parcelsAreInDomain = getMeshBounds(base_dir, dm, hm, gd, parcels, verbose, rank);
 		if (!parcelsAreInDomain) {
 			cout << "All parcels have exited the domain, or were not in the domain to begin with. Exiting the program." << endl;
 			return 0;
@@ -482,7 +491,7 @@ int main(int argc, char **argv ) {
 		}
 
 		lofs_get_grid(dm, hm, gd, req_msh, snd);
-		cout << "END METADATA & MESH REQUEST" << endl;
+		if (verbose) cout << "END METADATA & MESH REQUEST" << endl;
 
         // The number of grid points requested...
 		N_stag = (gd->NX)*(gd->NY)*(gd->NZ);
@@ -530,7 +539,7 @@ int main(int argc, char **argv ) {
 		req_msh->dt = dt;
 		// set the time value for LOFS
 		cmd->time = dm->alltimes[nearest_tidx + direct*(rank + tChunk*size)];
-		printf("TIMESTEP %d/%d %d %f dt= %f\n", rank, size, rank + tChunk*size, dm->alltimes[nearest_tidx + direct*( rank + tChunk*size)], dt);
+		printf("TIMESTEP %d/%d %d %f dt= %f\n", rank+1, size, rank + tChunk*size, dm->alltimes[nearest_tidx + direct*( rank + tChunk*size)], dt);
 		// load u, v, and w into memory
 		loadDataFromDisk(io, dm, hm, cmd, gd, ubuf, vbuf, wbuf, pbuf, tbuf, thbuf, \
 						 rhobuf, qvbuf, qcbuf, qibuf, qsbuf, qgbuf, kmhbuf);
@@ -598,52 +607,54 @@ int main(int argc, char **argv ) {
 		if (io->output_qg) delete[] qgbuf;
 
 		if (rank == 0) {
-			cout << "MPI Gather Error U: " << senderr_u << endl;
-			cout << "MPI Gather Error V: " << senderr_v << endl;
-			cout << "MPI Gather Error W: " << senderr_w << endl;
-			if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert) {
-				cout << "MPI Gather Error P: " << senderr_p << endl;
+			if (verbose) {
+				cout << "MPI Gather Error U: " << senderr_u << endl;
+				cout << "MPI Gather Error V: " << senderr_v << endl;
+				cout << "MPI Gather Error W: " << senderr_w << endl;
+				if (io->output_momentum_budget || io->output_vorticity_budget || io->output_ppert) {
+					cout << "MPI Gather Error P: " << senderr_p << endl;
+				}
+				if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thetapert) {
+					cout << "MPI Gather Error T: " << senderr_t << endl;
+				}
+				if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhopert) {
+					cout << "MPI Gather Error TH: " << senderr_th << endl;
+				}
+				if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert) {
+					cout << "MPI Gather Error RHO: " << senderr_rho << endl;
+				}
+				if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh) {
+					cout << "MPI Gather Error KMH: " << senderr_kmh << endl;
+				}
+				if (io->output_momentum_budget || io->output_vorticity_budget || io->output_qvpert) {
+					cout << "MPI Gather Error QV: " << senderr_qv << endl;
+				}
+				if (io->output_qc) cout << "MPI Gather Error QC: " << senderr_qc << endl;
+				if (io->output_qi) cout << "MPI Gather Error QI: " << senderr_qi << endl;
+				if (io->output_qs) cout << "MPI Gather Error QS: " << senderr_qs << endl;
+				if (io->output_qs) cout << "MPI Gather Error QG: " << senderr_qg << endl;
 			}
-			if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thetapert) {
-				cout << "MPI Gather Error T: " << senderr_t << endl;
-			}
-			if (io->output_momentum_budget || io->output_vorticity_budget || io->output_thrhopert) {
-				cout << "MPI Gather Error TH: " << senderr_th << endl;
-			}
-			if (io->output_momentum_budget || io->output_vorticity_budget || io->output_rhopert) {
-				cout << "MPI Gather Error RHO: " << senderr_rho << endl;
-			}
-			if (io->output_momentum_budget || io->output_vorticity_budget || io->output_kmh) {
-				cout << "MPI Gather Error KMH: " << senderr_kmh << endl;
-			}
-			if (io->output_momentum_budget || io->output_vorticity_budget || io->output_qvpert) {
-				cout << "MPI Gather Error QV: " << senderr_qv << endl;
-			}
-			if (io->output_qc) cout << "MPI Gather Error QC: " << senderr_qc << endl;
-			if (io->output_qi) cout << "MPI Gather Error QI: " << senderr_qi << endl;
-			if (io->output_qs) cout << "MPI Gather Error QS: " << senderr_qs << endl;
-			if (io->output_qs) cout << "MPI Gather Error QG: " << senderr_qg << endl;
 
 			int nParcels = parcels->nParcels;
-			cout << "Beginning parcel integration! Heading over to the GPU to do GPU things..." << endl;
+			if (verbose) cout << "Beginning parcel integration! Heading over to the GPU to do GPU things..." << endl;
 
 			cudaIntegrateParcels(gd, req_msh, snd, data, parcels, NC_FILL_FLOAT, size, nTotTimes, direct); 
-			cout << "Finished integrating parcels!" << endl;
+			if (verbose) cout << "Finished integrating parcels!" << endl;
 			// write out our information to disk
-			cout << "Beginning to write to disk..." << endl;
+			if (verbose) cout << "Beginning to write to disk..." << endl;
 			write_parcels(outfilename, parcels, tChunk);
 
 			// Now that we've integrated forward and written to disk, before we can go again
 			// we have to set the current end position of the parcel to the beginning for 
 			// the next leg of integration. Do that, and then reset all the other values
 			// to missing.
-			cout << "Setting final parcel position to beginning of array for next integration cycle..." << endl;
+			if (verbose) cout << "Setting final parcel position to beginning of array for next integration cycle..." << endl;
 			for (int pcl = 0; pcl < parcels->nParcels; ++pcl) {
 				parcels->xpos[PCL(0, pcl, parcels->nTimes)] = parcels->xpos[PCL(parcels->nTimes-1, pcl, parcels->nTimes)];
 				parcels->ypos[PCL(0, pcl, parcels->nTimes)] = parcels->ypos[PCL(parcels->nTimes-1, pcl, parcels->nTimes)];
 				parcels->zpos[PCL(0, pcl, parcels->nTimes)] = parcels->zpos[PCL(parcels->nTimes-1, pcl, parcels->nTimes)];
 			}
-			cout << "Parcel position arrays reset." << endl;
+			if (verbose) cout << "Parcel position arrays reset." << endl;
 
             // memory management for root rank
 			deallocate_mesh_managed(req_msh);

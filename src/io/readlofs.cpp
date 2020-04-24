@@ -34,11 +34,8 @@ void lofs_get_dataset_structure(std::string base_dir, dir_meta *dm, hdf_meta *hm
 	hid_t hdf_file_id;
 
 	/* begin */
-	init_structs(cmd,dm,gd,nc,rh);
 
 	strcpy(cmd->histpath, base_dir.c_str());
-	cmd->debug = 0;
-	cmd->verbose = 0;
 	cmd->nvar_cmdline = 0;
 	dm->regenerate_cache=0;
 

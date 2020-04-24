@@ -21,7 +21,7 @@ extern "C" {
 
 /* Compute the pressure gradient forcing for
    the W momentum equation */
-__host__ __device__ void calc_pgrad_u(float *pipert, float *thrhopert, float *qv0, float *th0, float *pgradu, \
+__device__ inline void calc_pgrad_u(float *pipert, float *thrhopert, float *qv0, float *th0, float *pgradu, \
 		                              float dx, int i, int j, int k, int nx, int ny) {
     // get dpi/dz
     float *buf0 = pipert;
@@ -43,7 +43,7 @@ __host__ __device__ void calc_pgrad_u(float *pipert, float *thrhopert, float *qv
 
 /* Compute the pressure gradient forcing for
    the V momentum equation */
-__host__ __device__ void calc_pgrad_v(float *pipert, float *thrhopert, float *qv0, float *th0, float *pgradv, \
+__device__ inline void calc_pgrad_v(float *pipert, float *thrhopert, float *qv0, float *th0, float *pgradv, \
 		                              float dy, int i, int j, int k, int nx, int ny) {
     // get dpi/dz
     float *buf0 = pipert;
@@ -64,7 +64,7 @@ __host__ __device__ void calc_pgrad_v(float *pipert, float *thrhopert, float *qv
 
 /* Compute the pressure gradient forcing for
    the W momentum equation */
-__host__ __device__ void calc_pgrad_w(float *pipert, float *thrhopert, float *qv0, float *th0, float *pgradw, \
+__device__ inline void calc_pgrad_w(float *pipert, float *thrhopert, float *qv0, float *th0, float *pgradw, \
 		                              float dz, int i, int j, int k, int nx, int ny) {
     // get dpi/dz
     float *buf0 = pipert;
@@ -89,7 +89,7 @@ __host__ __device__ void calc_pgrad_w(float *pipert, float *thrhopert, float *qv
 
 /* Compute the buoyancy forcing
    the W momentum equation */
-__device__ void calc_buoyancy(float *thrhopert, float *th0, float *buoy, int i, int j, int k, int nx, int ny) {
+__device__ inline void calc_buoyancy(float *thrhopert, float *th0, float *buoy, int i, int j, int k, int nx, int ny) {
     float *buf0 = thrhopert;
     // we need to get this all on staggered W grid
     // in CM1, geroge uses base state theta for buoyancy

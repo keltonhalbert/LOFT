@@ -1,5 +1,6 @@
 #include <iostream>
 #include <stdio.h>
+#include <chrono>
 extern "C" {
 #include <lofs-read.h>
 #include <lofs-dirstruct.h>
@@ -760,26 +761,47 @@ void cudaIntegrateParcels(grid *gd_cpu, mesh *msh, sounding *snd,  model_data *d
 	cudaStream_t intStream;
 	cudaStreamCreate(&calStream);
 	cudaStreamCreate(&intStream);
+	cout << "\n" << endl;
 
 
 	// set the thread/block execution strategy for the kernels
 	dim3 threadsPerBlock(256, 1, 1);
 	dim3 numBlocks((int)ceil(NX+2/threadsPerBlock.x)+1, (int)ceil(NY+2/threadsPerBlock.y)+1, (int)ceil(NZ+1/threadsPerBlock.z)+1); 
 
-	if (io->output_momentum_budget) doMomentumBud(gd, msh, snd, data, tStart, tEnd, numBlocks, threadsPerBlock, calStream);
+	auto totstart = std::chrono::high_resolution_clock::now();
+	auto start = std::chrono::high_resolution_clock::now();
+	auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+	if (io->output_momentum_budget) {
+		start = std::chrono::high_resolution_clock::now();
+		doMomentumBud(gd, msh, snd, data, tStart, tEnd, numBlocks, threadsPerBlock, calStream);
+		stop = std::chrono::high_resolution_clock::now();
+		duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+		cout << "Momentum Budget Calculation Time: " << duration.count() << " ms" << endl;
+	}
 	// Calculate the three compionents of vorticity
 	// and do the necessary averaging. This is a wrapper that
 	// calls the necessary kernels and assigns the pointers
 	// appropriately such that the "user" only has to call this method.
 	if (io->output_xvort || io->output_yvort || io->output_zvort || io->output_vorticity_budget) {
+		start = std::chrono::high_resolution_clock::now();
 		doCalcVort(gd, msh, data, tStart, tEnd, numBlocks, threadsPerBlock, calStream);
+		stop = std::chrono::high_resolution_clock::now();
+		duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+		cout << "Vorticity Calculation Time: " << duration.count() << " ms" << endl;
 	}
 	
 
 	// Calculate the vorticity forcing terms for each of the 3 components.
 	// This is a wrapper that calls the necessary kernels to compute the
 	// derivatives and average them back to the scalar grid where necessary. 
-	if (io->output_vorticity_budget) doCalcVortTend(gd, msh, snd, data, tStart, tEnd, numBlocks, threadsPerBlock, calStream);
+	if (io->output_vorticity_budget) {
+		start = std::chrono::high_resolution_clock::now();
+		doCalcVortTend(gd, msh, snd, data, tStart, tEnd, numBlocks, threadsPerBlock, calStream);
+		stop = std::chrono::high_resolution_clock::now();
+		duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+		cout << "Vorticity Budget Calculation Time: " << duration.count() << " ms" << endl;
+	}
 
 
 	// Before integrating the trajectories, George Bryan sets some below-grid/surface conditions 
@@ -792,6 +814,7 @@ void cudaIntegrateParcels(grid *gd_cpu, mesh *msh, sounding *snd,  model_data *d
 	// calculations to trajectories. 
 	int nThreads = 256;
 	int nPclBlocks = int(parcels->nParcels / nThreads) + 1;
+	start = std::chrono::high_resolution_clock::now();
 	integrate<<<nPclBlocks, nThreads, 0, intStream>>>(gd, msh, snd, parcels, data, fill, tStart, tEnd, totTime, direct);
 	gpuErrchk(cudaDeviceSynchronize());
 	gpuErrchk( cudaPeekAtLastError() );
@@ -799,6 +822,13 @@ void cudaIntegrateParcels(grid *gd_cpu, mesh *msh, sounding *snd,  model_data *d
 	parcel_interp<<<nPclBlocks, nThreads, 0, intStream>>>(gd, msh, snd, parcels, data, fill, tStart, tEnd, totTime, direct);
 	gpuErrchk(cudaDeviceSynchronize());
 	gpuErrchk( cudaPeekAtLastError() );
+	stop = std::chrono::high_resolution_clock::now();
+	duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+	auto totend = std::chrono::high_resolution_clock::now();
+	auto totdur = std::chrono::duration_cast<std::chrono::milliseconds>(totend - totstart);
+	cout << "Parcel Integration and Interoplation Time: " << duration.count() << " ms" << endl;
+	cout << "Total time spent on GPU: " << totdur.count() << " ms" << endl;
+	cout << "\n" << endl;
 
 	gpuErrchk( cudaFree(gd) );
 }
