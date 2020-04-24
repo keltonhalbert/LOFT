@@ -1,0 +1,69 @@
+## The C++ and CUDA compilers
+CC := mpiicpc
+NV := nvcc
+
+## The paths to various libraries required for linking
+## These should link to TACC directories assuming module load has
+## been called
+CUDA=$(TACC_CUDA_DIR)
+NETCDF_DIR=$(TACC_NETCDF_DIR)
+HDF5_DIR=$(TACC_HDF5_DIR)
+
+## These are likely custom install paths.
+
+## this path needs to have $(LOFS_DIR)/include/*.h files
+## and $(LOFS_DIR)/lib/liblofs.a
+LOFS_DIR=${HOME}/installs/LOFS
+H5ZZFP_DIR=/home1/06818/khalbert/installs/H5Z-ZFP/install
+ZFP_DIR=/home1/06818/khalbert/installs/zfp
+
+#ZFP_DIR=/work/06618/orf/frontera/build/git/zfp
+#H5ZZFP_DIR=/home1/06618/orf/H5Z-ZFP-install
+
+## These flags are passed to the C++ compiler of the main program
+INCLPATHS =  -I$(HDF5_DIR)/include -I$(ZFP_DIR)/include -I$(H5ZZFP_DIR)/include -I$(NETCDF_DIR)/include -I$(LOFS_DIR)/include
+LIBPATHS = -L$(HDF5_DIR)/lib -L$(ZFP_DIR)/lib -L$(H5ZZFP_DIR)/lib -L$(NETCDF_DIR)/lib -L$(LOFS_DIR)/lib -L$(CUDA)/lib64 
+
+CFLAGS = -g -O3 -std=c++11 $(INCLPATHS)
+LINKOPTS = $(LIBPATHS) -lh5zzfp -lzfp -lhdf5_hl -lhdf5 -lnetcdf -lnetcdf_c++4 -llofs -lcudart -lm -qopenmp
+
+## These flags are passed to the CUDA compiler
+NVFLAGS = --default-stream per-thread -gencode=arch=compute_61,code=compute_61 --prec-div=true --ftz=true --fmad=true --std=c++11
+
+
+SOURCEDIR := src
+BUILDDIR := $(SOURCEDIR)/main
+
+
+DIRS := $(SOURCEDIR)/io $(SOURCEDIR)/calc $(SOURCEDIR)/kernels $(SOURCEDIR)/parcel
+CU_SRCS := $(foreach dir,$(DIRS),$(wildcard $(dir)/*.cu))
+CU_OBJS := $(foreach obj, $(notdir $(CU_SRCS:.cu=.o)), $(BUILDDIR)/$(obj))
+
+CPP_SRCS := $(foreach dir,$(DIRS),$(wildcard $(dir)/*.cpp))
+CPP_OBJS := $(foreach obj, $(notdir $(CPP_SRCS:.cpp=.o)), $(BUILDDIR)/$(obj))
+
+.PHONY: all
+
+vpath %.cu $(DIRS)
+all: $(CU_OBJS) $(CPP_OBJS) run.exe
+
+$(BUILDDIR)/%.o: %.cu
+	$(NV) $(NVFLAGS) -L$(LOFS_DIR)/lib $(INCLPATHS) -llofs -c $< -o $@
+
+vpath %.cpp $(DIRS)
+$(BUILDDIR)/%.o: %.cpp
+	$(CC) $(CFLAGS) -c $< -o $@ $(LINKOPTS)
+
+vort.cu: calcvort.cu
+turb.cu: calcturb.cu
+diff6.cu: calcdiff6.cu
+momentum.cu: calcmomentum.cu
+intergrate.cu: vort.o turb.o diff6.o momentum.o interp.o
+
+run.exe: $(BUILDDIR)/run_cm1.cpp $(LOFS_DIR)/lib/liblofs.a $(BUILDDIR)/integrate.o $(BUILDDIR)/datastructs.o
+	$(CC) $(CFLAGS) -o run/$@ $^ $(LINKOPTS)
+
+
+clean:
+	rm -f $(BUILDDIR)/*.o
+	rm -f run/run.exe
