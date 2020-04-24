@@ -4,6 +4,7 @@
 #include <string>
 #include "mpi.h"
 #include <map>
+#include <chrono>
 
 extern "C" {
 #include <lofs-read.h>
@@ -541,6 +542,7 @@ int main(int argc, char **argv ) {
 		cmd->time = dm->alltimes[nearest_tidx + direct*(rank + tChunk*size)];
 		printf("TIMESTEP %d/%d %d %f dt= %f\n", rank+1, size, rank + tChunk*size, dm->alltimes[nearest_tidx + direct*( rank + tChunk*size)], dt);
 		// load u, v, and w into memory
+		auto start = std::chrono::high_resolution_clock::now();
 		loadDataFromDisk(io, dm, hm, cmd, gd, ubuf, vbuf, wbuf, pbuf, tbuf, thbuf, \
 						 rhobuf, qvbuf, qcbuf, qibuf, qsbuf, qgbuf, kmhbuf);
 
@@ -634,6 +636,9 @@ int main(int argc, char **argv ) {
 				if (io->output_qs) cout << "MPI Gather Error QS: " << senderr_qs << endl;
 				if (io->output_qs) cout << "MPI Gather Error QG: " << senderr_qg << endl;
 			}
+			auto stop = std::chrono::high_resolution_clock::now();
+			auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start); 
+			cout << "Total Data Read Duration: " << duration.count() << " ms" << endl; 
 
 			int nParcels = parcels->nParcels;
 			if (verbose) cout << "Beginning parcel integration! Heading over to the GPU to do GPU things..." << endl;
