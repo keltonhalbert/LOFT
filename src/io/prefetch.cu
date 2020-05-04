@@ -1,10 +1,3 @@
-#include <iostream>
-#include <fstream>
-#include <string>
-
-#include "mpi.h"
-#include <stdio.h>
-#include <string>
 
 extern "C" {
 #include <lofs-read.h>
