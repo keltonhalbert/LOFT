@@ -76,6 +76,7 @@ output_qc = 0
 output_qi = 0
 output_qs = 0 
 output_qg = 0
+output_qr = 0
 
 ## VORTICITY VARIABLES
 output_xvort = 1
