@@ -225,6 +225,7 @@ parcel_pos* allocate_parcels_managed(iocfg *io, int NX, int NY, int NZ, int nTot
     // allocate memory for the parcels
     // we are integrating for the entirety 
     // of the simulation.
+    cudaMallocManaged(&(parcels->time), nTotTimes*sizeof(float)); 
     cudaMallocManaged(&(parcels->xpos), nParcels*nTotTimes*sizeof(float)); 
     cudaMallocManaged(&(parcels->ypos), nParcels*nTotTimes*sizeof(float)); 
     cudaMallocManaged(&(parcels->zpos), nParcels*nTotTimes*sizeof(float)); 
@@ -304,6 +305,7 @@ parcel_pos* allocate_parcels_cpu(iocfg* io, int NX, int NY, int NZ, int nTotTime
     // allocate memory for the parcels
     // we are integrating for the entirety 
     // of the simulation.
+    parcels->time = new float[nTotTimes]; 
     parcels->xpos = new float[nParcels*nTotTimes]; 
     parcels->ypos = new float[nParcels*nTotTimes]; 
     parcels->zpos = new float[nParcels*nTotTimes]; 
@@ -373,6 +375,7 @@ parcel_pos* allocate_parcels_cpu(iocfg* io, int NX, int NY, int NZ, int nTotTime
 /* Deallocate parcel arrays on both the CPU and the
    GPU */
 void deallocate_parcels_managed(iocfg* io, parcel_pos *parcels) {
+    cudaFree(parcels->time);
     cudaFree(parcels->xpos);
     cudaFree(parcels->ypos);
     cudaFree(parcels->zpos);
@@ -439,6 +442,7 @@ void deallocate_parcels_managed(iocfg* io, parcel_pos *parcels) {
 
 /* Deallocate parcel arrays only on the CPU */
 void deallocate_parcels_cpu(iocfg *io, parcel_pos *parcels) {
+    delete[] parcels->time;
     delete[] parcels->xpos;
     delete[] parcels->ypos;
     delete[] parcels->zpos;

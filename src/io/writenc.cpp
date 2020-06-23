@@ -33,6 +33,12 @@ void init_nc(string filename, parcel_pos *parcels) {
     NcDim pclDim = output.addDim("nParcels", parcels->nParcels);
     NcDim timeDim = output.addDim("nTimes");
 
+	vector<NcDim> timeDimVector;
+	timeDimVector.push_back(timeDim);
+	NcVar timeVar = output.addVar("time", ncFloat, timeDimVector);
+	timeVar.putAtt("units", "seconds");
+	timeVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
+
     // define the coordinate variables
     vector<NcDim> gridDimVector;
     gridDimVector.push_back(pclDim);
@@ -253,6 +259,13 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
     // These vectors define the starting write positions
     // and the number of bits to write
     vector<size_t> startp,countp;
+	vector<size_t> startt,countt;
+
+	startt.push_back(0);
+	if (writeIters == 0) startt.push_back(0);
+	else startt.push_back(parcels->nTimes * writeIters - writeIters);
+	countt.push_back(parcels->nTimes);
+
     startp.push_back(0);
     if (writeIters == 0) startp.push_back(0);
     else startp.push_back(parcels->nTimes * writeIters - writeIters);
@@ -261,6 +274,9 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
 
     // open the file for writing
     NcFile output(filename, NcFile::write);
+
+    NcVar timeVar = output.getVar("time");
+	timeVar.putVar(startt, countt, parcels->time);
 
     NcVar xVar = output.getVar("xpos");
     NcVar yVar = output.getVar("ypos");

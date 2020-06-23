@@ -543,6 +543,12 @@ int main(int argc, char **argv ) {
 		req_msh->dt = dt;
 		// set the time value for LOFS
 		cmd->time = dm->alltimes[nearest_tidx + direct*(rank + tChunk*size)];
+		// load the model times into the parcel arrays
+		if (rank == 0) {
+            for (int t = 0; t < nTotTimes; t++) {
+               parcels->time[t] = dm->alltimes[nearest_tidx + direct*(t + tChunk*size)]; 
+			}
+		}
 		printf("TIMESTEP %d/%d %d %f dt= %f\n", rank+1, size, rank + tChunk*size, dm->alltimes[nearest_tidx + direct*( rank + tChunk*size)], dt);
 		// load u, v, and w into memory
 		auto start = std::chrono::high_resolution_clock::now();

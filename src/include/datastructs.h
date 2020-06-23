@@ -46,6 +46,7 @@ struct iocfg {
 };
 
 struct parcel_pos {
+	float *time;
     float *xpos;
     float *ypos;
     float *zpos;
