@@ -240,6 +240,11 @@ void init_nc(string filename, parcel_pos *parcels) {
         qgVar.putAtt("units", "g kg^-1");
 		qgVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
     }
+    if (io->output_qr) {
+        NcVar qrVar = output.addVar("qr", ncFloat, gridDimVector);
+        qrVar.putAtt("units", "g kg^-1");
+		qrVar.putAtt("_FillValue", ncFloat, NC_FILL_FLOAT);
+    }
 }
  
 void write_parcels(string filename, parcel_pos *parcels, int writeIters ) { 
@@ -407,6 +412,10 @@ void write_parcels(string filename, parcel_pos *parcels, int writeIters ) {
     if (io->output_qg) {
         NcVar qgVar = output.getVar("qg");
         qgVar.putVar(startp,countp,parcels->pclqg);
+    }
+    if (io->output_qr) {
+        NcVar qrVar = output.getVar("qr");
+        qrVar.putVar(startp,countp,parcels->pclqr);
     }
 
     return;

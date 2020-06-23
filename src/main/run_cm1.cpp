@@ -148,6 +148,7 @@ void parse_cfg(map<string, string> *usrCfg, iocfg *io, string *histpath, string 
     io->output_qi = stoi((*usrCfg)["output_qi"]);
     io->output_qs = stoi((*usrCfg)["output_qs"]);
     io->output_qg = stoi((*usrCfg)["output_qg"]);
+    io->output_qr = stoi((*usrCfg)["output_qr"]);
 
     io->output_kmh = stoi((*usrCfg)["output_kmh"]);
 
@@ -287,7 +288,7 @@ void loadDataFromDisk(iocfg *io, dir_meta *dm, hdf_meta *hm, cmdline *cmd, grid 
 						float *ustag, float *vstag, float *wstag, \
                         float *pbuffer, float *tbuffer, float *thbuffer, float *rhobuffer, \
                         float *qvbuffer, float *qcbuffer, float *qibuffer, float *qsbuffer, \
-                        float *qgbuffer, float*kmhbuffer) {
+                        float *qgbuffer, float *qrbuffer, float*kmhbuffer) {
 	requested_cube rc;
 
 	/* We select extra data for doing spatial averaging */
@@ -326,6 +327,7 @@ void loadDataFromDisk(iocfg *io, dir_meta *dm, hdf_meta *hm, cmdline *cmd, grid 
     if (io->output_qs) read_lofs_buffer(qsbuffer,(char *)"qs",*dm,*hm,rc,*cmd);
     if (io->output_qi) read_lofs_buffer(qibuffer,(char *)"qi",*dm,*hm,rc,*cmd);
     if (io->output_qg) read_lofs_buffer(qgbuffer,(char *)"qg",*dm,*hm,rc,*cmd); 
+    if (io->output_qr) read_lofs_buffer(qrbuffer,(char *)"qr",*dm,*hm,rc,*cmd); 
 
 }
 
@@ -499,7 +501,7 @@ int main(int argc, char **argv ) {
 		N_scal = (gd->NX)*(gd->NY)*(gd->NZ);
 
 
-		float *ubuf, *vbuf, *wbuf, *pbuf, *tbuf, *thbuf, *rhobuf, *qvbuf, *qcbuf, *qibuf, *qsbuf, *qgbuf, *kmhbuf;
+		float *ubuf, *vbuf, *wbuf, *pbuf, *tbuf, *thbuf, *rhobuf, *qvbuf, *qcbuf, *qibuf, *qsbuf, *qgbuf, *qrbuf, *kmhbuf;
 
 		// allocate space for U, V, and W arrays
 		ubuf = new float[N_stag];
@@ -515,6 +517,7 @@ int main(int argc, char **argv ) {
 		if (io->output_qi) qibuf = new float[N_scal];
 		if (io->output_qs) qsbuf = new float[N_scal];
 		if (io->output_qg) qgbuf = new float[N_scal];
+		if (io->output_qr) qrbuf = new float[N_scal];
 
 
 		// declare the struct on all ranks, but only
@@ -544,14 +547,14 @@ int main(int argc, char **argv ) {
 		// load u, v, and w into memory
 		auto start = std::chrono::high_resolution_clock::now();
 		loadDataFromDisk(io, dm, hm, cmd, gd, ubuf, vbuf, wbuf, pbuf, tbuf, thbuf, \
-						 rhobuf, qvbuf, qcbuf, qibuf, qsbuf, qgbuf, kmhbuf);
+						 rhobuf, qvbuf, qcbuf, qibuf, qsbuf, qgbuf, qrbuf, kmhbuf);
 
 		// for MPI runs that load multiple time steps into memory,
 		// communicate the data you've read into our 4D array
 		
 		int senderr_u, senderr_v, senderr_w, senderr_kmh;
 		int senderr_p, senderr_t, senderr_th, senderr_rho;
-		int senderr_qv, senderr_qc, senderr_qi, senderr_qs, senderr_qg;
+		int senderr_qv, senderr_qc, senderr_qi, senderr_qs, senderr_qg, senderr_qr;
 
 		senderr_u = MPI_Gather(ubuf, N_stag, MPI_FLOAT, data->ustag, N_stag, MPI_FLOAT, 0, MPI_COMM_WORLD);
 		senderr_v = MPI_Gather(vbuf, N_stag, MPI_FLOAT, data->vstag, N_stag, MPI_FLOAT, 0, MPI_COMM_WORLD);
@@ -580,6 +583,7 @@ int main(int argc, char **argv ) {
 		if (io->output_qi) senderr_qi = MPI_Gather(qibuf, N_scal, MPI_FLOAT, data->qi, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
 		if (io->output_qs) senderr_qs = MPI_Gather(qsbuf, N_scal, MPI_FLOAT, data->qs, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
 		if (io->output_qg) senderr_qg = MPI_Gather(qgbuf, N_scal, MPI_FLOAT, data->qg, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
+		if (io->output_qr) senderr_qr = MPI_Gather(qrbuf, N_scal, MPI_FLOAT, data->qr, N_scal, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
 		// clean up temporary buffers
 		delete[] ubuf;
@@ -607,6 +611,7 @@ int main(int argc, char **argv ) {
 		if (io->output_qi) delete[] qibuf;
 		if (io->output_qs) delete[] qsbuf;
 		if (io->output_qg) delete[] qgbuf;
+		if (io->output_qr) delete[] qrbuf;
 
 		if (rank == 0) {
 			if (verbose) {
@@ -634,7 +639,8 @@ int main(int argc, char **argv ) {
 				if (io->output_qc) cout << "MPI Gather Error QC: " << senderr_qc << endl;
 				if (io->output_qi) cout << "MPI Gather Error QI: " << senderr_qi << endl;
 				if (io->output_qs) cout << "MPI Gather Error QS: " << senderr_qs << endl;
-				if (io->output_qs) cout << "MPI Gather Error QG: " << senderr_qg << endl;
+				if (io->output_qg) cout << "MPI Gather Error QG: " << senderr_qg << endl;
+				if (io->output_qr) cout << "MPI Gather Error QR: " << senderr_qr << endl;
 			}
 			auto stop = std::chrono::high_resolution_clock::now();
 			auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start); 

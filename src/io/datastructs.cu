@@ -211,6 +211,7 @@ parcel_pos* allocate_parcels_managed(iocfg *io, int NX, int NY, int NZ, int nTot
     parcels->io->output_qi = io->output_qi;
     parcels->io->output_qs = io->output_qs;
     parcels->io->output_qg = io->output_qg;
+    parcels->io->output_qr = io->output_qr;
 
     parcels->io->output_xvort = io->output_xvort;
     parcels->io->output_yvort = io->output_yvort;
@@ -282,6 +283,7 @@ parcel_pos* allocate_parcels_managed(iocfg *io, int NX, int NY, int NZ, int nTot
     if (io->output_qi) cudaMallocManaged(&(parcels->pclqi), nParcels*nTotTimes*sizeof(float)); 
     if (io->output_qs) cudaMallocManaged(&(parcels->pclqs), nParcels*nTotTimes*sizeof(float)); 
     if (io->output_qg) cudaMallocManaged(&(parcels->pclqg), nParcels*nTotTimes*sizeof(float)); 
+    if (io->output_qr) cudaMallocManaged(&(parcels->pclqr), nParcels*nTotTimes*sizeof(float)); 
 
     // set the static variables
     parcels->nParcels = nParcels;
@@ -360,6 +362,7 @@ parcel_pos* allocate_parcels_cpu(iocfg* io, int NX, int NY, int NZ, int nTotTime
     if (io->output_qi) parcels->pclqi = new float[nParcels*nTotTimes];
     if (io->output_qs) parcels->pclqs = new float[nParcels*nTotTimes];
     if (io->output_qg) parcels->pclqg = new float[nParcels*nTotTimes];
+    if (io->output_qr) parcels->pclqr = new float[nParcels*nTotTimes];
     // set the static variables
     parcels->nParcels = nParcels;
     parcels->nTimes = nTotTimes;
@@ -428,6 +431,7 @@ void deallocate_parcels_managed(iocfg* io, parcel_pos *parcels) {
     if (io->output_qi) cudaFree(parcels->pclqi);
     if (io->output_qs) cudaFree(parcels->pclqs);
     if (io->output_qg) cudaFree(parcels->pclqg);
+    if (io->output_qr) cudaFree(parcels->pclqr);
 
     cudaFree(parcels);
     cudaDeviceSynchronize();
@@ -493,6 +497,7 @@ void deallocate_parcels_cpu(iocfg *io, parcel_pos *parcels) {
     if (io->output_qi) delete[] parcels->pclqi;
     if (io->output_qs) delete[] parcels->pclqs;
     if (io->output_qg) delete[] parcels->pclqg;
+    if (io->output_qr) delete[] parcels->pclqr;
 
     delete[] parcels;
 }
@@ -523,6 +528,7 @@ model_data* allocate_model_managed(iocfg *io, long bufsize) {
     data->io->output_qi = io->output_qi;
     data->io->output_qs = io->output_qs;
     data->io->output_qg = io->output_qg;
+    data->io->output_qr = io->output_qr;
 
     data->io->output_xvort = io->output_xvort;
     data->io->output_yvort = io->output_yvort;
@@ -552,6 +558,7 @@ model_data* allocate_model_managed(iocfg *io, long bufsize) {
     if (io->output_qi) cudaMallocManaged(&(data->qi), bufsize*sizeof(float));
     if (io->output_qs) cudaMallocManaged(&(data->qs), bufsize*sizeof(float));
     if (io->output_qg) cudaMallocManaged(&(data->qg), bufsize*sizeof(float));
+    if (io->output_qr) cudaMallocManaged(&(data->qr), bufsize*sizeof(float));
 
     if (io->output_vorticity_budget || io->output_momentum_budget || io->output_ppert) cudaMallocManaged(&(data->pipert), bufsize*sizeof(float));
     if (io->output_vorticity_budget || io->output_momentum_budget || io->output_ppert) cudaMallocManaged(&(data->prespert), bufsize*sizeof(float));
@@ -628,6 +635,7 @@ void deallocate_model_managed(iocfg *io, model_data *data) {
     if (io->output_qi) cudaFree(data->qi);
     if (io->output_qs) cudaFree(data->qs);
     if (io->output_qg) cudaFree(data->qg);
+    if (io->output_qr) cudaFree(data->qr);
 
     if (io->output_vorticity_budget || io->output_xvort) cudaFree(data->xvort);
     if (io->output_vorticity_budget || io->output_yvort) cudaFree(data->yvort);

@@ -33,6 +33,7 @@ struct iocfg {
     int output_qi = 0;
     int output_qs = 0;
     int output_qg = 0;
+    int output_qr = 0;
 
     int output_kmh = 0;
 
@@ -100,6 +101,7 @@ struct parcel_pos {
     float *pclqi;
     float *pclqs;
     float *pclqg;
+    float *pclqr;
 
     int nParcels;
     int nTimes;
@@ -132,6 +134,7 @@ struct model_data {
     float *qi;
     float *qs;
     float *qg;
+    float *qr;
 
     float *pgradu;
     float *pgradv;

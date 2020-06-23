@@ -605,6 +605,10 @@ __global__ void parcel_interp(grid *gd, mesh *msh, sounding *snd, parcel_pos *pa
 					float pclqg = fill_val; 
 					parcels->pclqg[PCL(tidx, parcel_id, totTime)] = pclqg;
 				}
+				if (io->output_qr) {
+					float pclqr = fill_val; 
+					parcels->pclqr[PCL(tidx, parcel_id, totTime)] = pclqr;
+				}
 				continue;
 			}
 
@@ -761,6 +765,10 @@ __global__ void parcel_interp(grid *gd, mesh *msh, sounding *snd, parcel_pos *pa
 			if (io->output_qg) {
 				float pclqg = interp3D(gd, msh, data->qg, point, is_ugrd, is_vgrd, is_wgrd, tidx);
 				parcels->pclqg[PCL(tidx, parcel_id, totTime)] = pclqg;
+			}
+			if (io->output_qr) {
+				float pclqr = interp3D(gd, msh, data->qr, point, is_ugrd, is_vgrd, is_wgrd, tidx);
+				parcels->pclqr[PCL(tidx, parcel_id, totTime)] = pclqr;
 			}
 		}
 	}

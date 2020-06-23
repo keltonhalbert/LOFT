@@ -74,6 +74,7 @@ void prefetch_parcels_cpu(iocfg *io, parcel_pos *parcels, cudaStream_t memStream
     if (io->output_qi) cudaMemPrefetchAsync(parcels->pclqi, nParcels*nTotTimes*sizeof(float), cudaCpuDeviceId, memStream); 
     if (io->output_qs) cudaMemPrefetchAsync(parcels->pclqs, nParcels*nTotTimes*sizeof(float), cudaCpuDeviceId, memStream); 
     if (io->output_qg) cudaMemPrefetchAsync(parcels->pclqg, nParcels*nTotTimes*sizeof(float), cudaCpuDeviceId, memStream); 
+    if (io->output_qr) cudaMemPrefetchAsync(parcels->pclqr, nParcels*nTotTimes*sizeof(float), cudaCpuDeviceId, memStream); 
 }
 
 void prefetch_model_gpu(iocfg *io, model_data *data, long bufsize, cudaStream_t memStream) {
@@ -90,6 +91,7 @@ void prefetch_model_gpu(iocfg *io, model_data *data, long bufsize, cudaStream_t 
     if (io->output_qi) cudaMemPrefetchAsync(data->qi, bufsize*sizeof(float), device, memStream);
     if (io->output_qs) cudaMemPrefetchAsync(data->qs, bufsize*sizeof(float), device, memStream);
     if (io->output_qg) cudaMemPrefetchAsync(data->qg, bufsize*sizeof(float), device, memStream);
+    if (io->output_qr) cudaMemPrefetchAsync(data->qr, bufsize*sizeof(float), device, memStream);
 
 
     if (io->output_vorticity_budget || io->output_momentum_budget || io->output_ppert) cudaMemPrefetchAsync(data->pipert, bufsize*sizeof(float), device, memStream);
