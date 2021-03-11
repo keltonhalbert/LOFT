@@ -38,9 +38,9 @@ extern "C" {
  */
 __device__ inline void calc_pipert(float *prespert, float *p0, float *pipert, int i, int j, int k, int nx, int ny) {
     float *buf0 = prespert; 
-    float p = BUF(i, j, k)*100 + p0[k]; ; // convert from hPa to Pa 
+    float p = (BUF(i, j, k) + p0[k])*100.0; ; // convert from hPa to Pa 
     buf0 = pipert;
-    BUF(i, j, k) = pow( p * rp00, rovcp) - pow( p0[k] * rp00, rovcp); 
+    BUF(i, j, k) = pow( p * rp00, rovcp) - pow( p0[k]*100.0 * rp00, rovcp); 
 }
 
 /*  Compute the component of vorticity along the x-axis.
@@ -231,7 +231,7 @@ __device__ inline void calc_zvort_stretch(float *ustag, float *vstag, float *zvo
 __device__ inline void calc_xvort_baro(float *thrhopert, float *th0, float *qv0, float *xvort_baro, \
                                 float dy, int i, int j, int k, int nx, int ny) {
     float *buf0 = thrhopert;
-    float qvbar1 = qv0[k];
+    float qvbar1 = qv0[k] / 1000.0; // kg/kg
     float thbar1 = th0[k]*(1.0+reps*qvbar1)/(1.0+qvbar1); 
     // dthrho/dy
     float dthdy = ( (BUF(i, j+1, k) - BUF(i, j-1, k)) / ( dy ) );
@@ -244,7 +244,7 @@ __device__ inline void calc_xvort_baro(float *thrhopert, float *th0, float *qv0,
 __device__ inline void calc_yvort_baro(float *thrhopert, float *th0, float *qv0, float *yvort_baro, \
                                 float dx, int i, int j, int k, int nx, int ny) {
     float *buf0 = thrhopert;
-    float qvbar1 = qv0[k];
+    float qvbar1 = qv0[k] / 1000.0; // kg/kg
     float thbar1 = th0[k]*(1.0+reps*qvbar1)/(1.0+qvbar1); 
     // dthrho/dy
     float dthdx = ( (BUF(i+1, j, k) - BUF(i-1, j, k)) / ( dx ) );
@@ -260,8 +260,8 @@ __device__ inline void calc_xvort_solenoid(float *pipert, float *thrhopert, floa
     float dpidy = ( (BUF(i, j+1, k) - BUF(i, j-1, k)) / ( dy ) );
 
     buf0 = thrhopert;
-    float qvbar1 = qv0[k+1];
-    float qvbar2 = qv0[k-1];
+    float qvbar1 = qv0[k+1] / 1000.0; //kg/kg
+    float qvbar2 = qv0[k-1] / 1000.0; //kg/kg
     float thbar1 = th0[k+1]*(1.0+reps*qvbar1)/(1.0+qvbar1); 
     float thbar2 = th0[k-1]*(1.0+reps*qvbar2)/(1.0+qvbar2); 
     float dthdy = ( (BUF(i, j+1, k) - BUF(i, j-1, k)) / ( dy ) );
@@ -279,8 +279,8 @@ __device__ inline void calc_yvort_solenoid(float *pipert, float *thrhopert, floa
     float dpidx = ( (BUF(i+1, j, k) - BUF(i-1, j, k)) / ( dx ) );
 
     buf0 = thrhopert;
-    float qvbar1 = qv0[k+1];
-    float qvbar2 = qv0[k-1];
+    float qvbar1 = qv0[k+1] / 1000.0; //kg/kg
+    float qvbar2 = qv0[k-1] / 1000.0; //kg/kg
     float thbar1 = th0[k+1]*(1.0+reps*qvbar1)/(1.0+qvbar1); 
     float thbar2 = th0[k-1]*(1.0+reps*qvbar2)/(1.0+qvbar2); 
     float dthdx = ( (BUF(i+1, j, k) - BUF(i-1, j, k)) / ( dx ) );
