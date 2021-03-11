@@ -749,7 +749,7 @@ __global__ void parcel_interp(grid *gd, mesh *msh, sounding *snd, parcel_pos *pa
 			if (io->output_rhobar) {
 				float qvbar = interp1D(gd, msh, snd->qv0, point[2], is_wgrd, tidx);
 				float pclthrhobar = interp1D(gd, msh, snd->th0, point[2], is_wgrd, tidx);
-				pclthrhobar= pclthrobar*(1.0+reps*qvbar)/(1.0+qvbar);
+				pclthrhobar = pclthrhobar*(1.0+reps*qvbar)/(1.0+qvbar);
 				parcels->pclthrhobar[PCL(tidx, parcel_id, totTime)] = pclthrhobar;
 			}
 
