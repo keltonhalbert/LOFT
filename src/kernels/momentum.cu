@@ -28,7 +28,7 @@ __global__ void cuCalcBuoy(grid *gd, mesh *msh, sounding *snd, float *thrhopert,
     int NY = gd->NY;
     int NZ = gd->NZ;
     if ((i < NX+1) && (j < NY+1) && (k > 0) && (k < NZ+1)) {
-		    calc_buoyancy(thrhopert, snd->th0, buoy, i, j, k, NX, NY);
+		    calc_buoyancy(thrhopert, snd->th0, snd->qv0, buoy, i, j, k, NX, NY);
     }
 }
 
