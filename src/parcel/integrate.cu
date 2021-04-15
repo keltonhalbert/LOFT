@@ -355,7 +355,7 @@ __global__ void integrate(grid *gd, mesh *msh, sounding *snd, parcel_pos *parcel
 			pcl_z = point[2];
 			if ((point[2] > zf(gd->NZ)) || (point[0] > xf(gd->NX)) || (point[1] > yf(gd->NY)) || \
 			    (point[2] < zf(0))      || (point[0] < xf(0))       || (point[1] < yf(0)) || (point[2] == fill)) {
-				printf("%f %f %f %f %f %f %f %f %f\n", point[0], point[1], point[2], xf(0), yf(0), zf(0), xf(gd->NX), yf(gd->NY), zf(gd->NZ));
+				//printf("%f %f %f %f %f %f %f %f %f\n", point[0], point[1], point[2], xf(0), yf(0), zf(0), xf(gd->NX), yf(gd->NY), zf(gd->NZ));
 				point[0] = fill; 
 				point[1] = fill; 
 				point[2] = fill; 
@@ -402,7 +402,7 @@ __global__ void integrate(grid *gd, mesh *msh, sounding *snd, parcel_pos *parcel
 			// integrate Z position forward by the W wind
 			point[2] = pcl_z + pcl_w * dt * direct;
 
-			if ((point[2] > zf(gd->NZ)) || (point[0] > xf(gd->NX)) || (point[0] > yf(gd->NY)) || \
+			if ((point[2] > zf(gd->NZ)) || (point[0] > xf(gd->NX)) || (point[1] > yf(gd->NY)) || \
 			    (point[2] < zf(0))      || (point[0] < xf(0))      || (point[1] < yf(0))) {
 				point[0] = fill;
 				point[1] = fill;
