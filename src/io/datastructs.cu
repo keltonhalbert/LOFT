@@ -97,6 +97,7 @@ sounding* allocate_sounding_managed( int NZ ) {
     cudaMallocManaged(&(snd->th0),  (NZ)*sizeof(float));
     cudaMallocManaged(&(snd->rho0), (NZ)*sizeof(float));
     cudaMallocManaged(&(snd->pres0),   (NZ)*sizeof(float));
+    cudaMallocManaged(&(snd->thv0),   (NZ)*sizeof(float));
 	return snd;
 }
 
@@ -111,6 +112,8 @@ sounding* allocate_sounding_cpu( int NZ ) {
     snd->th0 = new float[NZ];
     snd->rho0 = new float[NZ];
     snd->pres0 = new float[NZ];
+    snd->thv0 = new float[NZ];
+	cout << "Allocate: snd->thv0 = " << snd->thv0 << endl;
 
     return snd;
 }
@@ -171,6 +174,7 @@ void deallocate_sounding_managed(sounding *snd) {
     cudaFree(snd->qv0);
     cudaFree(snd->rho0);
     cudaFree(snd->pres0);
+    cudaFree(snd->thv0);
 	cudaFree(snd);
 }
 
@@ -182,6 +186,13 @@ void deallocate_sounding_cpu(sounding *snd) {
 	delete[] snd->qv0;
 	delete[] snd->rho0;
 	delete[] snd->pres0;
+	cout << "Deallocate: snd->thv0 = " << snd->thv0 << endl;
+	cout << "snd->thv0[0] = " << snd->thv0[0] << endl;
+	cout << "snd->thv0[1] = " << snd->thv0[1] << endl;
+	cout << "snd->thv0[2] = " << snd->thv0[2] << endl;
+	cout << "deallocating thv0..." << endl;
+	delete[] snd->thv0;
+	cout << "Done." << endl;
 	delete snd;
 }
 

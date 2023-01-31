@@ -168,6 +168,7 @@ void parse_cfg(map<string, string> *usrCfg, iocfg *io, string *histpath, string 
  * When the next chunk of time is read in, check and see where the parcels
  * are currently and request a subset that is relevent to those parcels.   
  */
+/*	parcelsAreInDomain = getMeshBounds(base_dir, dm, hm, gd, parcels, verbose, rank); */
 int getMeshBounds(string base_dir, dir_meta *dm, hdf_meta *hm, grid *gd, parcel_pos *parcels, int verbose, int rank) {
     if (verbose) cout << "Retrieving HDF Metadata" << endl;
 
@@ -226,8 +227,9 @@ int getMeshBounds(string base_dir, dir_meta *dm, hdf_meta *hm, grid *gd, parcel_
 	}
 	if (verbose) cout << "Finished searching parcel bounds" << endl;
 	// clear the memory from the temp grid
-	if (verbose) cout << "Deallocating temporary grid" << endl;
+	if (verbose) cout << "Deallocating mesh cpu" << endl;
 	deallocate_mesh_cpu(temp_msh);
+	if (verbose) cout << "Deallocating sounding cpu" << endl;
 	deallocate_sounding_cpu(temp_snd);
 	// If all of our parcels have left the domain, then the
 	// invalid parcel counter will tell us. This will prevent
@@ -417,10 +419,11 @@ int main(int argc, char **argv ) {
 	grid *gd = new grid(); 
 	cmdline *cmd = new cmdline();
 	ncstruct *nc = new ncstruct();
+	zfpacc *zfpaccuracy = new zfpacc();
 	mesh *req_msh;
 	sounding *snd;
 	readahead *rh = new readahead();
-	init_structs(cmd,dm,gd,nc,rh);
+	init_structs(cmd,dm,gd,nc,rh,hm,zfpaccuracy);
 
 	cmd->verbose = verbose;
 	cmd->debug = debug;
@@ -482,17 +485,22 @@ int main(int argc, char **argv ) {
 		// CPU and GPU so that the GPU knows something
 		// about our data for future integration.
 		if (rank == 0) {
+			if (verbose) cout << "allocate_mesh_managed..." << endl;
 			req_msh = allocate_mesh_managed( hm, gd );
+			if (verbose) cout << "allocate_sounding_managed..." << endl;
 			snd = allocate_sounding_managed( gd->NZ );
 		}
 		// For the other MPI ranks, we only need to
 		// allocate the grids on the CPU for copying
 		// data to the MPI_Gather call
 		else {
+			if (verbose) cout << "allocate_mesh_cpu..." << endl;
 			req_msh = allocate_mesh_cpu( hm, gd ); 
+			if (verbose) cout << "allocate_sounding_cpu..." << endl;
 			snd = allocate_sounding_cpu( gd->NZ );
 		}
 
+		if (verbose) cout << "lofs_get_grid..." << endl;
 		lofs_get_grid(dm, hm, gd, req_msh, snd);
 		if (verbose) cout << "END METADATA & MESH REQUEST" << endl;
 
