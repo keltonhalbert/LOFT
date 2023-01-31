@@ -14,23 +14,18 @@ HDF5_DIR=$(TACC_HDF5_DIR)
 ## this path needs to have $(LOFS_DIR)/include/*.h files
 ## and $(LOFS_DIR)/lib/liblofs.a
 LOFS_DIR=${HOME}/build/git/LOFS-read
-#H5ZZFP_DIR=/home1/06818/khalbert/installs/H5Z-ZFP/install
-#ZFP_DIR=/home1/06818/khalbert/installs/zfp
-H5ZZFP_DIR=/home1/06618/orf/H5Z-ZFP-install/
-ZFP_DIR=/work/06618/orf/frontera/build/git/zfp/
-
-#ZFP_DIR=/work/06618/orf/frontera/build/git/zfp
-#H5ZZFP_DIR=/home1/06618/orf/H5Z-ZFP-install
+H5ZZFP_DIR=/home1/06618/orf/H5Z-ZFP-install
+ZFP_DIR=/home1/06618/orf/build/zfp-latest/zfp
 
 ## These flags are passed to the C++ compiler of the main program
 INCLPATHS =  -I$(HDF5_DIR)/include -I$(ZFP_DIR)/include -I$(H5ZZFP_DIR)/include -I$(NETCDF_DIR)/include -I$(LOFS_DIR)/include
 LIBPATHS = -L$(HDF5_DIR)/lib -L$(ZFP_DIR)/lib -L$(H5ZZFP_DIR)/lib -L$(NETCDF_DIR)/lib -L$(LOFS_DIR)/lib -L$(CUDA)/lib64 
 
-CFLAGS = -O3 -std=c++11 $(INCLPATHS)
+CFLAGS = -g -O2 -std=c++11 $(INCLPATHS)
 LINKOPTS = $(LIBPATHS) -lh5zzfp -lzfp -lhdf5_hl -lhdf5 -lnetcdf -lnetcdf_c++4 -llofs -lcudart -lm -qopenmp
 
 ## These flags are passed to the CUDA compiler
-NVFLAGS = -O3 --default-stream per-thread -gencode=arch=compute_61,code=compute_61 --prec-div=true --ftz=true --fmad=true --std=c++11
+NVFLAGS = -g -O2 --default-stream per-thread -gencode=arch=compute_61,code=compute_61 --prec-div=true --ftz=true --fmad=true --std=c++11
 
 
 SOURCEDIR := src
