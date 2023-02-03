@@ -32,6 +32,7 @@ void lofs_get_dataset_structure(std::string base_dir, dir_meta *dm, hdf_meta *hm
 	int i,ni,nj,nk,status;
 	char **argv;
 	hid_t hdf_file_id;
+	zfpacc zfpacc;
 
 	/* begin */
 
@@ -84,10 +85,10 @@ void lofs_get_dataset_structure(std::string base_dir, dir_meta *dm, hdf_meta *hm
 		//ERROR_STOP("Can't open firstfilename! Weird...");
 	} // Keep open as we need metadata, 1d sounding data, etc.
 
-	get_hdf_metadata(*dm,hm,cmd,argv,&hdf_file_id);
+	get_hdf_metadata(*dm,hm,cmd,nc,argv,&hdf_file_id,&zfpacc);
 
 	if (cmd->debug) {
-		printf("nx = %i ny = %i nz = %i nodex = %i nodey = %i\n",hm->nx,hm->ny,hm->nz,hm->nodex,hm->nodey);
+		printf("nx = %i ny = %i nz = %i rankx = %i ranky = %i\n",hm->nx,hm->ny,hm->nz,hm->rankx,hm->ranky);
 	}
 
 	/* Check for idiocy and tweak the span (X0-X1/Y0-Y1/Z0-Z1) as necessary */
