@@ -49,7 +49,7 @@ __device__ __host__ void _nearest_grid_idx(grid *gd, mesh *msh, float *point, in
 	}
 
 	// loop over the Z grid
-	for ( int k = 0; k <= gd->NZ; k++ ) {
+	for ( int k = 0; k < gd->NZ; k++ ) {
 		// find the nearest grid point index in the Y
 		if ( ( pt_z >= zf(k) ) && ( pt_z <= zf(k+1) ) ) { near_k = k; } 
 	}
