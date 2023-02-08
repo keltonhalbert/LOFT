@@ -439,7 +439,6 @@ __global__ void integrate(grid *gd, mesh *msh, sounding *snd, parcel_pos *parcel
 			// integrate Z position forward by the W wind
 			point[2] = pcl_z + (pcl_w + ww1) * dt2 * direct;
 
-            printf("%f %f %f\n", point[0], point[1], point[2]);
 			parcels->xpos[PCL(tidx+1, parcel_id, totTime)] = point[0]; 
 			parcels->ypos[PCL(tidx+1, parcel_id, totTime)] = point[1];
 			parcels->zpos[PCL(tidx+1, parcel_id, totTime)] = point[2];
