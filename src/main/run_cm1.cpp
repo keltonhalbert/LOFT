@@ -110,7 +110,7 @@ map<string, string> readCfg(string filename) {
 }
 
 /* Parse the user configuration and fill the variables with the necessary values */
-void parse_cfg(map<string, string> *usrCfg, iocfg *io, string *histpath, string *base, int *verbose, int *debug, double *time, int *nTimes, \
+void parse_cfg(map<string, string> *usrCfg, iocfg *io, string *histpath, string *base, int *verbose, int *debug, double *time, int *nTimes, int *n_substeps, \
             int *direction, float *X0, float *Y0, float *Z0, int *NX, int *NY, int *NZ, float *DX, float *DY, float *DZ) {
     *histpath = ((*usrCfg)["histpath"]);
     *base = ((*usrCfg)["basename"]);
@@ -127,6 +127,7 @@ void parse_cfg(map<string, string> *usrCfg, iocfg *io, string *histpath, string 
     *DZ = stof((*usrCfg)["dz"]);
     *time = stod((*usrCfg)["start_time"]);
     *nTimes = stoi((*usrCfg)["ntimesteps"]);
+	*n_substeps = stoi((*usrCfg)["nsubsteps"]);
     *direction = stoi((*usrCfg)["time_direction"]);
 
     // Determine from the namelist file which variables
@@ -398,7 +399,7 @@ int main(int argc, char **argv ) {
 	bool parcelsAreInDomain;
     // what is our integration start point in the simulation?
     double time;
-    int nTimeSteps;
+    int nTimeSteps, n_substeps;
     // parcel integration direction; default is forward
     int direct = 1;
     // variables for specifying our
@@ -409,8 +410,8 @@ int main(int argc, char **argv ) {
     
     // parse the namelist options into the appropriate variables
     map<string, string> usrCfg = readCfg("parcel.namelist");
-    parse_cfg(&usrCfg, io, &histpath, &base, &verbose, &debug, &time, &nTimeSteps, &direct, \
-              &pX0, &pY0, &pZ0, &pNX, &pNY, &pNZ, &pDX, &pDY, &pDZ );
+    parse_cfg(&usrCfg, io, &histpath, &base, &verbose, &debug, &time, &nTimeSteps, &n_substeps, \
+		   	  &direct, &pX0, &pY0, &pZ0, &pNX, &pNY, &pNZ, &pDX, &pDY, &pDZ );
 
     string base_dir = histpath;
     string outfilename = string(base) + ".nc";
@@ -663,7 +664,7 @@ int main(int argc, char **argv ) {
 			int nParcels = parcels->nParcels;
 			if (verbose) cout << "Beginning parcel integration! Heading over to the GPU to do GPU things..." << endl;
 
-			cudaIntegrateParcels(gd, req_msh, snd, data, parcels, NC_FILL_FLOAT, size, nTotTimes, direct); 
+			cudaIntegrateParcels(gd, req_msh, snd, data, parcels, NC_FILL_FLOAT, size, nTotTimes, n_substeps, direct); 
 			if (verbose) cout << "Finished integrating parcels!" << endl;
 			// write out our information to disk
 			if (verbose) cout << "Beginning to write to disk..." << endl;

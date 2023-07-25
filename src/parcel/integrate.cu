@@ -323,7 +323,7 @@ void doCalcVortTend(grid *gd, mesh *msh, sounding *snd, model_data *data, int tS
 }
 
 __global__ void integrate(grid *gd, mesh *msh, sounding *snd, parcel_pos *parcels, model_data *data, \
-						  float fill, int tStart, int tEnd, int totTime, int direct) {
+						  float fill, int tStart, int tEnd, int totTime, int n_substeps, int direct) {
 
 	//int parcel_id = blockIdx.x;
 	int parcel_id = blockIdx.x * blockDim.x + threadIdx.x;
@@ -391,16 +391,47 @@ __global__ void integrate(grid *gd, mesh *msh, sounding *snd, parcel_pos *parcel
 			parcels->pclv[PCL(tidx,   parcel_id, totTime)] = pcl_v;
 			parcels->pclw[PCL(tidx,   parcel_id, totTime)] = pcl_w;
 
+			// PARCEL SUB-STEPPING LOOP
+			// In order to work around restrictive CFL criteria,
+			// you can specify the number of iterations for a sub-loop
+			// that will perform a forward Euler integration to the final
+			// desired time step, interpolating the velicity linearly between
+			// the large time steps available. 
+
+			// we can only substep up until the second-to-last time step available
+			if ((n_substeps > 0) && (tidx < tEnd-1)) {
+				float pcl_u_smallstep_t0 = pcl_u; 
+				float pcl_v_smallstep_t0 = pcl_v; 
+				float pcl_w_smallstep_t0 = pcl_w; 
+
+				float pcl_u_smallstep_t1 = interp3D(gd, msh, data->ustag, point, true, false, false, tidx+1);
+				float pcl_v_smallstep_t1 = interp3D(gd, msh, data->vstag, point, false, true, false, tidx+1);
+				float pcl_w_smallstep_t1 = interp3D(gd, msh, data->wstag, point, false, false, true, tidx+1);
+				for (int iter = 0; iter < n_substeps; ++iter) {
+					float dt_small = dt / (float)n_substeps;
+					float tstep_weight = (float)iter / ((float) n_substeps-1); // 0 on frist iteration and 1 on last
+					float pcl_u_smallstep = tstep_weight * pcl_u_smallstep_t0 + (1.0f - tstep_weight) * pcl_u_smallstep_t1;
+					float pcl_v_smallstep = tstep_weight * pcl_v_smallstep_t0 + (1.0f - tstep_weight) * pcl_v_smallstep_t1;
+					float pcl_w_smallstep = tstep_weight * pcl_w_smallstep_t0 + (1.0f - tstep_weight) * pcl_w_smallstep_t1;
+
+					point[0] = point[0] + pcl_u_smallstep * dt_small * direct;
+					point[1] = point[1] + pcl_v_smallstep * dt_small * direct;
+					point[2] = point[2] + pcl_w_smallstep * dt_small * direct;
+				} // end loop n_iters
+			} // end if n_iters
+
 			// First RK step here. Since this is RK2,
 			// I see no real reason to have loop contropl flow
 			// here. I think its causing more headaches than its worth.
 
-			// integrate X position forward by the U wind
-			point[0] = pcl_x + pcl_u * dt * direct;
-			// integrate Y position forward by the V wind
-			point[1] = pcl_y + pcl_v * dt * direct;
-			// integrate Z position forward by the W wind
-			point[2] = pcl_z + pcl_w * dt * direct;
+			else {
+				// integrate X position forward by the U wind
+				point[0] = pcl_x + pcl_u * dt * direct;
+				// integrate Y position forward by the V wind
+				point[1] = pcl_y + pcl_v * dt * direct;
+				// integrate Z position forward by the W wind
+				point[2] = pcl_z + pcl_w * dt * direct;
+			} 
 
 			if ((point[2] > zf(gd->NZ)) || (point[0] > xf(gd->NX)) || (point[1] > yf(gd->NY)) || \
 			    (point[2] < zf(0))      || (point[0] < xf(0))      || (point[1] < yf(0))) {
@@ -780,7 +811,7 @@ __global__ void parcel_interp(grid *gd, mesh *msh, sounding *snd, parcel_pos *pa
 /* This function handles allocating memory on the GPU, transferring the CPU
 arrays to GPU global memory, calling the integrate GPU kernel, and then
 updating the position vectors with the new stuff */
-void cudaIntegrateParcels(grid *gd_cpu, mesh *msh, sounding *snd,  model_data *data, parcel_pos *parcels, float fill, int nT, int totTime, int direct) {
+void cudaIntegrateParcels(grid *gd_cpu, mesh *msh, sounding *snd,  model_data *data, parcel_pos *parcels, float fill, int nT, int totTime, int n_substeps, int direct) {
 	int tStart, tEnd;
 	tStart = 0;
 	tEnd = nT;
@@ -867,7 +898,7 @@ void cudaIntegrateParcels(grid *gd_cpu, mesh *msh, sounding *snd,  model_data *d
 	int nThreads = 256;
 	int nPclBlocks = int(parcels->nParcels / nThreads) + 1;
 	start = std::chrono::high_resolution_clock::now();
-	integrate<<<nPclBlocks, nThreads, 0, intStream>>>(gd, msh, snd, parcels, data, fill, tStart, tEnd, totTime, direct);
+	integrate<<<nPclBlocks, nThreads, 0, intStream>>>(gd, msh, snd, parcels, data, fill, tStart, tEnd, totTime, n_substeps, direct);
 	gpuErrchk(cudaDeviceSynchronize());
 	gpuErrchk( cudaPeekAtLastError() );
 
