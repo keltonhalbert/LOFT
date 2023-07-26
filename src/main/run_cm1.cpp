@@ -180,7 +180,7 @@ int getMeshBounds(string base_dir, dir_meta *dm, hdf_meta *hm, grid *gd, parcel_
 
 	if (verbose) cout << "Allocating temporary mesh" << endl;
 	temp_msh = allocate_mesh_cpu(hm, gd);
-	temp_snd = allocate_sounding_cpu(gd->NZ);
+	temp_snd = allocate_sounding_cpu(gd->NZ+1);
 
 	// request the full grid so that we can find the indices
 	// of where our parcels are, and then request a smaller
@@ -489,7 +489,7 @@ int main(int argc, char **argv ) {
 			if (verbose) cout << "allocate_mesh_managed..." << endl;
 			req_msh = allocate_mesh_managed( hm, gd );
 			if (verbose) cout << "allocate_sounding_managed..." << endl;
-			snd = allocate_sounding_managed( gd->NZ );
+			snd = allocate_sounding_managed( gd->NZ+1 );
 		}
 		// For the other MPI ranks, we only need to
 		// allocate the grids on the CPU for copying
@@ -498,7 +498,7 @@ int main(int argc, char **argv ) {
 			if (verbose) cout << "allocate_mesh_cpu..." << endl;
 			req_msh = allocate_mesh_cpu( hm, gd ); 
 			if (verbose) cout << "allocate_sounding_cpu..." << endl;
-			snd = allocate_sounding_cpu( gd->NZ );
+			snd = allocate_sounding_cpu( gd->NZ+1 );
 		}
 
 		if (verbose) cout << "lofs_get_grid..." << endl;

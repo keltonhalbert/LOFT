@@ -8,7 +8,7 @@
 ## Path to the HDF5 data
 histpath = ./3D
 ## The name of the output NetCDF file
-basename = ElReno10m-parcel
+basename = ER30-parcel-a
 verbose = 0
 debug = 0
 
@@ -20,19 +20,19 @@ debug = 0
 ###         PARCEL SEED CONFIG          ###
 ###########################################
 ## The parcel seed starting position
-x0 = -7000
-y0 = 5000
-z0 = 10
+x0 = -3000.0
+y0 = 1700.0
+z0 = 15.0
 
 ## The number of parcels desired along each axis
-nx = 20
-ny = 20
-nz = 10
+nx = 40
+ny = 40
+nz = 20
 
 ## The spacing of the parcels desired along each axis
-dx = 40
-dy = 40
-dz = 20
+dx = 30
+dy = 30
+dz = 10
 
 
 
@@ -46,7 +46,7 @@ dz = 20
 start_time = 4200.166738
 ntimesteps = 3200
 ## number of substeps to take between large time steps
-nsubsteps = 0
+nsubsteps = 6
 ## 1 means forward, -1 means backward
 time_direction = 1
 
