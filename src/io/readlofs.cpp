@@ -106,6 +106,7 @@ void lofs_get_dataset_structure(std::string base_dir, dir_meta *dm, hdf_meta *hm
 void lofs_get_grid( dir_meta *dm, hdf_meta *hm, grid *gd, mesh *msh, sounding *snd ) {
 	
 	hid_t hdf_file_id;
+	cmdline cmd; //ORF API change, this routine just uses the mesh, so realize cmd is mostly empty here
 	if ((hdf_file_id = H5Fopen (dm->firstfilename, H5F_ACC_RDONLY,H5P_DEFAULT)) < 0)
 	{
 		fprintf(stderr,"Unable to open %s, bailing!\n", dm->firstfilename);
@@ -114,7 +115,8 @@ void lofs_get_grid( dir_meta *dm, hdf_meta *hm, grid *gd, mesh *msh, sounding *s
 
 	// get the 1D arrays for the grid and base
 	// state sounding from the HDF5 info
-	set_1d_arrays(*hm,*gd,msh,snd,&hdf_file_id);
+	cmd.tusc30=1; //CATHY: LOFT uses the storm relative winds but you'll need to set this for the old Tusc30 run or LOFS will barf. Set to 0 for all other runs.
+	set_1d_arrays(*hm,*gd,msh,snd,cmd,&hdf_file_id);
 	H5Fclose(hdf_file_id);
 
 }

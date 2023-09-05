@@ -43,8 +43,8 @@ dz = 10
 ###########################################
 ## Parcel start time, number of time steps 
 ## to integrate, and integration direction.
-start_time = 4200.166738
-ntimesteps = 3200
+start_time = 2401
+ntimesteps = 500
 ## number of substeps to take between large time steps
 nsubsteps = 6
 ## 1 means forward, -1 means backward
