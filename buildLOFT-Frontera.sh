@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 
-module load cuda
-module load hdf5
-module load netcdf
+#NOTE! YOU MUST BE ON AN RTX FRONTERA NODE
 
-#ln -s ./Makefiles/Makefile.frontera ./Makefile
+module load cuda/12.2
+module load hdf5/1.14.0
+module load netcdf/4.9.0
+
+make clean
 make
