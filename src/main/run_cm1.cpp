@@ -428,6 +428,7 @@ int main(int argc, char **argv ) {
 
 	cmd->verbose = verbose;
 	cmd->debug = debug;
+        cmd->tusc30 = 1; //CATHY Tusc30 only
 
 
     int nTimeChunks = (int) (nTimeSteps / size); 
